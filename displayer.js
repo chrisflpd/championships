@@ -1,3 +1,4 @@
+console.log("DEBUG: displayer.js loaded (updated version)");
 function displayer(program) {
 
 	// collect columns
