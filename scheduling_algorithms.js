@@ -156,13 +156,9 @@ function ScheduleMatchesDefault(matches,days){
 								}
 
 								for (let rd = d; rd < days.length; rd++){//for every day
-									let start_dz=0;
-									let start_r=0;
-									if (rd===d){
-										start_dz=dz;
-										start_r=r;
-									}
-									for (let rdz = start_dz; rdz< days[rd].dzones.length; rdz++){//for every zone of the day
+									let start_dz = (rd === d) ? dz : 0;
+									for (let rdz = start_dz; rdz < days[rd].dzones.length; rdz++){//for every zone of the day
+										let start_r = (rd === d && rdz === dz) ? r : 0;
 										for (let rr = start_r; rr < days[rd].dzones[rdz].rounds.length; rr++){//for every round of that zone of that day
 											for (let sdate of Object.keys(days[rd].dzones[rdz].rounds[rr].slots)){
 												if (days[rd].dzones[rdz].rounds[rr].slots[sdate].match !== null){
@@ -384,13 +380,9 @@ function ScheduleMatchesDefault(matches,days){
 										let too_early = false;
 										let too_late = false;
 										for (let ddate = d; ddate < days.length; ddate++){//for every day from d
-											let start_dz=0;
-											let start_r=0;
-											if (ddate===d){
-												start_dz=dz;
-												start_r=r;
-											}
-											for (let ddz = start_dz; ddz< days[ddate].dzones.length; ddz++){//for every zone of the day
+											let start_dz = (ddate === d) ? dz : 0;
+											for (let ddz = start_dz; ddz < days[ddate].dzones.length; ddz++){//for every zone of the day
+												let start_r = (ddate === d && ddz === dz) ? r : 0;
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null){
@@ -413,15 +405,9 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 										for (let ddate = d; ddate >= 0; ddate--){//for every previous day from d
-											let max_dz=days[ddate].dzones.length;
-											if (ddate===d){
-												max_dz=dz;
-											}
-											for (let ddz = 0; ddz< max_dz; ddz++){//for every zone of the day
-												let max_r=days[ddate].dzones[ddz].rounds.length;
-												if (ddate===d){
-													max_r=r;
-												}
+											let max_dz = (ddate === d) ? dz + 1 : days[ddate].dzones.length;
+											for (let ddz = 0; ddz < max_dz; ddz++){//for every zone of the day
+												let max_r = (ddate === d && ddz === dz) ? r : days[ddate].dzones[ddz].rounds.length;
 												for (let drr = 0; drr < max_r; drr++){//for every round of that zone of that day
 													//console.log(r,max_r,max_dz,dz,ddate,d);
 													if (days[ddate].dzones[ddz].rounds[drr]){
@@ -547,13 +533,9 @@ function ScheduleMatchesDefault(matches,days){
 									if (knockout_finished){
 										let too_early = false;
 										for (let ddate = d; ddate < days.length; ddate++){//for every day from d
-											let start_dz=0;
-											let start_r=0;
-											if (ddate===d){
-												start_dz=dz;
-												start_r=r;
-											}
-											for (let ddz = start_dz; ddz< days[ddate].dzones.length; ddz++){//for every zone of the day
+											let start_dz = (ddate === d) ? dz : 0;
+											for (let ddz = start_dz; ddz < days[ddate].dzones.length; ddz++){//for every zone of the day
+												let start_r = (ddate === d && ddz === dz) ? r : 0;
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) === 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) === 'undefined'){

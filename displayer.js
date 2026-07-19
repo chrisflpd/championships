@@ -60,9 +60,16 @@ function displayer(program) {
 					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
 					const match = slot?.match;
 					if (match?.sport?.name === col.sport.name) { // TODO compare objects
+						function getTeamStr(th) {
+							if ('id' in th) return th.id;
+							if (th.type === 'fixed') return th.team.id;
+							if (th.type === 'group') return th.group.id + ':' + th.rank;
+							if (th.type === 'knockout') return th.knockout.id + ':' + (th.is_winner ? 'W' : 'L');
+							return '?';
+						}
 						col_li.innerHTML = [
-							'id' in match.team_home ? match.team_home.id : '?',
-							'id' in match.team_away ? match.team_away.id : '?',
+							getTeamStr(match.team_home),
+							getTeamStr(match.team_away)
 						].join('-');
 					} else {
 						col_li.innerHTML = '-';
