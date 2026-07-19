@@ -366,7 +366,7 @@ function ScheduleMatchesDefault(matches,days){
 							else if (days[d].dzones[dz].rounds[r].slots[s].match === null && matches[m].sport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court) && typeof (matches[m].team_home.name) === 'undefined' && typeof (matches[m].team_away.name) === 'undefined'){
 								//console.log(matches[m].id,matches[m].team_home.name,matches[m].team_away.name,matches[m].points,matches[m].sequence,'KN GAME')
 								let scheduled_k = false;
-								if (matches[m].team_home.type === 'group' || matches[m].team_away.type === 'group' || (matches[m].team_home.type === 'knockout' && matches[m].team_away.type === 'knockout' && matches[m].sport.name==="Μπέιζμπολ")){
+								if (matches[m].team_home.type === 'group' || matches[m].team_away.type === 'group'){
 									let group_finished = true;
 									
 									for (let mg=0; mg<matches.length; mg++){
@@ -413,7 +413,7 @@ function ScheduleMatchesDefault(matches,days){
 													if (days[ddate].dzones[ddz].rounds[drr]){
 														for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 															if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null){
-																if ((days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.type === 'knockout' || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.type === 'knockout') && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name!=="Μπέιζμπολ"){
+																if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.type === 'knockout' || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.type === 'knockout'){
 																	too_late = true;//this is a group type kn game indicating that is less special than a knockout type kn game, thus it must be placed earlier
 																	//console.log(days[ddate].dzones[ddz]);
 																	break;
@@ -505,7 +505,7 @@ function ScheduleMatchesDefault(matches,days){
 										}
 									}
 								}
-								else if (matches[m].team_home.type === 'knockout' && matches[m].team_away.type === 'knockout' && matches[m].sport.name!=="Μπέιζμπολ"){
+								else if (matches[m].team_home.type === 'knockout' && matches[m].team_away.type === 'knockout'){
 									
 									let knockout_finished = true;
 									
