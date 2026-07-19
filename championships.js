@@ -161,7 +161,19 @@ function produce() {
 	matches=shuffle(matches);//randomize matches to make a different start to the schedule
 	console.log('matches: ' + matches.length);
 	console.log(config.days);
-	let program = ScheduleMatchesDefault(matches, config.days);
+
+	window.startTime = Date.now();
+	let program = null;
+	try {
+		program = ScheduleMatchesDefault(matches, config.days);
+	} catch (error) {
+		if (error.message === "TIMEOUT") {
+			alert("Time limit exceeded (3 seconds). No solution was found.");
+			return;
+		}
+		throw error;
+	}
+
 	console.log('finished',program);
 
 	try {

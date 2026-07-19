@@ -32,6 +32,9 @@ function deepCopyObj(obj) {//for deep copy without recursion (because js had eno
 
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
+	if (window.startTime && Date.now() - window.startTime > 3000) {
+		throw new Error("TIMEOUT");
+	}
 	let arr=[];
 	round_counting=0;
 	let incomplete=0;
