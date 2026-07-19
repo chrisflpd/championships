@@ -35,6 +35,9 @@ function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
 		throw new Error("TIMEOUT");
 	}
+	if (window.attemptStartTime && Date.now() - window.attemptStartTime > 250) {
+		throw new Error("ATTEMPT_TIMEOUT");
+	}
 	let arr=[];
 	round_counting=0;
 	let incomplete=0;
@@ -416,7 +419,7 @@ function ScheduleMatchesDefault(matches,days){
 													if (days[ddate].dzones[ddz].rounds[drr]){
 														for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 															if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null){
-																if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.type === 'knockout' || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.type === 'knockout'){
+																if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name === matches[m].sport.name && (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.type === 'knockout' || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.type === 'knockout')){
 																	too_late = true;//this is a group type kn game indicating that is less special than a knockout type kn game, thus it must be placed earlier
 																	//console.log(days[ddate].dzones[ddz]);
 																	break;
@@ -527,7 +530,7 @@ function ScheduleMatchesDefault(matches,days){
 												}
 											}
 										}
-										else if (typeof (matches[mg].team_home.name) !== 'undefined' && typeof (matches[mg].team_away.name) !== 'undefined' ){//if one of the groups is not finished yet
+										else if (typeof (matches[mg].team_home.name) !== 'undefined' && typeof (matches[mg].team_away.name) !== 'undefined' && matches[mg].sport.name === matches[m].sport.name){//if one of the groups (same sport) is not finished yet
 											knockout_finished = false;
 											break;
 										}
@@ -541,7 +544,7 @@ function ScheduleMatchesDefault(matches,days){
 												let start_r = (ddate === d && ddz === dz) ? r : 0;
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
-														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) === 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) === 'undefined'){
+														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name === matches[m].sport.name && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) === 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) === 'undefined'){
 															if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.id === matches[m].team_home.knockout.id || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.id === matches[m].team_away.knockout.id){
 																too_early = true;
 																break;
@@ -557,7 +560,7 @@ function ScheduleMatchesDefault(matches,days){
 																break;
 															}
 														}
-														else if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null){
+														else if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name === matches[m].sport.name){
 															if (typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) !== 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) !== 'undefined'){
 																too_early = true;//we want knockouts later than already placed group games
 																break;

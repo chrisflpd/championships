@@ -90,6 +90,7 @@ function pair_teams(remaining_games,group,matches){
 
 // TODO what happens when produced is called multiple times?
 function produce() {
+	matches = [];
 
 	// produce court metric (to know which court has more games in a given time)
 	config.courts.forEach(court => {
@@ -158,20 +159,36 @@ function produce() {
 			matches[m].points=100
 		}
 	}
-	matches=shuffle(matches);//randomize matches to make a different start to the schedule
 	console.log('matches: ' + matches.length);
 	console.log(config.days);
 
 	window.startTime = Date.now();
 	let program = null;
-	try {
-		program = ScheduleMatchesDefault(matches, config.days);
-	} catch (error) {
-		if (error.message === "TIMEOUT") {
-			alert("Time limit exceeded (3 seconds). No solution was found.");
-			return;
+	let attempts = 0;
+	while (Date.now() - window.startTime < 3000) {
+		attempts++;
+		window.attemptStartTime = Date.now();
+		let currentMatches = shuffle([...matches]);
+		try {
+			program = ScheduleMatchesDefault(currentMatches, config.days);
+			if (program) {
+				console.log(`Successfully scheduled in attempt ${attempts}`);
+				break;
+			}
+		} catch (error) {
+			if (error.message === "TIMEOUT") {
+				break;
+			}
+			if (error.message === "ATTEMPT_TIMEOUT") {
+				continue;
+			}
+			throw error;
 		}
-		throw error;
+	}
+
+	if (!program) {
+		alert("Time limit exceeded (3 seconds). No solution was found.");
+		return;
 	}
 
 	console.log('finished',program);
