@@ -171,7 +171,7 @@ function exportToExcel() {
   table { border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; }
   td, th { text-align: center; vertical-align: middle; padding: 4px 6px; }
   .day-header { border: 1px solid #000000; font-weight: bold; text-align: center; font-size: 11pt; background-color: #FFFFFF; }
-  .cell-border { border: 1px solid #000000; font-size: 11pt; background-color: #FFFFFF; }
+  .cell-border { border: 1px solid #000000; font-size: 11pt; background-color: #FFFFFF; mso-number-format:"\\@"; }
   .zone-cell { border: 1px solid #000000; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; background-color: #FFFFFF; }
   .gap-col { width: 15px; border: none !important; background-color: #FFFFFF; }
   .gap-row { height: 15px; }
@@ -211,12 +211,12 @@ function exportToExcel() {
 				if (rowObj) {
 					xml += `<td class="zone-cell">${rowObj.zoneName}</td>`;
 					rowObj.cells.forEach(val => {
-						xml += `<td class="cell-border">${val}</td>`;
+						xml += `<td class="cell-border" style="mso-number-format:'\\@';">${val}</td>`;
 					});
 				} else {
 					xml += `<td class="zone-cell"></td>`;
 					for (let c = 0; c < 5; c++) {
-						xml += `<td class="cell-border"></td>`;
+						xml += `<td class="cell-border" style="mso-number-format:'\\@';"></td>`;
 					}
 				}
 				if (bIndex < batch.length - 1) {
