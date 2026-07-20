@@ -30,6 +30,41 @@ function deepCopyObj(obj) {//for deep copy without recursion (because js had eno
 }
 
 
+function isFinalMatch(m) {
+	if (!config.knockouts || !config.knockouts[m.id]) return false;
+	for (let k of Object.values(config.knockouts)) {
+		if (k.sport.name === m.sport.name) {
+			if (k.home && k.home.type === 'knockout' && k.home.knockout.id === m.id) return false;
+			if (k.away && k.away.type === 'knockout' && k.away.knockout.id === m.id) return false;
+		}
+	}
+	return true;
+}
+
+function findMatchSlotInDays(days, predicate) {
+	for (let d = 0; d < days.length; d++) {
+		for (let dz = 0; dz < days[d].dzones.length; dz++) {
+			for (let r = 0; r < days[d].dzones[dz].rounds.length; r++) {
+				for (let s of Object.keys(days[d].dzones[dz].rounds[r].slots)) {
+					let match = days[d].dzones[dz].rounds[r].slots[s].match;
+					if (match && predicate(match)) {
+						return { d, dz, r };
+					}
+				}
+			}
+		}
+	}
+	return null;
+}
+
+function isSlotAfter(d1, dz1, r1, d2, dz2, r2) {
+	if (d1 > d2) return true;
+	if (d1 < d2) return false;
+	if (dz1 > dz2) return true;
+	if (dz1 < dz2) return false;
+	return r1 > r2;
+}
+
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
@@ -439,7 +474,26 @@ function ScheduleMatchesDefault(matches,days){
 												break;
 											}
 										}
-										//console.log('te', too_early,'tl', too_late,'FOR GROUP KN');
+										if (isFinalMatch(matches[m])) {
+											if (matches[m].sport.name === "Ποδόσφαιρο") {
+												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === "Μπέιζμπολ");
+												if (hasBaseballFinal) {
+													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Μπέιζμπολ" && isFinalMatch(match));
+													if (!baseballFinalSlot) {
+														too_early = true;
+													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
+														too_early = true;
+													}
+												}
+											} else if (matches[m].sport.name === "Μπέιζμπολ") {
+												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Ποδόσφαιρο" && isFinalMatch(match));
+												if (footballFinalSlot) {
+													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
+														too_late = true;
+													}
+												}
+											}
+										}
 										if (!too_early && !too_late){
 											let team1_k='not defined';
 											let team2_k='not defined';
@@ -579,7 +633,26 @@ function ScheduleMatchesDefault(matches,days){
 												break;
 											}
 										}
-										//console.log('te',too_early,'FOR KNOCKOUT');
+										if (isFinalMatch(matches[m])) {
+											if (matches[m].sport.name === "Ποδόσφαιρο") {
+												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === "Μπέιζμπολ");
+												if (hasBaseballFinal) {
+													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Μπέιζμπολ" && isFinalMatch(match));
+													if (!baseballFinalSlot) {
+														too_early = true;
+													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
+														too_early = true;
+													}
+												}
+											} else if (matches[m].sport.name === "Μπέιζμπολ") {
+												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Ποδόσφαιρο" && isFinalMatch(match));
+												if (footballFinalSlot) {
+													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
+														too_early = true;
+													}
+												}
+											}
+										}
 										if (!too_early){
 											let team1_k='not defined';
 											let team2_k='not defined';
