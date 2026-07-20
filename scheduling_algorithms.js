@@ -97,49 +97,69 @@ function involvesFirstTeam(m) {
 	return false;
 }
 
+function getTeamsPlayedInZone(dzone) {
+	let played = new Set();
+	for (let r = 0; r < dzone.rounds.length; r++) {
+		for (let s of Object.keys(dzone.rounds[r].slots)) {
+			let m = dzone.rounds[r].slots[s].match;
+			if (m) {
+				if (m.team_home && m.team_home.name !== undefined) played.add(m.team_home.name);
+				if (m.team_away && m.team_away.name !== undefined) played.add(m.team_away.name);
+				if (m.team_home && m.team_home.type === 'fixed') played.add(m.team_home.team.name);
+				if (m.team_away && m.team_away.type === 'fixed') played.add(m.team_away.team.name);
+			}
+		}
+	}
+	return played;
+}
+
+function isZoneFullyScheduled(dzone) {
+	for (let r = 0; r < dzone.rounds.length; r++) {
+		for (let s of Object.keys(dzone.rounds[r].slots)) {
+			if (dzone.rounds[r].slots[s].match === null) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+function checkZoneTeamCoverage(dzone) {
+	if (dzone.rounds.length < 2) return true;
+	let groupMatchesCount = 0;
+	for (let r = 0; r < dzone.rounds.length; r++) {
+		for (let s of Object.keys(dzone.rounds[r].slots)) {
+			let m = dzone.rounds[r].slots[s].match;
+			if (m && typeof m.team_home.name !== 'undefined' && typeof m.team_away.name !== 'undefined') {
+				groupMatchesCount++;
+			}
+		}
+	}
+	if (groupMatchesCount >= 5) {
+		let played = getTeamsPlayedInZone(dzone);
+		return played.size >= config.teams.length;
+	}
+	return true;
+}
+
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
 		throw new Error("TIMEOUT");
 	}
-	if (window.attemptStartTime && Date.now() - window.attemptStartTime > 250) {
-		throw new Error("ATTEMPT_TIMEOUT");
-	}
-	let arr=[];
-	round_counting=0;
-	let incomplete=0;
-	if (matches.length === 0){
-		for (let d = 0; d < days.length; d++){//for every day
-			for (let dz = 0; dz< days[d].dzones.length; dz++){//for every zone of the day
-				arr=[...config.teams];
-				for (let r = 0; r < days[d].dzones[dz].rounds.length; r++){//for every round of that zone of that day
-					round_counting+=1;
-					for(let sl=0; sl < Object.keys(days[d].dzones[dz].rounds[r].slots).length; sl++){
-						if (Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match!==null){
-							if (typeof (Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_home.name)!== 'undefined' && typeof (Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_away.name)!== 'undefined'){
-								if (!arr.includes(Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_home.name)){
-									arr=arr.filter(team => team !== (Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_home.name));
-								}//for all the teams playing in a round
-								if (!arr.includes(Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_away.name)){
-									arr=arr.filter(team => team !== (Object.values(days[d].dzones[dz].rounds[r].slots)[sl].match.team_away.name));
-								}
-							}	
-						}	
-					}
-				}
-				if (arr.length!=0){
-					incomplete+=1;
+	for (let pd = 0; pd < days.length; pd++) {
+		for (let pdz = 0; pdz < days[pd].dzones.length; pdz++) {
+			if (isZoneFullyScheduled(days[pd].dzones[pdz])) {
+				if (!checkZoneTeamCoverage(days[pd].dzones[pdz])) {
+					return false;
 				}
 			}
 		}
-		if (incomplete<=round_counting-9){
-			return days;
-		}
-		else{
-			console.log('incomplete',incomplete);
-			return false;
-		}
-		
+	}
+	let arr=[];
+	round_counting=0;
+	if (matches.length === 0){
+		return days;
 	}
 	else{
 		
@@ -261,8 +281,7 @@ function ScheduleMatchesDefault(matches,days){
 									for (let pd = 0; pd <= d; pd++) {
 										let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
 										for (let pdz = 0; pdz <= maxPdz; pdz++) {
-											if (pd === 0 && pdz === 0) continue;
-											if (!hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
+											if (!(pd === 0 && pdz === 0) && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
 												too_early = true;
 												break;
 											}
@@ -439,7 +458,7 @@ function ScheduleMatchesDefault(matches,days){
 														}
 													}
 												}
-											}
+}
 										}
 									}
 								}
@@ -449,13 +468,12 @@ function ScheduleMatchesDefault(matches,days){
 								if (matches[m].points >= threshold && !scheduled && !too_late && !too_early){
 									for (let ma=0; ma<matches.length; ma++){//above points optimized for input23g
 										if (typeof matches[ma].team_home.name !== 'undefined' && matches[ma].team_away.name !== 'undefined'){
-											if ((matches[ma].team_home.name !== team1 && matches[ma].team_home.name !== team2) || (matches[ma].team_away.name !== team1 && matches[ma].team_away.name !== team2)){
-												matches[ma].points+=0.1;//this team must be placed higher because they did not play this round
-												//console.log(matches[ma],'points+0.5 because they did not played');
-											}
-											if (matches[ma].team_home.name === team1 || matches[ma].team_home.name === team2 || matches[ma].team_away.name === team1 || matches[ma].team_away.name === team2){
-												matches[ma].points-=3.5;//this team must be placed lower because they played this round
-												//console.log(matches[ma],'points-1 because they played');
+											let homePlayed = (matches[ma].team_home.name === team1 || matches[ma].team_home.name === team2);
+											let awayPlayed = (matches[ma].team_away.name === team1 || matches[ma].team_away.name === team2);
+											if (!homePlayed && !awayPlayed){
+												matches[ma].points += 15.0; // both teams idle in this round -> high priority for next slots
+											} else if (homePlayed || awayPlayed){
+												matches[ma].points -= 10.0; // played in this round -> low priority for next slots
 											}
 										}
 									}
