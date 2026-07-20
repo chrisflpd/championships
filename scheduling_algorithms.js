@@ -81,6 +81,22 @@ function hasBaseballGroupMatchInZone(dzone) {
 	return false;
 }
 
+function involvesFirstTeam(m) {
+	if (!config.teams || config.teams.length === 0) return false;
+	let firstTeam = config.teams[0];
+	if (m.team_home && m.team_home.name !== undefined) {
+		if (m.team_home.name === firstTeam.name || m.team_home.id === firstTeam.id) return true;
+		if (m.team_away.name === firstTeam.name || m.team_away.id === firstTeam.id) return true;
+	}
+	if (m.team_home && m.team_home.type === 'fixed') {
+		if (m.team_home.team.name === firstTeam.name || m.team_home.team.id === firstTeam.id) return true;
+	}
+	if (m.team_away && m.team_away.type === 'fixed') {
+		if (m.team_away.team.name === firstTeam.name || m.team_away.team.id === firstTeam.id) return true;
+	}
+	return false;
+}
+
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
@@ -164,6 +180,10 @@ function ScheduleMatchesDefault(matches,days){
 								let team1 = matches[m].team_home.name;
 								let team2 = matches[m].team_away.name;
 								let scheduled = false;
+
+								if (d === 0 && dz === 0 && involvesFirstTeam(matches[m])) {
+									scheduled = true;
+								}
 								
 								let used_slots=0;
 								for (let sl=0; sl < Object.keys(days[d].dzones[dz].rounds[r].slots).length; sl++){
@@ -569,6 +589,10 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 
+										if (d === 0 && dz === 0 && involvesFirstTeam(matches[m])) {
+											scheduled_k = true;
+										}
+
 										if (!too_early && !too_late){
 											let team1_k='not defined';
 											let team2_k='not defined';
@@ -736,6 +760,10 @@ function ScheduleMatchesDefault(matches,days){
 													too_early = true;
 												}
 											}
+										}
+
+										if (d === 0 && dz === 0 && involvesFirstTeam(matches[m])) {
+											too_early = true;
 										}
 
 										if (!too_early){
