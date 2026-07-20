@@ -142,6 +142,25 @@ function checkZoneTeamCoverage(dzone) {
 	return true;
 }
 
+function hasPairPlayedInZone(dzone, team1Name, team2Name) {
+	if (!team1Name || !team2Name) return false;
+	for (let r = 0; r < dzone.rounds.length; r++) {
+		for (let s of Object.keys(dzone.rounds[r].slots)) {
+			let m = dzone.rounds[r].slots[s].match;
+			if (m) {
+				let hName = m.team_home ? (m.team_home.name || (m.team_home.team ? m.team_home.team.name : undefined)) : undefined;
+				let aName = m.team_away ? (m.team_away.name || (m.team_away.team ? m.team_away.team.name : undefined)) : undefined;
+				if (hName && aName) {
+					if ((hName === team1Name || hName === team2Name) && (aName === team1Name || aName === team2Name)) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
@@ -202,6 +221,10 @@ function ScheduleMatchesDefault(matches,days){
 								let scheduled = false;
 
 								if (d === 0 && dz === 0 && involvesFirstTeam(matches[m])) {
+									scheduled = true;
+								}
+
+								if (hasPairPlayedInZone(days[d].dzones[dz], team1, team2)) {
 									scheduled = true;
 								}
 								
