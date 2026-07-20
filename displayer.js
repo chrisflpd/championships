@@ -86,6 +86,61 @@ function displayer(program) {
 
 }
 
+function getDayRowsForExcel(day) {
+	const cols = [];
+	config.sports.forEach(sport => {
+		sport.courts.forEach(court => {
+			cols.push({ sport: sport, court: court });
+		});
+	});
+
+	const rows = [];
+	
+	let dzonesToRender = day.dzones;
+	if (!dzonesToRender || dzonesToRender.length === 0) {
+		const zonesList = (config.zones && config.zones.length > 0) ? config.zones : [{ name: 'Πρωί' }, { name: 'Απόγευμα' }];
+		dzonesToRender = zonesList.map(z => ({
+			zone: z,
+			rounds: [null, null]
+		}));
+	}
+
+	dzonesToRender.forEach(dzone => {
+		const zoneName = (dzone.zone && dzone.zone.name) ? dzone.zone.name : '';
+		let roundsToRender = dzone.rounds && dzone.rounds.length > 0 ? dzone.rounds : [null, null];
+
+		roundsToRender.forEach((round, rIndex) => {
+			const label = (rIndex === 0) ? zoneName : '';
+			const cellValues = [];
+
+			cols.forEach(col => {
+				if (!round) {
+					cellValues.push('-');
+					return;
+				}
+				const slot = col.court in round.slots ? round.slots[col.court] : undefined;
+				const match = slot?.match;
+				if (match?.sport?.name === col.sport.name) {
+					if ('id' in match.team_home && 'id' in match.team_away) {
+						cellValues.push([match.team_home.id, match.team_away.id].join('-'));
+					} else {
+						cellValues.push(match.id);
+					}
+				} else {
+					cellValues.push('-');
+				}
+			});
+
+			rows.push({
+				zoneName: label,
+				cells: cellValues
+			});
+		});
+	});
+
+	return rows;
+}
+
 function exportToExcel() {
 	if (!window.currentProgram || window.currentProgram.length === 0) {
 		alert("Δεν υπάρχει διαθέσιμο πρόγραμμα για εξαγωγή. Παρακαλώ υποβάλετε τη διαμόρφωση πρώτα.");
@@ -93,17 +148,7 @@ function exportToExcel() {
 	}
 
 	const program = window.currentProgram;
-
-	// collect columns
-	const cols = [];
-	config.sports.forEach(sport => {
-		sport.courts.forEach(court => {
-			cols.push({
-				sport: sport,
-				court: court,
-			});
-		});
-	});
+	const dayBoxColSpan = 6; // Zone + 5 court columns
 
 	let xml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
@@ -123,74 +168,70 @@ function exportToExcel() {
 </xml>
 <![endif]-->
 <style>
-  table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
-  th, td { border: 1px solid #000000; padding: 6px 12px; text-align: center; vertical-align: middle; }
-  th { background-color: #1F4E78; color: #FFFFFF; font-weight: bold; font-size: 12pt; }
-  .day-header { background-color: #D9E1F2; color: #000000; font-weight: bold; font-size: 11pt; text-align: left; }
-  .zone-header { background-color: #F2F2F2; color: #000000; font-weight: bold; }
-  .match-cell { font-weight: bold; }
-  .empty-cell { color: #7F7F7F; }
+  table { border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; }
+  td, th { text-align: center; vertical-align: middle; padding: 4px 6px; }
+  .day-header { border: 1px solid #000000; font-weight: bold; text-align: center; font-size: 11pt; background-color: #FFFFFF; }
+  .cell-border { border: 1px solid #000000; font-size: 11pt; background-color: #FFFFFF; }
+  .zone-cell { border: 1px solid #000000; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; background-color: #FFFFFF; }
+  .gap-col { width: 15px; border: none !important; background-color: #FFFFFF; }
+  .gap-row { height: 15px; }
 </style>
 </head>
 <body>
 <table>
-<thead>
-  <tr>
-    <th style="width: 220px;">Ημερομηνία</th>
-    <th style="width: 120px;">Ζώνη</th>
-    <th style="width: 100px;">Γύρος</th>`;
+`;
 
-	cols.forEach(col => {
-		xml += `<th style="width: 130px;">${col.court}</th>`;
-	});
+	for (let i = 0; i < program.length; i += 3) {
+		const batch = program.slice(i, i + 3);
 
-	xml += `</tr>
-</thead>
-<tbody>`;
-
-	program.forEach(day => {
-		const dateStr = day.date.toLocaleDateString('el', {
-			weekday: 'long',
-			day: '2-digit',
-			month: 'long',
-			year: 'numeric'
-		});
-
-		day.dzones.forEach(dzone => {
-			if (dzone.rounds.length === 0) return;
-			const zoneName = (config.zones.length !== 1 || config.zones[0].name !== null) ? dzone.zone.name : '-';
-
-			dzone.rounds.forEach((round, rIndex) => {
-				xml += `<tr>`;
-				xml += `<td class="day-header">${dateStr}</td>`;
-				xml += `<td class="zone-header">${zoneName}</td>`;
-				xml += `<td>Γύρος ${rIndex + 1}</td>`;
-
-				cols.forEach(col => {
-					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
-					const match = slot?.match;
-					let val = '-';
-					if (match?.sport?.name === col.sport.name) {
-						if ('id' in match.team_home && 'id' in match.team_away) {
-							val = [match.team_home.id, match.team_away.id].join('-');
-						} else {
-							val = match.id;
-						}
-					}
-
-					if (val === '-') {
-						xml += `<td class="empty-cell">-</td>`;
-					} else {
-						xml += `<td class="match-cell">${val}</td>`;
-					}
-				});
-
-				xml += `</tr>`;
+		// Header Row for the 3 Day boxes
+		xml += `<tr>`;
+		batch.forEach((day, bIndex) => {
+			const dateStr = day.date.toLocaleDateString('el', {
+				weekday: 'long',
+				day: '2-digit',
+				month: 'long',
+				year: 'numeric'
 			});
+			xml += `<th colspan="${dayBoxColSpan}" class="day-header">${dateStr}</th>`;
+			if (bIndex < batch.length - 1) {
+				xml += `<td class="gap-col"></td>`;
+			}
 		});
-	});
+		xml += `</tr>`;
 
-	xml += `</tbody></table></body></html>`;
+		// Extract rows for each day in batch
+		const batchRows = batch.map(day => getDayRowsForExcel(day));
+		const maxRows = Math.max(...batchRows.map(r => r.length));
+
+		for (let r = 0; r < maxRows; r++) {
+			xml += `<tr>`;
+			batch.forEach((day, bIndex) => {
+				const rowObj = batchRows[bIndex][r];
+				if (rowObj) {
+					xml += `<td class="zone-cell">${rowObj.zoneName}</td>`;
+					rowObj.cells.forEach(val => {
+						xml += `<td class="cell-border">${val}</td>`;
+					});
+				} else {
+					xml += `<td class="zone-cell"></td>`;
+					for (let c = 0; c < 5; c++) {
+						xml += `<td class="cell-border"></td>`;
+					}
+				}
+				if (bIndex < batch.length - 1) {
+					xml += `<td class="gap-col"></td>`;
+				}
+			});
+			xml += `</tr>`;
+		}
+
+		if (i + 3 < program.length) {
+			xml += `<tr class="gap-row"><td colspan="25" style="border: none;"></td></tr>`;
+		}
+	}
+
+	xml += `</table></body></html>`;
 
 	const blob = new Blob(['\uFEFF' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
 	const link = document.createElement('a');

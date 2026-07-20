@@ -142,9 +142,9 @@ function checkZoneTeamCoverage(dzone) {
 	return true;
 }
 
-function hasPairPlayedInZone(dzone, team1Name, team2Name) {
-	if (!team1Name || !team2Name) return false;
-	for (let r = 0; r < dzone.rounds.length; r++) {
+function hasPairPlayedInZone(dzone, currentRound, team1Name, team2Name) {
+	if (!team1Name || !team2Name || currentRound === 0) return false;
+	for (let r = 0; r < currentRound; r++) {
 		for (let s of Object.keys(dzone.rounds[r].slots)) {
 			let m = dzone.rounds[r].slots[s].match;
 			if (m) {
@@ -224,7 +224,7 @@ function ScheduleMatchesDefault(matches,days){
 									scheduled = true;
 								}
 
-								if (hasPairPlayedInZone(days[d].dzones[dz], team1, team2)) {
+								if (hasPairPlayedInZone(days[d].dzones[dz], r, team1, team2)) {
 									scheduled = true;
 								}
 								
@@ -490,13 +490,13 @@ function ScheduleMatchesDefault(matches,days){
 								let threshold=0;
 								if (matches[m].points >= threshold && !scheduled && !too_late && !too_early){
 									for (let ma=0; ma<matches.length; ma++){//above points optimized for input23g
-										if (typeof matches[ma].team_home.name !== 'undefined' && matches[ma].team_away.name !== 'undefined'){
+										if (typeof matches[ma].team_home.name !== 'undefined' && typeof matches[ma].team_away.name !== 'undefined'){
 											let homePlayed = (matches[ma].team_home.name === team1 || matches[ma].team_home.name === team2);
 											let awayPlayed = (matches[ma].team_away.name === team1 || matches[ma].team_away.name === team2);
 											if (!homePlayed && !awayPlayed){
-												matches[ma].points += 15.0; // both teams idle in this round -> high priority for next slots
+												matches[ma].points += 0.1;
 											} else if (homePlayed || awayPlayed){
-												matches[ma].points -= 10.0; // played in this round -> low priority for next slots
+												matches[ma].points -= 3.5;
 											}
 										}
 									}
