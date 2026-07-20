@@ -65,6 +65,22 @@ function isSlotAfter(d1, dz1, r1, d2, dz2, r2) {
 	return r1 > r2;
 }
 
+function isBaseballGroupMatch(m) {
+	return m && m.sport && m.sport.name === "Μπέιζμπολ" && typeof m.team_home !== 'undefined' && typeof m.team_home.name !== 'undefined';
+}
+
+function hasBaseballGroupMatchInZone(dzone) {
+	for (let r = 0; r < dzone.rounds.length; r++) {
+		for (let s of Object.keys(dzone.rounds[r].slots)) {
+			let match = dzone.rounds[r].slots[s].match;
+			if (isBaseballGroupMatch(match)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
@@ -121,7 +137,23 @@ function ScheduleMatchesDefault(matches,days){
 		for (let d = 0; d < days.length; d++){//for every day
 			for (let dz = 0; dz< days[d].dzones.length; dz++){//for every zone of the day
 				for (let r = 0; r < days[d].dzones[dz].rounds.length; r++){//for every round of that zone of that day
-					for (let s of Object.keys(crts)){//for every slot (name of court sorted by need) in this round
+					let courtsToIterate = Object.keys(crts);
+					if (!(d === 0 && dz === 0) && r === 0) {
+						let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
+						if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+							let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+							if (bbSport) {
+								courtsToIterate.sort((a, b) => {
+									let aIsBB = bbSport.courts.includes(a);
+									let bIsBB = bbSport.courts.includes(b);
+									if (aIsBB && !bIsBB) return -1;
+									if (!aIsBB && bIsBB) return 1;
+									return 0;
+								});
+							}
+						}
+					}
+					for (let s of courtsToIterate){//for every slot (name of court sorted by need) in this round
 						for (let m = 0; m < matches.length; m++){
 							//RULES
 							//if this slot is available and the court corresponds to the sport of the match and its not a knockout (1)
@@ -183,7 +215,7 @@ function ScheduleMatchesDefault(matches,days){
 								}*/
 								let too_early=false;
 
-								let gr_id=matches[m].id;
+								let gr_id = matches[m].id;
 								for (let ma=0; ma<matches.length; ma++){
 									if (matches[ma].id === gr_id){
 										if (config.groups[gr_id].team_matches % (config.groups[gr_id].teams.length-1) === 0 &&  config.groups[gr_id].team_matches / (config.groups[gr_id].teams.length-1) !== 1){
@@ -194,6 +226,39 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 									}	
+								}
+
+								if (isBaseballGroupMatch(matches[m])) {
+									if (d === 0 && dz === 0) {
+										scheduled = true;
+									}
+									if (r !== 0) {
+										scheduled = true;
+									}
+									if (hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+										scheduled = true;
+									}
+									for (let pd = 0; pd <= d; pd++) {
+										let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
+										for (let pdz = 0; pdz <= maxPdz; pdz++) {
+											if (pd === 0 && pdz === 0) continue;
+											if (!hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
+												too_early = true;
+												break;
+											}
+										}
+										if (too_early) break;
+									}
+								} else {
+									if (!(d === 0 && dz === 0) && r === 0) {
+										let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
+										if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+											let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+											if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
+												scheduled = true;
+											}
+										}
+									}
 								}
 
 								for (let rd = d; rd < days.length; rd++){//for every day
@@ -494,6 +559,16 @@ function ScheduleMatchesDefault(matches,days){
 												}
 											}
 										}
+										if (!(d === 0 && dz === 0) && r === 0) {
+											let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
+											if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
+													scheduled_k = true;
+												}
+											}
+										}
+
 										if (!too_early && !too_late){
 											let team1_k='not defined';
 											let team2_k='not defined';
@@ -653,6 +728,16 @@ function ScheduleMatchesDefault(matches,days){
 												}
 											}
 										}
+										if (!(d === 0 && dz === 0) && r === 0) {
+											let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
+											if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
+													too_early = true;
+												}
+											}
+										}
+
 										if (!too_early){
 											let team1_k='not defined';
 											let team2_k='not defined';
