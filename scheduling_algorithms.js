@@ -508,7 +508,7 @@ function ScheduleMatchesDefault(matches,days){
 										for (let ddate = d; ddate < days.length; ddate++){//for every day from d
 											let start_dz = (ddate === d) ? dz : 0;
 											for (let ddz = start_dz; ddz < days[ddate].dzones.length; ddz++){//for every zone of the day
-												let start_r = (ddate === d && ddz === dz) ? r : 0;
+												let start_r = 0;
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null){
@@ -694,7 +694,7 @@ function ScheduleMatchesDefault(matches,days){
 										for (let ddate = d; ddate < days.length; ddate++){//for every day from d
 											let start_dz = (ddate === d) ? dz : 0;
 											for (let ddz = start_dz; ddz < days[ddate].dzones.length; ddz++){//for every zone of the day
-												let start_r = (ddate === d && ddz === dz) ? r : 0;
+												let start_r = 0;
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name === matches[m].sport.name && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) === 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) === 'undefined'){
