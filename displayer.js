@@ -143,26 +143,41 @@ async function exportToExcel() {
 		});
 
 		// Build schedule data mapping cellRef -> valStr
+		// Pre-initialize all 12 days x 4 rounds x 5 courts to empty string ""
 		const scheduleData = {};
+		for (let dIdx = 0; dIdx < 12; dIdx++) {
+			for (let rIdx = 0; rIdx < 4; rIdx++) {
+				for (let cIdx = 0; cIdx < 5; cIdx++) {
+					const cellRef = getCellRef(dIdx, rIdx, cIdx);
+					scheduleData[cellRef] = "";
+				}
+			}
+		}
 
 		program.forEach((day, dIdx) => {
 			if (dIdx >= 12) return; // template supports 12 days
 			day.dzones.forEach((dzone, dzIdx) => {
 				dzone.rounds.forEach((round, rIdx) => {
-					const roundIdx = dzIdx * 2 + rIdx; // 0..3
+					let roundIdx = dzIdx * 2 + rIdx; // 0..3
+
+					// Rule: For the very first day (dIdx === 0) and very first morning zone (dzIdx === 0):
+					// If there is 1 round produced by the algorithm, it is the 2nd round of the morning zone (roundIdx = 1).
+					// The 1st round of the 1st morning zone (roundIdx = 0) remains empty.
+					if (dIdx === 0 && dzIdx === 0 && dzone.rounds.length === 1) {
+						roundIdx = 1;
+					}
+
 					cols.forEach((col, cIdx) => {
 						const cellRef = getCellRef(dIdx, roundIdx, cIdx);
 						const slot = col.court in round.slots ? round.slots[col.court] : undefined;
 						const match = slot?.match;
-						let valStr = "-";
 						if (match?.sport?.name === col.sport.name) {
 							if ('id' in match.team_home && 'id' in match.team_away) {
-								valStr = [match.team_home.id, match.team_away.id].join('-');
+								scheduleData[cellRef] = [match.team_home.id, match.team_away.id].join('-');
 							} else {
-								valStr = match.id;
+								scheduleData[cellRef] = match.id;
 							}
 						}
-						scheduleData[cellRef] = valStr;
 					});
 				});
 			});
@@ -190,27 +205,37 @@ async function exportToExcel() {
 			let rowElem = xmlDoc.querySelector(`row[r="${rowNum}"]`);
 			if (rowElem) {
 				let cElem = rowElem.querySelector(`c[r="${cRef}"]`);
-				if (!cElem) {
+				if (cElem) {
+					// Remove existing v or is nodes
+					const children = Array.from(cElem.childNodes);
+					children.forEach(child => {
+						if (child.nodeName === 'v' || child.nodeName === 'is') {
+							cElem.removeChild(child);
+						}
+					});
+
+					if (valStr !== "") {
+						cElem.setAttribute("t", "inlineStr");
+						const isElem = xmlDoc.createElementNS(ns, "is");
+						const tElem = xmlDoc.createElementNS(ns, "t");
+						tElem.textContent = valStr;
+						isElem.appendChild(tElem);
+						cElem.appendChild(isElem);
+					} else {
+						cElem.removeAttribute("t");
+					}
+				} else if (valStr !== "") {
 					cElem = xmlDoc.createElementNS(ns, "c");
 					cElem.setAttribute("r", cRef);
 					cElem.setAttribute("s", "178");
+					cElem.setAttribute("t", "inlineStr");
+					const isElem = xmlDoc.createElementNS(ns, "is");
+					const tElem = xmlDoc.createElementNS(ns, "t");
+					tElem.textContent = valStr;
+					isElem.appendChild(tElem);
+					cElem.appendChild(isElem);
 					rowElem.appendChild(cElem);
 				}
-				cElem.setAttribute("t", "inlineStr");
-
-				// Remove existing v or is children
-				const children = Array.from(cElem.childNodes);
-				children.forEach(child => {
-					if (child.nodeName === 'v' || child.nodeName === 'is') {
-						cElem.removeChild(child);
-					}
-				});
-
-				const isElem = xmlDoc.createElementNS(ns, "is");
-				const tElem = xmlDoc.createElementNS(ns, "t");
-				tElem.textContent = valStr;
-				isElem.appendChild(tElem);
-				cElem.appendChild(isElem);
 			}
 		}
 
