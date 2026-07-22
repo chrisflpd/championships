@@ -1,4 +1,4 @@
-console.log("DEBUG: displayer.js loaded (updated version)");
+console.log("DEBUG: displayer.js loaded (updated template version)");
 
 function displayer(program) {
 	window.currentProgram = program;
@@ -86,162 +86,154 @@ function displayer(program) {
 
 }
 
-function getDayRowsForExcel(day) {
-	const cols = [];
-	config.sports.forEach(sport => {
-		sport.courts.forEach(court => {
-			cols.push({ sport: sport, court: court });
-		});
-	});
-
-	const rows = [];
+function getCellRef(dayIdx, roundIdx, courtIdx) {
+	const blockRow = Math.floor(dayIdx / 4);
+	const dayInBlock = dayIdx % 4;
+	const rowBase = 3 + blockRow * 6;
+	const rIdx = rowBase + roundIdx;
+	const colBase = 3 + dayInBlock * 7;
+	const cIdx = colBase + courtIdx;
 	
-	let dzonesToRender = day.dzones;
-	if (!dzonesToRender || dzonesToRender.length === 0) {
-		const zonesList = (config.zones && config.zones.length > 0) ? config.zones : [{ name: 'Πρωί' }, { name: 'Απόγευμα' }];
-		dzonesToRender = zonesList.map(z => ({
-			zone: z,
-			rounds: [null, null]
-		}));
+	let colStr = "";
+	let num = cIdx;
+	while (num > 0) {
+		let rem = (num - 1) % 26;
+		colStr = String.fromCharCode(65 + rem) + colStr;
+		num = Math.floor((num - 1) / 26);
 	}
-
-	dzonesToRender.forEach(dzone => {
-		const zoneName = (dzone.zone && dzone.zone.name) ? dzone.zone.name : '';
-		let roundsToRender = dzone.rounds && dzone.rounds.length > 0 ? dzone.rounds : [null, null];
-
-		roundsToRender.forEach((round, rIndex) => {
-			const label = (rIndex === 0) ? zoneName : '';
-			const cellValues = [];
-
-			cols.forEach(col => {
-				if (!round) {
-					cellValues.push('-');
-					return;
-				}
-				const slot = col.court in round.slots ? round.slots[col.court] : undefined;
-				const match = slot?.match;
-				if (match?.sport?.name === col.sport.name) {
-					if ('id' in match.team_home && 'id' in match.team_away) {
-						cellValues.push([match.team_home.id, match.team_away.id].join('-'));
-					} else {
-						cellValues.push(match.id);
-					}
-				} else {
-					cellValues.push('-');
-				}
-			});
-
-			rows.push({
-				zoneName: label,
-				cells: cellValues
-			});
-		});
-	});
-
-	return rows;
+	return colStr + rIdx;
 }
 
-function exportToExcel() {
+async function exportToExcel() {
 	if (!window.currentProgram || window.currentProgram.length === 0) {
 		alert("Δεν υπάρχει διαθέσιμο πρόγραμμα για εξαγωγή. Παρακαλώ υποβάλετε τη διαμόρφωση πρώτα.");
 		return;
 	}
 
-	const program = window.currentProgram;
-	const dayBoxColSpan = 6; // Zone + 5 court columns
-
-	let xml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<!--[if gte mso 9]>
-<xml>
- <x:ExcelWorkbook>
-  <x:ExcelWorksheets>
-   <x:ExcelWorksheet>
-    <x:Name>Πρόγραμμα Πρωταθλήματος</x:Name>
-    <x:WorksheetOptions>
-     <x:DisplayGridlines/>
-    </x:WorksheetOptions>
-   </x:ExcelWorksheet>
-  </x:ExcelWorksheets>
- </x:ExcelWorkbook>
-</xml>
-<![endif]-->
-<style>
-  table { border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt; }
-  td, th { text-align: center; vertical-align: middle; padding: 4px 6px; }
-  .day-header { border: 1px solid #000000; font-weight: bold; text-align: center; font-size: 11pt; background-color: #FFFFFF; }
-  .cell-border { border: 1px solid #000000; font-size: 11pt; background-color: #FFFFFF; mso-number-format:"\\@"; }
-  .zone-cell { border: 1px solid #000000; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; background-color: #FFFFFF; }
-  .gap-col { width: 15px; border: none !important; background-color: #FFFFFF; }
-  .gap-row { height: 15px; }
-</style>
-</head>
-<body>
-<table>
-`;
-
-	for (let i = 0; i < program.length; i += 3) {
-		const batch = program.slice(i, i + 3);
-
-		// Header Row for the 3 Day boxes
-		xml += `<tr>`;
-		batch.forEach((day, bIndex) => {
-			const dateStr = day.date.toLocaleDateString('el', {
-				weekday: 'long',
-				day: '2-digit',
-				month: 'long',
-				year: 'numeric'
-			});
-			xml += `<th colspan="${dayBoxColSpan}" class="day-header">${dateStr}</th>`;
-			if (bIndex < batch.length - 1) {
-				xml += `<td class="gap-col"></td>`;
-			}
-		});
-		xml += `</tr>`;
-
-		// Extract rows for each day in batch
-		const batchRows = batch.map(day => getDayRowsForExcel(day));
-		const maxRows = Math.max(...batchRows.map(r => r.length));
-
-		for (let r = 0; r < maxRows; r++) {
-			xml += `<tr>`;
-			batch.forEach((day, bIndex) => {
-				const rowObj = batchRows[bIndex][r];
-				if (rowObj) {
-					xml += `<td class="zone-cell">${rowObj.zoneName}</td>`;
-					rowObj.cells.forEach(val => {
-						xml += `<td class="cell-border" style="mso-number-format:'\\@';">${val}</td>`;
-					});
-				} else {
-					xml += `<td class="zone-cell"></td>`;
-					for (let c = 0; c < 5; c++) {
-						xml += `<td class="cell-border" style="mso-number-format:'\\@';"></td>`;
-					}
-				}
-				if (bIndex < batch.length - 1) {
-					xml += `<td class="gap-col"></td>`;
-				}
-			});
-			xml += `</tr>`;
-		}
-
-		if (i + 3 < program.length) {
-			xml += `<tr class="gap-row"><td colspan="25" style="border: none;"></td></tr>`;
-		}
+	if (typeof JSZip === 'undefined') {
+		alert("Η βιβλιοθήκη JSZip δεν έχει φορτωθεί ακόμα. Παρακαλώ δοκιμάστε ξανά.");
+		return;
 	}
 
-	xml += `</table></body></html>`;
+	const program = window.currentProgram;
 
-	const blob = new Blob(['\uFEFF' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-	const link = document.createElement('a');
-	const url = URL.createObjectURL(blob);
-	link.href = url;
-	link.download = 'programma_championships.xls';
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
+	try {
+		const response = await fetch('template.xlsx');
+		if (!response.ok) {
+			throw new Error("Δεν ήταν δυνατή η φόρτωση του αρχείου template.xlsx.");
+		}
+		const arrayBuffer = await response.arrayBuffer();
+
+		const zip = await JSZip.loadAsync(arrayBuffer);
+		let sheet1XmlText = await zip.file("xl/worksheets/sheet1.xml").async("string");
+
+		// Calculate start date serial number for B2
+		const startDate = program[0].date;
+		const d = new Date(startDate);
+		const utcDate = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+		const epoch = Date.UTC(1899, 11, 30);
+		const startDateSerial = Math.floor((utcDate - epoch) / 86400000);
+
+		// Build columns mapping matching courts
+		const cols = [];
+		config.sports.forEach(sport => {
+			sport.courts.forEach(court => {
+				cols.push({ sport: sport, court: court });
+			});
+		});
+
+		// Build schedule data mapping cellRef -> valStr
+		const scheduleData = {};
+
+		program.forEach((day, dIdx) => {
+			if (dIdx >= 12) return; // template supports 12 days
+			day.dzones.forEach((dzone, dzIdx) => {
+				dzone.rounds.forEach((round, rIdx) => {
+					const roundIdx = dzIdx * 2 + rIdx; // 0..3
+					cols.forEach((col, cIdx) => {
+						const cellRef = getCellRef(dIdx, roundIdx, cIdx);
+						const slot = col.court in round.slots ? round.slots[col.court] : undefined;
+						const match = slot?.match;
+						let valStr = "-";
+						if (match?.sport?.name === col.sport.name) {
+							if ('id' in match.team_home && 'id' in match.team_away) {
+								valStr = [match.team_home.id, match.team_away.id].join('-');
+							} else {
+								valStr = match.id;
+							}
+						}
+						scheduleData[cellRef] = valStr;
+					});
+				});
+			});
+		});
+
+		// Parse XML using browser DOMParser
+		const parser = new DOMParser();
+		const xmlDoc = parser.parseFromString(sheet1XmlText, "text/xml");
+		const ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+		// Update B2 date cell
+		const b2Cell = xmlDoc.querySelector('c[r="B2"]');
+		if (b2Cell) {
+			let vElem = b2Cell.querySelector('v');
+			if (!vElem) {
+				vElem = xmlDoc.createElementNS(ns, "v");
+				b2Cell.appendChild(vElem);
+			}
+			vElem.textContent = String(startDateSerial);
+		}
+
+		// Update match cells
+		for (const [cRef, valStr] of Object.entries(scheduleData)) {
+			const rowNum = cRef.replace(/[A-Z]/g, '');
+			let rowElem = xmlDoc.querySelector(`row[r="${rowNum}"]`);
+			if (rowElem) {
+				let cElem = rowElem.querySelector(`c[r="${cRef}"]`);
+				if (!cElem) {
+					cElem = xmlDoc.createElementNS(ns, "c");
+					cElem.setAttribute("r", cRef);
+					cElem.setAttribute("s", "178");
+					rowElem.appendChild(cElem);
+				}
+				cElem.setAttribute("t", "inlineStr");
+
+				// Remove existing v or is children
+				const children = Array.from(cElem.childNodes);
+				children.forEach(child => {
+					if (child.nodeName === 'v' || child.nodeName === 'is') {
+						cElem.removeChild(child);
+					}
+				});
+
+				const isElem = xmlDoc.createElementNS(ns, "is");
+				const tElem = xmlDoc.createElementNS(ns, "t");
+				tElem.textContent = valStr;
+				isElem.appendChild(tElem);
+				cElem.appendChild(isElem);
+			}
+		}
+
+		const serializer = new XMLSerializer();
+		const updatedXmlText = serializer.serializeToString(xmlDoc);
+
+		zip.file("xl/worksheets/sheet1.xml", updatedXmlText);
+
+		// Generate blob and download as .xlsx
+		const blob = await zip.generateAsync({ type: "blob" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'programma_championships.xlsx';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
+
+	} catch (error) {
+		console.error("Σφάλμα κατά την εξαγωγή Excel:", error);
+		alert("Σφάλμα κατά την εξαγωγή Excel: " + error.message);
+	}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
