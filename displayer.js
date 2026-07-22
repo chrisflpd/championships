@@ -86,6 +86,11 @@ function displayer(program) {
 
 }
 
+function getTeamChar(teamId) {
+	if (teamId === 10) return "A";
+	return String(teamId);
+}
+
 function getCellRef(dayIdx, roundIdx, courtIdx) {
 	const blockRow = Math.floor(dayIdx / 4);
 	const dayInBlock = dayIdx % 4;
@@ -173,7 +178,7 @@ async function exportToExcel() {
 						const match = slot?.match;
 						if (match?.sport?.name === col.sport.name) {
 							if ('id' in match.team_home && 'id' in match.team_away) {
-								scheduleData[cellRef] = [match.team_home.id, match.team_away.id].join('-');
+								scheduleData[cellRef] = [getTeamChar(match.team_home.id), getTeamChar(match.team_away.id)].join('-');
 							} else {
 								scheduleData[cellRef] = match.id;
 							}
