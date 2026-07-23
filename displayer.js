@@ -249,30 +249,6 @@ async function exportToExcel() {
 
 		zip.file("xl/worksheets/sheet1.xml", updatedXmlText);
 
-		// Force Excel full recalculation on load and remove stale calculation chain
-		if (zip.file("xl/workbook.xml")) {
-			let wbXmlText = await zip.file("xl/workbook.xml").async("string");
-			if (wbXmlText.includes("<calcPr")) {
-				wbXmlText = wbXmlText.replace(/<calcPr([^>]*)\/?>/, (match, p1) => {
-					let cleanP1 = p1.replace(/\s+fullCalcOnLoad="[^"]*"/g, '').replace(/\s+forceFullCalc="[^"]*"/g, '').replace(/\/$/, '');
-					return `<calcPr${cleanP1} fullCalcOnLoad="1" forceFullCalc="1"/>`;
-				});
-			} else {
-				wbXmlText = wbXmlText.replace("</workbook>", '<calcPr fullCalcOnLoad="1" forceFullCalc="1"/></workbook>');
-			}
-			zip.file("xl/workbook.xml", wbXmlText);
-		}
-
-		zip.remove("xl/calcChain.xml");
-
-		if (zip.file("[Content_Types].xml")) {
-			let contentTypesText = await zip.file("[Content_Types].xml").async("string");
-			if (contentTypesText.includes("calcChain.xml")) {
-				contentTypesText = contentTypesText.replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g, '');
-				zip.file("[Content_Types].xml", contentTypesText);
-			}
-		}
-
 		// Generate blob and download as .xlsx
 		const blob = await zip.generateAsync({ type: "blob" });
 		const url = URL.createObjectURL(blob);
