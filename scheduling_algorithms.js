@@ -195,7 +195,7 @@ function ScheduleMatchesDefault(matches,days){
 					let courtsToIterate = Object.keys(crts);
 					if (!(d === 0 && dz === 0) && r === 0) {
 						let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-						if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+						if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 							let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 							if (bbSport) {
 								courtsToIterate.sort((a, b) => {
@@ -249,33 +249,10 @@ function ScheduleMatchesDefault(matches,days){
 											}
 									}
 								}
-								if (days[d].dzones[dz].rounds.length<2 && matches[m].sport.name==="Μπέιζμπολ"){
+								if (days[d].dzones[dz].rounds.length < 2 && isBaseballGroupMatch(matches[m])) {
 									scheduled = true;
 								}
 								let too_late=false;
-								/*for (let date=d; date>=0; date--){
-									for (let dzl = 0; dzl< days[date].dzones.length; dzl++){//for every zone of the day
-										for (let rl = 0; rl < days[date].dzones[dzl].rounds.length; rl++){//for every round of that zone of that day
-											for (let st of Object.keys(crts)){//for every slot in this round
-												if (days[date].dzones[dzl].rounds[rl].slots[st].match !== null){
-													if (typeof (days[date].dzones[dzl].rounds[rl].slots[st].match.team_home.name) === 'undefined' && typeof (days[date].dzones[dzl].rounds[rl].slots[st].match.team_away.name) === 'undefined'){
-														too_late = true;//we want group games earlier than already placed knockout games
-														break;
-													}
-												}
-											}
-											if(too_late){
-												break;
-											}
-										}
-										if(too_late){
-											break;
-										}
-									}
-									if(too_late){
-										break;
-									}
-								}*/
 								let too_early=false;
 
 								let gr_id = matches[m].id;
@@ -284,7 +261,6 @@ function ScheduleMatchesDefault(matches,days){
 										if (config.groups[gr_id].team_matches % (config.groups[gr_id].teams.length-1) === 0 &&  config.groups[gr_id].team_matches / (config.groups[gr_id].teams.length-1) !== 1){
 											if (matches[m].sequence>matches[ma].sequence){
 												too_early = true;//if there is at least a not placed match of previous phase
-												//console.log('otinanai');
 												break;
 											}
 										}
@@ -301,10 +277,13 @@ function ScheduleMatchesDefault(matches,days){
 									if (hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 										scheduled = true;
 									}
+									if (days[d].dzones[dz].rounds.length < 2) {
+										scheduled = true;
+									}
 									for (let pd = 0; pd <= d; pd++) {
 										let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
 										for (let pdz = 0; pdz <= maxPdz; pdz++) {
-											if (!(pd === 0 && pdz === 0) && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
+											if (!(pd === 0 && pdz === 0) && days[pd].dzones[pdz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
 												too_early = true;
 												break;
 											}
@@ -314,7 +293,7 @@ function ScheduleMatchesDefault(matches,days){
 								} else {
 									if (!(d === 0 && dz === 0) && r === 0) {
 										let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-										if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+										if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 											let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 											if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 												scheduled = true;
@@ -622,7 +601,7 @@ function ScheduleMatchesDefault(matches,days){
 										}
 										if (!(d === 0 && dz === 0) && r === 0) {
 											let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-											if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+											if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													scheduled_k = true;

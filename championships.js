@@ -155,8 +155,8 @@ function produce() {
 	});
 
 	for (let m = 0; m < matches.length; m++){
-		if (matches[m].sport.name==="Μπέιζμπολ"){
-			matches[m].points=100
+		if (isBaseballGroupMatch(matches[m])){
+			matches[m].points = 100;
 		}
 	}
 	console.log('matches: ' + matches.length);
