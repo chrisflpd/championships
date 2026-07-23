@@ -249,6 +249,30 @@ async function exportToExcel() {
 
 		zip.file("xl/worksheets/sheet1.xml", updatedXmlText);
 
+		// Safety fix for games sheet (sheet4.xml): wrap H (th) and I (ta) formulas with IFNA
+		// so that 3-character knockout match IDs (like bq1, ps1, vs1, ks1) do not produce #N/A errors
+		if (zip.file("xl/worksheets/sheet4.xml")) {
+			let sheet4XmlText = await zip.file("xl/worksheets/sheet4.xml").async("string");
+			const xmlDoc4 = parser.parseFromString(sheet4XmlText, "text/xml");
+			const rowElems4 = xmlDoc4.querySelectorAll("row");
+			rowElems4.forEach(rowElem => {
+				const rNum = rowElem.getAttribute("r");
+				if (rNum === "1") return;
+				['H', 'I'].forEach(colLet => {
+					const cRef = colLet + rNum;
+					const cElem = rowElem.querySelector(`c[r="${cRef}"]`);
+					if (cElem) {
+						const fElem = cElem.querySelector("f");
+						if (fElem && fElem.textContent && !fElem.textContent.startsWith("_xlfn.IFNA")) {
+							fElem.textContent = `_xlfn.IFNA(${fElem.textContent},"")`;
+						}
+					}
+				});
+			});
+			const updatedXmlText4 = serializer.serializeToString(xmlDoc4);
+			zip.file("xl/worksheets/sheet4.xml", updatedXmlText4);
+		}
+
 		// Generate blob and download as .xlsx
 		const blob = await zip.generateAsync({ type: "blob" });
 		const url = URL.createObjectURL(blob);
