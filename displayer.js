@@ -192,9 +192,7 @@ async function exportToExcel() {
 		const parser = new DOMParser();
 		const serializer = new XMLSerializer();
 
-		// Update styles.xml fill 23 to RGB FFA6A6A6 (RGB=166,166,166) and create style mapper to preserve borders
-		let getGrayStyleId = (origStyleId) => origStyleId;
-
+		// Update styles.xml fill 23 to RGB FFA6A6A6 (RGB=166,166,166) and remove double-top borders from styles 178, 179, 180
 		if (zip.file("xl/styles.xml")) {
 			let stylesXmlText = await zip.file("xl/styles.xml").async("string");
 			const stylesDoc = parser.parseFromString(stylesXmlText, "text/xml");
@@ -211,52 +209,12 @@ async function exportToExcel() {
 
 			const cellXfs = stylesDoc.getElementsByTagName("cellXfs")[0];
 			if (cellXfs) {
-				const xfList = Array.from(cellXfs.getElementsByTagName("xf"));
-				const styleCache = {};
-
-				getGrayStyleId = (origStyleId) => {
-					if (!origStyleId) origStyleId = "0";
-					if (styleCache[origStyleId]) return styleCache[origStyleId];
-
-					const origIdx = parseInt(origStyleId, 10);
-					if (isNaN(origIdx) || origIdx < 0 || origIdx >= xfList.length) return origStyleId;
-
-					const origXf = xfList[origIdx];
-					const fillId = origXf.getAttribute("fillId");
-					if (fillId === "23") {
-						styleCache[origStyleId] = origStyleId;
-						return origStyleId;
-					}
-
-					const borderId = origXf.getAttribute("borderId") || "0";
-					const fontId = origXf.getAttribute("fontId") || "0";
-					const numFmtId = origXf.getAttribute("numFmtId") || "0";
-
-					// Find existing xf with fillId=23 and matching borderId, fontId, numFmtId
-					for (let i = 0; i < xfList.length; i++) {
-						const xf = xfList[i];
-						if (xf.getAttribute("fillId") === "23" &&
-							(xf.getAttribute("borderId") || "0") === borderId &&
-							(xf.getAttribute("fontId") || "0") === fontId &&
-							(xf.getAttribute("numFmtId") || "0") === numFmtId) {
-							const foundId = String(i);
-							styleCache[origStyleId] = foundId;
-							return foundId;
-						}
-					}
-
-					// Clone origXf and change fillId to 23
-					const newXf = origXf.cloneNode(true);
-					newXf.setAttribute("fillId", "23");
-					newXf.setAttribute("applyFill", "1");
-					cellXfs.appendChild(newXf);
-					xfList.push(newXf);
-
-					const newIdStr = String(xfList.length - 1);
-					cellXfs.setAttribute("count", String(xfList.length));
-					styleCache[origStyleId] = newIdStr;
-					return newIdStr;
-				};
+				const xfs = Array.from(cellXfs.getElementsByTagName("xf"));
+				if (xfs.length > 180) {
+					xfs[178].setAttribute("borderId", "0");
+					xfs[179].setAttribute("borderId", "0");
+					xfs[180].setAttribute("borderId", "9");
+				}
 			}
 
 			zip.file("xl/styles.xml", serializer.serializeToString(stylesDoc));
@@ -307,7 +265,7 @@ async function exportToExcel() {
 			}
 		}
 
-		// Apply merge styles (preserving exact cell borders, updating fill to RGB 166,166,166)
+		// Apply merge styles (s=178, 179, 180 with clean court borders and RGB 166,166,166 fill)
 		unusedRoundsSet.forEach(key => {
 			const [dIdxStr, rIdxStr] = key.split(',');
 			const dIdx = parseInt(dIdxStr);
@@ -329,11 +287,6 @@ async function exportToExcel() {
 						rowElem.appendChild(cElem);
 					}
 
-					const origS = cElem.getAttribute("s");
-					if (origS) {
-						cElem.setAttribute("s", getGrayStyleId(origS));
-					}
-
 					cElem.removeAttribute("t");
 					const children = Array.from(cElem.childNodes);
 					children.forEach(child => {
@@ -341,6 +294,10 @@ async function exportToExcel() {
 							cElem.removeChild(child);
 						}
 					});
+
+					if (cIdx === 0) cElem.setAttribute("s", "178");
+					else if (cIdx === 4) cElem.setAttribute("s", "180");
+					else cElem.setAttribute("s", "179");
 
 					delete scheduleData[cRef];
 				}
