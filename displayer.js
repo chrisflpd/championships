@@ -166,6 +166,18 @@ function removeChildrenNamed(elem, names) {
 	}
 }
 
+function getChildNamed(elem, name) {
+	for (let i = 0; i < elem.childNodes.length; i++) {
+		if (elem.childNodes[i].nodeName === name)
+			return elem.childNodes[i];
+	}
+	return null;
+}
+
+function hasContent(cellElem) {
+	return getChildNamed(cellElem, 'v') !== null || getChildNamed(cellElem, 'is') !== null;
+}
+
 //a cell keeps its style, only its content is replaced
 function setCellText(doc, cellElem, text) {
 	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
@@ -185,9 +197,20 @@ function setCellNumber(doc, cellElem, num) {
 	cellElem.appendChild(vElem);
 }
 
-function clearCell(cellElem) {
+//a formula cell keeps its formula, so that the calculation chain of the
+//template stays valid, and carries the value the formula evaluates to
+function setCellFormula(doc, cellElem, formula, cached, type) {
 	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
-	cellElem.removeAttribute('t');
+	if (type === null)
+		cellElem.removeAttribute('t');
+	else
+		cellElem.setAttribute('t', type);
+	const fElem = doc.createElementNS(XL_NS, 'f');
+	fElem.appendChild(doc.createTextNode(formula));
+	cellElem.appendChild(fElem);
+	const vElem = doc.createElementNS(XL_NS, 'v');
+	vElem.appendChild(doc.createTextNode(cached));
+	cellElem.appendChild(vElem);
 }
 
 /**
@@ -235,44 +258,6 @@ function unusedStyleFactory(stylesDoc) {
 		cellXfs.setAttribute('count', String(xfCount));
 		return cache[styleIdx];
 	};
-}
-
-/**
- * the dates stop being formulas and the plan contents change behind excel, so
- * its calculation chain is dropped and everything is calculated on open.
- */
-function forceFullCalc(zip, parser, serializer) {
-	zip.remove('xl/calcChain.xml');
-	return Promise.all([
-		zip.file('[Content_Types].xml').async('string').then(text => {
-			const doc = parser.parseFromString(text, 'text/xml');
-			const overrides = doc.getElementsByTagName('Override');
-			for (let i = overrides.length - 1; i >= 0; i--) {
-				if (overrides[i].getAttribute('PartName') === '/xl/calcChain.xml')
-					overrides[i].parentNode.removeChild(overrides[i]);
-			}
-			zip.file('[Content_Types].xml', serializer.serializeToString(doc));
-		}),
-		zip.file('xl/_rels/workbook.xml.rels').async('string').then(text => {
-			const doc = parser.parseFromString(text, 'text/xml');
-			const rels = doc.getElementsByTagName('Relationship');
-			for (let i = rels.length - 1; i >= 0; i--) {
-				if ((rels[i].getAttribute('Target') || '').indexOf('calcChain.xml') !== -1)
-					rels[i].parentNode.removeChild(rels[i]);
-			}
-			zip.file('xl/_rels/workbook.xml.rels', serializer.serializeToString(doc));
-		}),
-		zip.file('xl/workbook.xml').async('string').then(text => {
-			const doc = parser.parseFromString(text, 'text/xml');
-			let calcPr = doc.getElementsByTagName('calcPr')[0];
-			if (!calcPr) {
-				calcPr = doc.createElementNS(XL_NS, 'calcPr');
-				doc.documentElement.appendChild(calcPr);
-			}
-			calcPr.setAttribute('fullCalcOnLoad', '1');
-			zip.file('xl/workbook.xml', serializer.serializeToString(doc));
-		}),
-	]);
 }
 
 /**
@@ -344,16 +329,28 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 		return rowElem ? findCell(rowElem, ref) : null;
 	}
 
-	// the dates of the template are formulas of consecutive days, while the
-	// program may skip days, so every date is written as a plain value
+	// every date of the template except the first one is a formula counting
+	// consecutive days from it, while a program may skip days. only the offset
+	// of each formula is corrected, so that the cells keep their formula and
+	// the calculation chain of the template stays untouched.
+	const firstSerial = getDateSerial(program[0].date);
 	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
 		const cellElem = cellOf(getDateCellRef(dIdx));
 		if (cellElem === null)
 			continue;
-		if (dIdx < program.length)
+		const hasFormula = getChildNamed(cellElem, 'f') !== null;
+		if (dIdx >= program.length) {
+			// no such day, the header is left empty
+			if (hasFormula)
+				setCellFormula(sheetDoc, cellElem, '""', '', 'str');
+			else
+				clearCell(cellElem);
+		} else if (hasFormula) {
+			const serial = getDateSerial(program[dIdx].date);
+			setCellFormula(sheetDoc, cellElem, getDateCellRef(0) + '+' + (serial - firstSerial), String(serial), null);
+		} else {
 			setCellNumber(sheetDoc, cellElem, getDateSerial(program[dIdx].date));
-		else
-			clearCell(cellElem);
+		}
 	}
 
 	// the matches
@@ -363,21 +360,27 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 			setCellText(sheetDoc, cellElem, scheduleData[ref]);
 	}
 
-	// a round without any match is filled with the unused round color
+	// a round left without any match is filled with the unused round color.
+	// only the fill of a cell changes, everything the template gives it is kept,
+	// and a round the template already fills in, like the arrival of the first
+	// day, is left alone.
 	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
 		for (let roundIdx = 0; roundIdx < PLAN_ROUNDS; roundIdx++) {
+			const cellElems = [];
 			let used = false;
 			for (let fIdx = 0; fIdx < PLAN_FIELDS; fIdx++) {
-				if (getCellRef(dIdx, roundIdx, fIdx) in scheduleData)
+				const cellElem = cellOf(getCellRef(dIdx, roundIdx, fIdx));
+				if (cellElem === null)
+					continue;
+				cellElems.push(cellElem);
+				if (hasContent(cellElem))
 					used = true;
 			}
 			if (used)
 				continue;
-			for (let fIdx = 0; fIdx < PLAN_FIELDS; fIdx++) {
-				const cellElem = cellOf(getCellRef(dIdx, roundIdx, fIdx));
-				if (cellElem !== null)
-					cellElem.setAttribute('s', unusedStyle(cellElem.getAttribute('s') || '0'));
-			}
+			cellElems.forEach(cellElem => {
+				cellElem.setAttribute('s', unusedStyle(cellElem.getAttribute('s') || '0'));
+			});
 		}
 	}
 
@@ -407,7 +410,6 @@ async function exportToExcel() {
 		const serializer = new XMLSerializer();
 
 		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
-		await forceFullCalc(zip, parser, serializer);
 
 		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 		const url = URL.createObjectURL(blob);
