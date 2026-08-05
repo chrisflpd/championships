@@ -86,27 +86,304 @@ function displayer(program) {
 
 }
 
+
+/*
+ * excel export
+ *
+ * the plan sheet of the template holds 12 days in a grid of 3 block rows by 4
+ * block columns. every day block is 4 round rows (2 zones of 2 rounds) by 5
+ * field columns, with the date of the day on the block header row and the zone
+ * names on the first column of the block.
+ */
+
+const PLAN_DAYS = 12;
+const PLAN_ROUNDS = 4;
+const PLAN_FIELDS = 5;
+const PLAN_UNUSED_RGB = 'FFD9D9D9'; // rgb 217,217,217
+const XL_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+
 function getTeamChar(teamId) {
 	if (teamId === 10) return "A";
 	return String(teamId);
 }
 
-function getCellRef(dayIdx, roundIdx, courtIdx) {
-	const blockRow = Math.floor(dayIdx / 4);
-	const dayInBlock = dayIdx % 4;
-	const rowBase = 3 + blockRow * 6;
-	const rIdx = rowBase + roundIdx;
-	const colBase = 3 + dayInBlock * 7;
-	const cIdx = colBase + courtIdx;
-	
-	let colStr = "";
-	let num = cIdx;
+/**
+ * @param {number} num - 1 based column number
+ * @returns {string}
+ */
+function getColName(num) {
+	let name = "";
 	while (num > 0) {
-		let rem = (num - 1) % 26;
-		colStr = String.fromCharCode(65 + rem) + colStr;
+		const rem = (num - 1) % 26;
+		name = String.fromCharCode(65 + rem) + name;
 		num = Math.floor((num - 1) / 26);
 	}
-	return colStr + rIdx;
+	return name;
+}
+
+function getCellRef(dayIdx, roundIdx, fieldIdx) {
+	const blockRow = Math.floor(dayIdx / 4);
+	const dayInBlock = dayIdx % 4;
+	return getColName(3 + dayInBlock * 7 + fieldIdx) + (3 + blockRow * 6 + roundIdx);
+}
+
+//the date of a day sits on the header row of its block, on the block first column
+function getDateCellRef(dayIdx) {
+	const blockRow = Math.floor(dayIdx / 4);
+	const dayInBlock = dayIdx % 4;
+	return getColName(2 + dayInBlock * 7) + (2 + blockRow * 6);
+}
+
+//excel counts days since the 30th of december 1899
+function getDateSerial(date) {
+	const d = new Date(date);
+	const utc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+	return Math.floor((utc - Date.UTC(1899, 11, 30)) / 86400000);
+}
+
+function indexRows(sheetDoc) {
+	const rows = {};
+	const rowElems = sheetDoc.getElementsByTagName('row');
+	for (let i = 0; i < rowElems.length; i++)
+		rows[rowElems[i].getAttribute('r')] = rowElems[i];
+	return rows;
+}
+
+function findCell(rowElem, ref) {
+	const cellElems = rowElem.getElementsByTagName('c');
+	for (let i = 0; i < cellElems.length; i++) {
+		if (cellElems[i].getAttribute('r') === ref)
+			return cellElems[i];
+	}
+	return null;
+}
+
+function removeChildrenNamed(elem, names) {
+	for (let i = elem.childNodes.length - 1; i >= 0; i--) {
+		const child = elem.childNodes[i];
+		if (names.indexOf(child.nodeName) !== -1)
+			elem.removeChild(child);
+	}
+}
+
+//a cell keeps its style, only its content is replaced
+function setCellText(doc, cellElem, text) {
+	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
+	cellElem.setAttribute('t', 'inlineStr');
+	const isElem = doc.createElementNS(XL_NS, 'is');
+	const tElem = doc.createElementNS(XL_NS, 't');
+	tElem.appendChild(doc.createTextNode(text));
+	isElem.appendChild(tElem);
+	cellElem.appendChild(isElem);
+}
+
+function setCellNumber(doc, cellElem, num) {
+	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
+	cellElem.removeAttribute('t');
+	const vElem = doc.createElementNS(XL_NS, 'v');
+	vElem.appendChild(doc.createTextNode(String(num)));
+	cellElem.appendChild(vElem);
+}
+
+function clearCell(cellElem) {
+	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
+	cellElem.removeAttribute('t');
+}
+
+/**
+ * adds a fill of the unused round color and hands out cell formats that copy an
+ * existing one and only replace its fill, so that borders, fonts and alignment
+ * of the template are kept.
+ *
+ * @param {Document} stylesDoc
+ * @returns {function(string): string} - style index -> style index of its filled copy
+ */
+function unusedStyleFactory(stylesDoc) {
+	const fills = stylesDoc.getElementsByTagName('fills')[0];
+	const fillElem = stylesDoc.createElementNS(XL_NS, 'fill');
+	const patternElem = stylesDoc.createElementNS(XL_NS, 'patternFill');
+	patternElem.setAttribute('patternType', 'solid');
+	const fgElem = stylesDoc.createElementNS(XL_NS, 'fgColor');
+	fgElem.setAttribute('rgb', PLAN_UNUSED_RGB);
+	const bgElem = stylesDoc.createElementNS(XL_NS, 'bgColor');
+	bgElem.setAttribute('indexed', '64');
+	patternElem.appendChild(fgElem);
+	patternElem.appendChild(bgElem);
+	fillElem.appendChild(patternElem);
+	fills.appendChild(fillElem);
+	const fillId = fills.getElementsByTagName('fill').length - 1;
+	fills.setAttribute('count', String(fillId + 1));
+
+	const cellXfs = stylesDoc.getElementsByTagName('cellXfs')[0];
+	const xfElems = cellXfs.getElementsByTagName('xf');
+	const originalXfs = [];
+	for (let i = 0; i < xfElems.length; i++)
+		originalXfs.push(xfElems[i]);
+	let xfCount = originalXfs.length;
+	const cache = {};
+
+	return function (styleIdx) {
+		if (styleIdx in cache)
+			return cache[styleIdx];
+		const original = originalXfs[parseInt(styleIdx)] || originalXfs[0];
+		const copy = original.cloneNode(true);
+		copy.setAttribute('fillId', String(fillId));
+		copy.setAttribute('applyFill', '1');
+		cellXfs.appendChild(copy);
+		cache[styleIdx] = String(xfCount);
+		xfCount++;
+		cellXfs.setAttribute('count', String(xfCount));
+		return cache[styleIdx];
+	};
+}
+
+/**
+ * the dates stop being formulas and the plan contents change behind excel, so
+ * its calculation chain is dropped and everything is calculated on open.
+ */
+function forceFullCalc(zip, parser, serializer) {
+	zip.remove('xl/calcChain.xml');
+	return Promise.all([
+		zip.file('[Content_Types].xml').async('string').then(text => {
+			const doc = parser.parseFromString(text, 'text/xml');
+			const overrides = doc.getElementsByTagName('Override');
+			for (let i = overrides.length - 1; i >= 0; i--) {
+				if (overrides[i].getAttribute('PartName') === '/xl/calcChain.xml')
+					overrides[i].parentNode.removeChild(overrides[i]);
+			}
+			zip.file('[Content_Types].xml', serializer.serializeToString(doc));
+		}),
+		zip.file('xl/_rels/workbook.xml.rels').async('string').then(text => {
+			const doc = parser.parseFromString(text, 'text/xml');
+			const rels = doc.getElementsByTagName('Relationship');
+			for (let i = rels.length - 1; i >= 0; i--) {
+				if ((rels[i].getAttribute('Target') || '').indexOf('calcChain.xml') !== -1)
+					rels[i].parentNode.removeChild(rels[i]);
+			}
+			zip.file('xl/_rels/workbook.xml.rels', serializer.serializeToString(doc));
+		}),
+		zip.file('xl/workbook.xml').async('string').then(text => {
+			const doc = parser.parseFromString(text, 'text/xml');
+			let calcPr = doc.getElementsByTagName('calcPr')[0];
+			if (!calcPr) {
+				calcPr = doc.createElementNS(XL_NS, 'calcPr');
+				doc.documentElement.appendChild(calcPr);
+			}
+			calcPr.setAttribute('fullCalcOnLoad', '1');
+			zip.file('xl/workbook.xml', serializer.serializeToString(doc));
+		}),
+	]);
+}
+
+/**
+ * fills the plan sheet of the template with the dates and the matches of the
+ * program and marks the rounds left without a match.
+ *
+ * @param {JSZip} zip
+ * @param {day[]} program
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<string[]>} - warnings
+ */
+async function fillPlanSheet(zip, program, parser, serializer) {
+	const warnings = [];
+
+	// one column per sport and court pair, in the order of the fields sheet
+	const cols = [];
+	config.sports.forEach(sport => {
+		sport.courts.forEach(court => {
+			cols.push({
+				sport: sport,
+				court: court,
+			});
+		});
+	});
+	if (cols.length > PLAN_FIELDS)
+		warnings.push(`το πρότυπο έχει ${PLAN_FIELDS} στήλες γηπέδων, ενώ η διαμόρφωση έχει ${cols.length}`);
+	if (program.length > PLAN_DAYS)
+		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} ημέρες, ενώ το πρόγραμμα έχει ${program.length}`);
+
+	// the matches of the program, per plan cell
+	const scheduleData = {};
+	program.forEach((day, dIdx) => {
+		if (dIdx >= PLAN_DAYS)
+			return;
+		day.dzones.forEach((dzone, dzIdx) => {
+			dzone.rounds.forEach((round, rIdx) => {
+				let roundIdx = dzIdx * 2 + rIdx;
+				// on the arrival day the single morning round is the second one,
+				// the first is taken by the arrival itself
+				if (dIdx === 0 && dzIdx === 0 && dzone.rounds.length === 1)
+					roundIdx = 1;
+				if (roundIdx >= PLAN_ROUNDS) {
+					warnings.push(`το πρότυπο έχει ${PLAN_ROUNDS} γύρους ανά ημέρα`);
+					return;
+				}
+				cols.forEach((col, fIdx) => {
+					if (fIdx >= PLAN_FIELDS)
+						return;
+					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
+					const match = slot?.match;
+					if (match?.sport?.name !== col.sport.name)
+						return;
+					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = ('id' in match.team_home && 'id' in match.team_away)
+						? [getTeamChar(match.team_home.id), getTeamChar(match.team_away.id)].join('-')
+						: match.id;
+				});
+			});
+		});
+	});
+
+	const sheetDoc = parser.parseFromString(await zip.file('xl/worksheets/sheet1.xml').async('string'), 'text/xml');
+	const stylesDoc = parser.parseFromString(await zip.file('xl/styles.xml').async('string'), 'text/xml');
+	const rows = indexRows(sheetDoc);
+	const unusedStyle = unusedStyleFactory(stylesDoc);
+
+	function cellOf(ref) {
+		const rowElem = rows[ref.replace(/[A-Z]+/g, '')];
+		return rowElem ? findCell(rowElem, ref) : null;
+	}
+
+	// the dates of the template are formulas of consecutive days, while the
+	// program may skip days, so every date is written as a plain value
+	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
+		const cellElem = cellOf(getDateCellRef(dIdx));
+		if (cellElem === null)
+			continue;
+		if (dIdx < program.length)
+			setCellNumber(sheetDoc, cellElem, getDateSerial(program[dIdx].date));
+		else
+			clearCell(cellElem);
+	}
+
+	// the matches
+	for (const ref in scheduleData) {
+		const cellElem = cellOf(ref);
+		if (cellElem !== null)
+			setCellText(sheetDoc, cellElem, scheduleData[ref]);
+	}
+
+	// a round without any match is filled with the unused round color
+	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
+		for (let roundIdx = 0; roundIdx < PLAN_ROUNDS; roundIdx++) {
+			let used = false;
+			for (let fIdx = 0; fIdx < PLAN_FIELDS; fIdx++) {
+				if (getCellRef(dIdx, roundIdx, fIdx) in scheduleData)
+					used = true;
+			}
+			if (used)
+				continue;
+			for (let fIdx = 0; fIdx < PLAN_FIELDS; fIdx++) {
+				const cellElem = cellOf(getCellRef(dIdx, roundIdx, fIdx));
+				if (cellElem !== null)
+					cellElem.setAttribute('s', unusedStyle(cellElem.getAttribute('s') || '0'));
+			}
+		}
+	}
+
+	zip.file('xl/worksheets/sheet1.xml', serializer.serializeToString(sheetDoc));
+	zip.file('xl/styles.xml', serializer.serializeToString(stylesDoc));
+	return warnings;
 }
 
 async function exportToExcel() {
@@ -120,297 +397,19 @@ async function exportToExcel() {
 		return;
 	}
 
-	const program = window.currentProgram;
-
 	try {
 		const response = await fetch('template.xlsx');
-		if (!response.ok) {
+		if (!response.ok)
 			throw new Error("Δεν ήταν δυνατή η φόρτωση του αρχείου template.xlsx.");
-		}
-		const arrayBuffer = await response.arrayBuffer();
+		const zip = await JSZip.loadAsync(await response.arrayBuffer());
 
-		const zip = await JSZip.loadAsync(arrayBuffer);
-		let sheet1XmlText = await zip.file("xl/worksheets/sheet1.xml").async("string");
-
-		// Calculate start date serial number for B2
-		const startDate = program[0].date;
-		const d = new Date(startDate);
-		const utcDate = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-		const epoch = Date.UTC(1899, 11, 30);
-		const startDateSerial = Math.floor((utcDate - epoch) / 86400000);
-
-		// Build columns mapping matching courts
-		const cols = [];
-		config.sports.forEach(sport => {
-			sport.courts.forEach(court => {
-				cols.push({ sport: sport, court: court });
-			});
-		});
-
-		// Build schedule data mapping cellRef -> valStr
-		// Pre-initialize all 12 days x 4 rounds x 5 courts to empty string ""
-		const scheduleData = {};
-		for (let dIdx = 0; dIdx < 12; dIdx++) {
-			for (let rIdx = 0; rIdx < 4; rIdx++) {
-				for (let cIdx = 0; cIdx < 5; cIdx++) {
-					const cellRef = getCellRef(dIdx, rIdx, cIdx);
-					scheduleData[cellRef] = "";
-				}
-			}
-		}
-
-		program.forEach((day, dIdx) => {
-			if (dIdx >= 12) return; // template supports 12 days
-			day.dzones.forEach((dzone, dzIdx) => {
-				dzone.rounds.forEach((round, rIdx) => {
-					let roundIdx = dzIdx * 2 + rIdx; // 0..3
-
-					// Rule: For the very first day (dIdx === 0) and very first morning zone (dzIdx === 0):
-					// If there is 1 round produced by the algorithm, it is the 2nd round of the morning zone (roundIdx = 1).
-					// The 1st round of the 1st morning zone (roundIdx = 0) remains empty.
-					if (dIdx === 0 && dzIdx === 0 && dzone.rounds.length === 1) {
-						roundIdx = 1;
-					}
-
-					cols.forEach((col, cIdx) => {
-						const cellRef = getCellRef(dIdx, roundIdx, cIdx);
-						const slot = col.court in round.slots ? round.slots[col.court] : undefined;
-						const match = slot?.match;
-						if (match?.sport?.name === col.sport.name) {
-							if ('id' in match.team_home && 'id' in match.team_away) {
-								scheduleData[cellRef] = [getTeamChar(match.team_home.id), getTeamChar(match.team_away.id)].join('-');
-							} else {
-								scheduleData[cellRef] = match.id;
-							}
-						}
-					});
-				});
-			});
-		});
-
-		// Parse XML using browser DOMParser
 		const parser = new DOMParser();
 		const serializer = new XMLSerializer();
 
-		// Update styles.xml fill 23 to RGB FFA6A6A6 (RGB=166,166,166) and remove double-top borders from styles 178, 179, 180
-		if (zip.file("xl/styles.xml")) {
-			let stylesXmlText = await zip.file("xl/styles.xml").async("string");
-			const stylesDoc = parser.parseFromString(stylesXmlText, "text/xml");
-			const fills = stylesDoc.getElementsByTagName("fill");
-			if (fills.length > 23) {
-				const f23 = fills[23];
-				const fg = f23.getElementsByTagName("fgColor")[0];
-				if (fg) {
-					fg.removeAttribute("theme");
-					fg.removeAttribute("tint");
-					fg.setAttribute("rgb", "FFA6A6A6");
-				}
-			}
+		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
+		await forceFullCalc(zip, parser, serializer);
 
-			const cellXfs = stylesDoc.getElementsByTagName("cellXfs")[0];
-			if (cellXfs) {
-				const xfs = Array.from(cellXfs.getElementsByTagName("xf"));
-				if (xfs.length > 180) {
-					xfs[178].setAttribute("borderId", "0");
-					xfs[179].setAttribute("borderId", "0");
-					xfs[180].setAttribute("borderId", "9");
-				}
-			}
-
-			zip.file("xl/styles.xml", serializer.serializeToString(stylesDoc));
-		}
-
-		const xmlDoc = parser.parseFromString(sheet1XmlText, "text/xml");
-		const ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
-		// Identify unused round slots across 12 days
-		// rIdx 0: Morning Round 1
-		// rIdx 1: Morning Round 2
-		// rIdx 2: Afternoon Round 1
-		// rIdx 3: Afternoon Round 2
-		const unusedRoundsSet = new Set();
-		const unusedMergeRefs = [];
-
-		for (let dIdx = 0; dIdx < 12; dIdx++) {
-			if (dIdx >= program.length) {
-				for (let rIdx = 0; rIdx < 4; rIdx++) {
-					unusedRoundsSet.add(`${dIdx},${rIdx}`);
-				}
-			} else {
-				const day = program[dIdx];
-
-				// Morning Zone (dzIdx = 0)
-				const mZone = day.dzones ? day.dzones[0] : undefined;
-				const mCount = (mZone && mZone.rounds) ? mZone.rounds.length : 0;
-				if (mCount === 0) {
-					unusedRoundsSet.add(`${dIdx},0`);
-					unusedRoundsSet.add(`${dIdx},1`);
-				} else if (mCount === 1) {
-					if (dIdx === 0) {
-						unusedRoundsSet.add(`${dIdx},0`);
-					} else {
-						unusedRoundsSet.add(`${dIdx},1`);
-					}
-				}
-
-				// Afternoon Zone (dzIdx = 1)
-				const aZone = day.dzones ? day.dzones[1] : undefined;
-				const aCount = (aZone && aZone.rounds) ? aZone.rounds.length : 0;
-				if (aCount === 0) {
-					unusedRoundsSet.add(`${dIdx},2`);
-					unusedRoundsSet.add(`${dIdx},3`);
-				} else if (aCount === 1) {
-					unusedRoundsSet.add(`${dIdx},3`);
-				}
-			}
-		}
-
-		// Apply merge styles (s=178, 179, 180 with clean court borders and RGB 166,166,166 fill)
-		unusedRoundsSet.forEach(key => {
-			const [dIdxStr, rIdxStr] = key.split(',');
-			const dIdx = parseInt(dIdxStr);
-			const rIdx = parseInt(rIdxStr);
-
-			const c0Ref = getCellRef(dIdx, rIdx, 0);
-			const c4Ref = getCellRef(dIdx, rIdx, 4);
-			unusedMergeRefs.push(`${c0Ref}:${c4Ref}`);
-
-			const rowNum = c0Ref.replace(/[A-Z]/g, '');
-			let rowElem = xmlDoc.querySelector(`row[r="${rowNum}"]`);
-			if (rowElem) {
-				for (let cIdx = 0; cIdx < 5; cIdx++) {
-					const cRef = getCellRef(dIdx, rIdx, cIdx);
-					let cElem = rowElem.querySelector(`c[r="${cRef}"]`);
-					if (!cElem) {
-						cElem = xmlDoc.createElementNS(ns, "c");
-						cElem.setAttribute("r", cRef);
-						rowElem.appendChild(cElem);
-					}
-
-					cElem.removeAttribute("t");
-					const children = Array.from(cElem.childNodes);
-					children.forEach(child => {
-						if (child.nodeName === 'v' || child.nodeName === 'is') {
-							cElem.removeChild(child);
-						}
-					});
-
-					if (cIdx === 0) cElem.setAttribute("s", "178");
-					else if (cIdx === 4) cElem.setAttribute("s", "180");
-					else cElem.setAttribute("s", "179");
-
-					delete scheduleData[cRef];
-				}
-			}
-		});
-
-		// Rebuild <mergeCells> in sheet1.xml
-		let mergeCellsElem = xmlDoc.querySelector("mergeCells");
-		if (!mergeCellsElem) {
-			mergeCellsElem = xmlDoc.createElementNS(ns, "mergeCells");
-			xmlDoc.documentElement.appendChild(mergeCellsElem);
-		}
-
-		const existingHeaderMerges = [];
-		const mcList = Array.from(mergeCellsElem.querySelectorAll("mergeCell"));
-		mcList.forEach(mc => {
-			const ref = mc.getAttribute("ref") || "";
-			if (/^[BIPW]|^(AD|AG|AI|AL)/.test(ref)) {
-				existingHeaderMerges.push(ref);
-			}
-			mergeCellsElem.removeChild(mc);
-		});
-
-		const allMerges = existingHeaderMerges.concat(unusedMergeRefs);
-		mergeCellsElem.setAttribute("count", String(allMerges.length));
-
-		allMerges.forEach(ref => {
-			const mc = xmlDoc.createElementNS(ns, "mergeCell");
-			mc.setAttribute("ref", ref);
-			mergeCellsElem.appendChild(mc);
-		});
-
-		// Update B2 date cell
-		const b2Cell = xmlDoc.querySelector('c[r="B2"]');
-		if (b2Cell) {
-			let vElem = b2Cell.querySelector('v');
-			if (!vElem) {
-				vElem = xmlDoc.createElementNS(ns, "v");
-				b2Cell.appendChild(vElem);
-			}
-			vElem.textContent = String(startDateSerial);
-		}
-
-		// Update match cells
-		for (const [cRef, valStr] of Object.entries(scheduleData)) {
-			const rowNum = cRef.replace(/[A-Z]/g, '');
-			let rowElem = xmlDoc.querySelector(`row[r="${rowNum}"]`);
-			if (rowElem) {
-				let cElem = rowElem.querySelector(`c[r="${cRef}"]`);
-				if (cElem) {
-					// Remove existing v or is nodes
-					const children = Array.from(cElem.childNodes);
-					children.forEach(child => {
-						if (child.nodeName === 'v' || child.nodeName === 'is') {
-							cElem.removeChild(child);
-						}
-					});
-
-					if (valStr !== "") {
-						cElem.setAttribute("t", "inlineStr");
-						const isElem = xmlDoc.createElementNS(ns, "is");
-						const tElem = xmlDoc.createElementNS(ns, "t");
-						tElem.textContent = valStr;
-						isElem.appendChild(tElem);
-						cElem.appendChild(isElem);
-					} else {
-						cElem.removeAttribute("t");
-					}
-				} else if (valStr !== "") {
-					cElem = xmlDoc.createElementNS(ns, "c");
-					cElem.setAttribute("r", cRef);
-					cElem.setAttribute("s", "178");
-					cElem.setAttribute("t", "inlineStr");
-					const isElem = xmlDoc.createElementNS(ns, "is");
-					const tElem = xmlDoc.createElementNS(ns, "t");
-					tElem.textContent = valStr;
-					isElem.appendChild(tElem);
-					cElem.appendChild(isElem);
-					rowElem.appendChild(cElem);
-				}
-			}
-		}
-
-		const updatedXmlText = serializer.serializeToString(xmlDoc);
-
-		zip.file("xl/worksheets/sheet1.xml", updatedXmlText);
-
-		// Safety fix for games sheet (sheet4.xml): wrap H (th) and I (ta) formulas with IFNA
-		// so that 3-character knockout match IDs (like bq1, ps1, vs1, ks1) do not produce #N/A errors
-		if (zip.file("xl/worksheets/sheet4.xml")) {
-			let sheet4XmlText = await zip.file("xl/worksheets/sheet4.xml").async("string");
-			const xmlDoc4 = parser.parseFromString(sheet4XmlText, "text/xml");
-			const rowElems4 = xmlDoc4.querySelectorAll("row");
-			rowElems4.forEach(rowElem => {
-				const rNum = rowElem.getAttribute("r");
-				if (rNum === "1") return;
-				['H', 'I'].forEach(colLet => {
-					const cRef = colLet + rNum;
-					const cElem = rowElem.querySelector(`c[r="${cRef}"]`);
-					if (cElem) {
-						const fElem = cElem.querySelector("f");
-						if (fElem && fElem.textContent && !fElem.textContent.startsWith("_xlfn.IFNA")) {
-							fElem.textContent = `_xlfn.IFNA(${fElem.textContent},"")`;
-						}
-					}
-				});
-			});
-			const updatedXmlText4 = serializer.serializeToString(xmlDoc4);
-			zip.file("xl/worksheets/sheet4.xml", updatedXmlText4);
-		}
-
-		// Generate blob and download as .xlsx
-		const blob = await zip.generateAsync({ type: "blob" });
+		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
 		link.href = url;
@@ -419,6 +418,9 @@ async function exportToExcel() {
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
+
+		if (warnings.length)
+			alert("Το αρχείο δημιουργήθηκε, αλλά:\n" + warnings.join("\n"));
 
 	} catch (error) {
 		console.error("Σφάλμα κατά την εξαγωγή Excel:", error);
