@@ -152,6 +152,21 @@ function hasGroupPhases(group_id) {
 	return group.team_matches % (group.teams.length - 1) === 0 && phases !== 1;
 }
 
+//a knockout match may take one opponent from a group ranking and the other from another
+//knockout (a barrage feeding a semifinal). it must wait for the knockout it depends on,
+//so it belongs to the knockout stage and not to the group stage.
+function isKnockoutFed(m) {
+	return (m.team_home && m.team_home.type === 'knockout') || (m.team_away && m.team_away.type === 'knockout');
+}
+
+//the ids of the knockouts whose result this match waits for
+function feederKnockoutIds(m) {
+	let ids = [];
+	if (m.team_home && m.team_home.type === 'knockout') ids.push(m.team_home.knockout.id);
+	if (m.team_away && m.team_away.type === 'knockout') ids.push(m.team_away.knockout.id);
+	return ids;
+}
+
 function hasPairPlayedInZone(dzone, team1Name, team2Name) {
 	if (!team1Name || !team2Name) return false;
 	for (let r = 0; r < dzone.rounds.length; r++) {
@@ -522,7 +537,7 @@ function ScheduleMatchesDefault(matches,days){
 							else if (days[d].dzones[dz].rounds[r].slots[s].match === null && matches[m].sport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court) && typeof (matches[m].team_home.name) === 'undefined' && typeof (matches[m].team_away.name) === 'undefined'){
 								//console.log(matches[m].id,matches[m].team_home.name,matches[m].team_away.name,matches[m].points,matches[m].sequence,'KN GAME')
 								let scheduled_k = false;
-								if (matches[m].team_home.type === 'group' || matches[m].team_away.type === 'group'){
+								if (!isKnockoutFed(matches[m]) && (matches[m].team_home.type === 'group' || matches[m].team_away.type === 'group')){
 									let group_finished = true;
 									
 									for (let mg=0; mg<matches.length; mg++){
@@ -694,19 +709,19 @@ function ScheduleMatchesDefault(matches,days){
 										}
 									}
 								}
-								else if (matches[m].team_home.type === 'knockout' && matches[m].team_away.type === 'knockout'){
+								else if (isKnockoutFed(matches[m])){
 									
 									let knockout_finished = true;
 									
 									for (let mg=0; mg<matches.length; mg++){
 										if (typeof (matches[mg].team_home.name) === 'undefined' && typeof (matches[mg].team_away.name) === 'undefined' ){//if one of this knockout games is not finished yet
-											if (matches[mg].id === matches[m].team_home.knockout.id || matches[mg].id === matches[m].team_away.knockout.id){
+											if (feederKnockoutIds(matches[m]).includes(matches[mg].id)){
 												knockout_finished = false;
 												break;
 											}
 											if (matches[m].team_home.is_winner === true || matches[m].team_away.is_winner === true){
 												if (matches[mg].team_home.is_winner === false || matches[mg].team_away.is_winner === false){
-													if (matches[mg].team_home.knockout.id === matches[m].team_home.knockout.id || matches[mg].team_home.knockout.id === matches[m].team_away.knockout.id){
+													if (matches[mg].team_home.type === 'knockout' && feederKnockoutIds(matches[m]).includes(matches[mg].team_home.knockout.id)){
 														knockout_finished = false;//losers games must be placed before winners games are placed
 														break;
 													}
@@ -728,12 +743,12 @@ function ScheduleMatchesDefault(matches,days){
 												for (let drr = start_r; drr < days[ddate].dzones[ddz].rounds.length; drr++){//for every round of that zone of that day
 													for (let sdate of Object.keys(days[ddate].dzones[ddz].rounds[drr].slots)){
 														if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match !== null && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.sport.name === matches[m].sport.name && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.name) === 'undefined' && typeof (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.name) === 'undefined'){
-															if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.id === matches[m].team_home.knockout.id || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.id === matches[m].team_away.knockout.id){
+															if (feederKnockoutIds(matches[m]).includes(days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.id)){
 																too_early = true;
 																break;
 															}
 															if (matches[m].team_home.is_winner === true || matches[m].team_away.is_winner === true){
-																if ((days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.is_winner === false && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.knockout.id === matches[m].team_home.knockout.id) || (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.is_winner === false && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.knockout.id === matches[m].team_away.knockout.id)){
+																if ((days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.is_winner === false && matches[m].team_home.type === 'knockout' && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.knockout.id === matches[m].team_home.knockout.id) || (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.is_winner === false && matches[m].team_away.type === 'knockout' && days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.knockout.id === matches[m].team_away.knockout.id)){
 																	too_early = true;//losers games if placed already must be earlier than winners games (3rd place game - final)
 																	break;
 																}
