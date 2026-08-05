@@ -105,6 +105,10 @@ const TEAMS_SHEET = 'xl/worksheets/sheet2.xml';
 const POINTS_SHEET = 'xl/worksheets/sheet6.xml';
 const POINTS_LEFTOVER_CELL = 'L1'; //a word left in the template by an older one
 const SHARED_STRINGS = 'xl/sharedStrings.xml';
+const WORKBOOK = 'xl/workbook.xml';
+//the order the sheets are meant to be read in. a sheet the template has and this
+//list does not keeps its place after them.
+const SHEET_ORDER = ['plan', 'pages', 'points', 'teams', 'fields', 'games'];
 const XL_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 /**
@@ -339,6 +343,54 @@ function unusedStyleFactory(stylesDoc) {
 }
 
 /**
+ * the tabs of a workbook stand in the order its sheets are listed in, so the
+ * sheets are listed in the order they are meant to be read in.
+ *
+ * a defined name belonging to a single sheet points at it by its position in
+ * that list, so those have to follow the sheets they belong to.
+ *
+ * @param {JSZip} zip
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<void>}
+ */
+async function orderSheets(zip, parser, serializer) {
+	const file = zip.file(WORKBOOK);
+	if (!file)
+		return;
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const sheetsElem = doc.getElementsByTagName('sheets')[0];
+	if (!sheetsElem)
+		return;
+	const sheetElems = [];
+	const sheetList = sheetsElem.getElementsByTagName('sheet');
+	for (let i = 0; i < sheetList.length; i++)
+		sheetElems.push(sheetList[i]);
+
+	const before = sheetElems.map(elem => elem.getAttribute('name'));
+	const place = name => {
+		const wanted = SHEET_ORDER.indexOf(name);
+		return wanted === -1 ? SHEET_ORDER.length + before.indexOf(name) : wanted;
+	};
+	const ordered = sheetElems.slice().sort((a, b) => place(a.getAttribute('name')) - place(b.getAttribute('name')));
+	//appending a child that is already there moves it to the end
+	ordered.forEach(elem => sheetsElem.appendChild(elem));
+
+	const after = ordered.map(elem => elem.getAttribute('name'));
+	const nameElems = doc.getElementsByTagName('definedName');
+	for (let i = 0; i < nameElems.length; i++) {
+		const local = nameElems[i].getAttribute('localSheetId');
+		if (local === null || local === '')
+			continue;
+		const was = parseInt(local);
+		if (Number.isNaN(was) || before[was] === undefined)
+			continue;
+		nameElems[i].setAttribute('localSheetId', String(after.indexOf(before[was])));
+	}
+	zip.file(WORKBOOK, serializer.serializeToString(doc));
+}
+
+/**
  * the points sheet of the template still carries a word of an older template,
  * which has no place in the program that is handed out. only that one cell is
  * emptied, keeping everything the template gives it.
@@ -373,11 +425,19 @@ async function clearLeftoverNote(zip, parser, serializer) {
  * @returns {Promise<void>}
  */
 async function setOpeningView(zip, parser, serializer) {
-	const wbDoc = parser.parseFromString(await zip.file('xl/workbook.xml').async('string'), 'text/xml');
+	const wbDoc = parser.parseFromString(await zip.file(WORKBOOK).async('string'), 'text/xml');
+	//the tab to open on is given by its place among the sheets, so it is looked up
+	//rather than assumed, the sheets having just been put in order
+	let planTab = 0;
+	const sheetElems = wbDoc.getElementsByTagName('sheet');
+	for (let i = 0; i < sheetElems.length; i++) {
+		if (sheetElems[i].getAttribute('name') === SHEET_ORDER[0])
+			planTab = i;
+	}
 	const wbViewElems = wbDoc.getElementsByTagName('workbookView');
 	for (let i = 0; i < wbViewElems.length; i++)
-		wbViewElems[i].setAttribute('activeTab', '0');
-	zip.file('xl/workbook.xml', serializer.serializeToString(wbDoc));
+		wbViewElems[i].setAttribute('activeTab', String(planTab));
+	zip.file(WORKBOOK, serializer.serializeToString(wbDoc));
 
 	const sheetNames = [];
 	for (const name in zip.files) {
@@ -613,6 +673,7 @@ async function exportToExcel() {
 
 		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
 		await clearLeftoverNote(zip, parser, serializer);
+		await orderSheets(zip, parser, serializer);
 		await setOpeningView(zip, parser, serializer);
 
 		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
