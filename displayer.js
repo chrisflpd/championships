@@ -294,8 +294,10 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	if (lastIdx >= PLAN_DAYS)
 		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} συνεχόμενες ημέρες, ενώ το πρόγραμμα απλώνεται σε ${lastIdx + 1}`);
 
-	// the matches of the program, per plan cell
+	// the matches of the program, per plan cell, along with the rounds the
+	// configuration gives, which are the ones that may hold a match at all
 	const scheduleData = {};
+	const givenRounds = {};
 	program.forEach(day => {
 		const dIdx = dayIndex(day);
 		if (dIdx >= PLAN_DAYS)
@@ -311,6 +313,7 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 					warnings.push(`το πρότυπο έχει ${PLAN_ROUNDS} γύρους ανά ημέρα`);
 					return;
 				}
+				givenRounds[dIdx + ',' + roundIdx] = true;
 				cols.forEach((col, fIdx) => {
 					if (fIdx >= PLAN_FIELDS)
 						return;
@@ -362,23 +365,27 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 			setCellText(sheetDoc, cellElem, scheduleData[ref]);
 	}
 
-	// a round left without any match is filled with the unused round color.
-	// only the fill of a cell changes, everything the template gives it is kept,
-	// and a round the template already fills in, like the arrival of the first
-	// day, is left alone.
+	// a round the configuration does not give at all is filled with the unused
+	// round color. a round that is given but ends up without a match keeps the
+	// colors of the template, since it was time made available for matches.
+	// only the fill of a cell changes, everything else the template gives it is
+	// kept, and a round the template fills in itself, like the arrival of the
+	// first day, is left alone.
 	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
 		for (let roundIdx = 0; roundIdx < PLAN_ROUNDS; roundIdx++) {
+			if (dIdx + ',' + roundIdx in givenRounds)
+				continue;
 			const cellElems = [];
-			let used = false;
+			let filled = false;
 			for (let fIdx = 0; fIdx < PLAN_FIELDS; fIdx++) {
 				const cellElem = cellOf(getCellRef(dIdx, roundIdx, fIdx));
 				if (cellElem === null)
 					continue;
 				cellElems.push(cellElem);
 				if (hasContent(cellElem))
-					used = true;
+					filled = true;
 			}
-			if (used)
+			if (filled)
 				continue;
 			cellElems.forEach(cellElem => {
 				cellElem.setAttribute('s', unusedStyle(cellElem.getAttribute('s') || '0'));
