@@ -81,6 +81,46 @@ function hasBaseballGroupMatchInZone(dzone) {
 	return false;
 }
 
+//a baseball group match introduces the sport to a team when that team has no
+//baseball match before it. only those matches are spread over the zones, the
+//rest are placed like a match of any other sport.
+function slotRank(d, dz, r) {
+	return d * 10000 + dz * 100 + r;
+}
+
+//the slot of the first baseball match of every team, as placed so far
+function baseballFirstRanks(days) {
+	let ranks = {};
+	for (let d = 0; d < days.length; d++) {
+		for (let dz = 0; dz < days[d].dzones.length; dz++) {
+			for (let r = 0; r < days[d].dzones[dz].rounds.length; r++) {
+				let rank = slotRank(d, dz, r);
+				for (let s of Object.keys(days[d].dzones[dz].rounds[r].slots)) {
+					let match = days[d].dzones[dz].rounds[r].slots[s].match;
+					if (!isBaseballGroupMatch(match)) continue;
+					[match.team_home.name, match.team_away.name].forEach(name => {
+						if (!(name in ranks) || rank < ranks[name]) ranks[name] = rank;
+					});
+				}
+			}
+		}
+	}
+	return ranks;
+}
+
+function isBaseballIntroMatch(ranks, m, d, dz, r) {
+	if (!isBaseballGroupMatch(m)) return false;
+	let rank = slotRank(d, dz, r);
+	let known = name => name in ranks && ranks[name] < rank;
+	return !known(m.team_home.name) || !known(m.team_away.name);
+}
+
+//a team still without a baseball match keeps the reservation of the baseball court
+function hasBaseballIntroLeft(ranks, matches) {
+	return matches.some(m => isBaseballGroupMatch(m)
+		&& (!(m.team_home.name in ranks) || !(m.team_away.name in ranks)));
+}
+
 function involvesFirstTeam(m) {
 	if (!config.teams || config.teams.length === 0) return false;
 	let firstTeam = config.teams[0];
@@ -211,6 +251,9 @@ function ScheduleMatchesDefault(matches,days){
 		crts = Object.fromEntries(
 			Object.entries(crts).sort(([, a], [, b]) => b - a)
 		);
+		//the baseball rules only concern the matches that introduce the sport to a team
+		let bbRanks = baseballFirstRanks(days);
+		let bbIntroLeft = hasBaseballIntroLeft(bbRanks, matches);
 		console.log(matches.length);
 		//debugger;
 		//console.log(days)
@@ -219,8 +262,7 @@ function ScheduleMatchesDefault(matches,days){
 				for (let r = 0; r < days[d].dzones[dz].rounds.length; r++){//for every round of that zone of that day
 					let courtsToIterate = Object.keys(crts);
 					if (!(d === 0 && dz === 0) && r === 0) {
-						let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-						if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+						if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 							let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 							if (bbSport) {
 								courtsToIterate.sort((a, b) => {
@@ -274,7 +316,7 @@ function ScheduleMatchesDefault(matches,days){
 											}
 									}
 								}
-								if (days[d].dzones[dz].rounds.length < 2 && isBaseballGroupMatch(matches[m])) {
+								if (days[d].dzones[dz].rounds.length < 2 && isBaseballIntroMatch(bbRanks, matches[m], d, dz, r)) {
 									scheduled = true;
 								}
 								let too_late=false;
@@ -296,29 +338,34 @@ function ScheduleMatchesDefault(matches,days){
 									if (d === 0 && dz === 0) {
 										scheduled = true;
 									}
-									if (r !== 0) {
-										scheduled = true;
-									}
-									if (hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
-										scheduled = true;
-									}
-									if (days[d].dzones[dz].rounds.length < 2) {
-										scheduled = true;
-									}
-									for (let pd = 0; pd <= d; pd++) {
-										let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
-										for (let pdz = 0; pdz <= maxPdz; pdz++) {
-											if (!(pd === 0 && pdz === 0) && days[pd].dzones[pdz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
-												too_early = true;
-												break;
-											}
+									// the zone by zone spreading of the baseball group stage only
+									// holds for a match that brings a team to the sport for the
+									// first time. once both teams have played it, the match is
+									// placed like any other.
+									if (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r)) {
+										if (r !== 0) {
+											scheduled = true;
 										}
-										if (too_early) break;
+										if (hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+											scheduled = true;
+										}
+										if (days[d].dzones[dz].rounds.length < 2) {
+											scheduled = true;
+										}
+										for (let pd = 0; pd <= d; pd++) {
+											let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
+											for (let pdz = 0; pdz <= maxPdz; pdz++) {
+												if (!(pd === 0 && pdz === 0) && days[pd].dzones[pdz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
+													too_early = true;
+													break;
+												}
+											}
+											if (too_early) break;
+										}
 									}
 								} else {
 									if (!(d === 0 && dz === 0) && r === 0) {
-										let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-										if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+										if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 											let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 											if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 												scheduled = true;
@@ -413,7 +460,9 @@ function ScheduleMatchesDefault(matches,days){
 														//console.log('points+0.5 in different sport games');
 													}
 												}
-												if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== "Μπέιζμπολ" || (matches[m].sport.name==="Μπέιζμπολ" && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
+												//the baseball court is left free around a match that brings a
+												//team to the sport for the first time, not around every one
+												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[prev_round].slots[sl].match, d, dz, prev_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
 													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
 														scheduled=true;
 													}	
@@ -461,7 +510,8 @@ function ScheduleMatchesDefault(matches,days){
 														//console.log('points+0.5 in different sport games');
 													}
 												}
-												if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== "Μπέιζμπολ" || (matches[m].sport.name==="Μπέιζμπολ" && days[d].dzones[dz].rounds[next_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
+												//same for the round after it
+												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[next_round].slots[sl].match, d, dz, next_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[next_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
 													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
 														scheduled=true;
 													}	
@@ -625,8 +675,7 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 										if (!(d === 0 && dz === 0) && r === 0) {
-											let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-											if (remainingBBGroup && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+											if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													scheduled_k = true;
@@ -798,8 +847,7 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 										if (!(d === 0 && dz === 0) && r === 0) {
-											let remainingBBGroup = matches.some(remM => isBaseballGroupMatch(remM));
-											if (remainingBBGroup && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+											if (bbIntroLeft && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													too_early = true;
