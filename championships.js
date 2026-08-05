@@ -88,8 +88,10 @@ function pair_teams(remaining_games,group,matches){
 }
 
 
-// TODO what happens when produced is called multiple times?
-function produce() {
+//builds the matches of every group and of every knockout. the group matches that
+//do not come out of a plain round robin are paired at random, so every call may
+//hand out a different set of them.
+function produce_matches() {
 	matches = [];
 
 	// produce court metric (to know which court has more games in a given time)
@@ -175,51 +177,149 @@ function produce() {
 		}
 	}
 	console.log('matches: ' + matches.length);
-	console.log(config.days);
+	return matches;
+}
 
-	window.startTime = Date.now();
+
+/*
+ * the search
+ *
+ * a window of the search holds the browser for as long as its time limit, so the
+ * windows are run one after the other with a pause in between. the pause is what
+ * lets the page draw the count of the attempts and take a stop from the user.
+ */
+
+const SEARCH_WINDOW_MS = 3000; //the time limit that used to end the whole search
+const SEARCH_PAUSE_MS = 50; //handed to the browser between two windows
+
+let search = null;
+
+//one window of the search: a fresh set of matches, then as many orderings of it
+//as fit in the time limit. returns the program, or null if the window ran out.
+function search_run_window() {
+	produce_matches();
 	let program = null;
-	let attempts = 0;
-	while (Date.now() - window.startTime < 3000) {
-		attempts++;
-		window.attemptStartTime = Date.now();
+	window.startTime = Date.now();
+	while (Date.now() - window.startTime < SEARCH_WINDOW_MS) {
 		let currentMatches = shuffle([...matches]);
 		try {
 			program = ScheduleMatchesDefault(currentMatches, config.days);
-			if (program) {
-				console.log(`Successfully scheduled in attempt ${attempts}`);
+			if (program)
 				break;
-			}
 		} catch (error) {
-			if (error.message === "TIMEOUT") {
+			if (error.message === "TIMEOUT")
 				break;
-			}
-			if (error.message === "ATTEMPT_TIMEOUT") {
+			if (error.message === "ATTEMPT_TIMEOUT")
 				continue;
-			}
 			throw error;
 		}
 	}
+	return program ? program : null;
+}
 
-	if (!program) {
-		alert("Time limit exceeded (3 seconds). No solution was found.");
+function search_seconds() {
+	return Math.round((Date.now() - search.started) / 1000);
+}
+
+function search_tries(n) {
+	return n === 1 ? '1 προσπάθεια' : `${n} προσπάθειες`;
+}
+
+function search_report(text, over) {
+	console.log(text);
+	const box = document.getElementById('search');
+	const status = document.getElementById('search-status');
+	const stop = document.getElementById('stop');
+	if (box === null || status === null)
+		return;
+	box.hidden = false;
+	status.textContent = text;
+	if (stop !== null)
+		stop.hidden = over === true;
+}
+
+//a search may run for long, so the answer is also told outside the page
+function search_notify(text) {
+	if (typeof Notification === 'undefined' || Notification.permission !== 'granted')
+		return;
+	try {
+		new Notification('Ομαδικά Πρωταθλήματα', { body: text });
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+function search_window() {
+	if (search === null || search.stopped)
+		return;
+	search.windows++;
+	search_report(`Αναζήτηση προγράμματος: προσπάθεια ${search.windows}… (${search_seconds()} δευτ.)`);
+	let program = null;
+	try {
+		program = search_run_window();
+	} catch (error) {
+		search = null;
+		search_report(`Η αναζήτηση σταμάτησε: ${error.message}`, true);
+		alert(error.toString());
 		return;
 	}
-
-	console.log('finished',program);
-
+	if (search === null || search.stopped) //stopped while the window was running
+		return;
+	if (program === null) {
+		//the time limit was hit, which is not the end any more: say so and try again
+		search_report(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε στην προσπάθεια ${search.windows}, νέα προσπάθεια… (${search_seconds()} δευτ.)`);
+		if (search.windows === 1) //told once, so that a search left alone is not silent
+			search_notify(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε. Η αναζήτηση συνεχίζεται μόνη της.`);
+		setTimeout(search_window, SEARCH_PAUSE_MS);
+		return;
+	}
+	const text = `Το πρόγραμμα βρέθηκε στην προσπάθεια ${search.windows} (${search_seconds()} δευτ.).`;
+	search = null;
+	search_report(text, true);
+	search_notify(text);
 	try {
-		if (program)
-			displayer(program); // IDEA save 'program' globally and trigger 'championships_program_ready'
-		else
-			throw new Error(`cannot produce the program with those parameters`);
+		displayer(program); // IDEA save 'program' globally and trigger 'championships_program_ready'
 	} catch (error) {
 		alert(error.toString());
 	}
+}
 
+function search_stop() {
+	if (search === null)
+		return;
+	const text = `Η αναζήτηση σταμάτησε μετά από ${search_tries(search.windows)} (${search_seconds()} δευτ.).`;
+	search.stopped = true;
+	search = null;
+	search_report(text, true);
+}
+
+function search_start() {
+	if (search !== null) //a submit during a search starts it over
+		search.stopped = true;
+	search = {
+		windows: 0,
+		started: Date.now(),
+		stopped: false,
+	};
+	//a browser only takes the request on an action of the user, such as the submit
+	if (typeof Notification !== 'undefined' && Notification.permission === 'default')
+		Notification.requestPermission();
+	//the program on the page belongs to the previous configuration
+	const previous = document.querySelector('.day-list');
+	if (previous !== null)
+		previous.remove();
+	search_report('Αναζήτηση προγράμματος…');
+	//let the page draw before a window takes the browser
+	setTimeout(search_window, 0);
 }
 
 document.addEventListener('championships_config_parsed', () => {
 	console.log('started');
-	produce();
+	search_start();
 })
+
+document.addEventListener('DOMContentLoaded', () => {
+	const stop = document.getElementById('stop');
+	if (stop !== null)
+		stop.addEventListener('click', search_stop);
+});
