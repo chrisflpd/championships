@@ -52,8 +52,16 @@
  * @type {object}
  * @property {string} id - trimmed word, unique, non-empty
  * @property {sport} sport
- * @property {int} team_matches - matches per team
+ * @property {?int} team_matches - matches per team, null if the matches are given
  * @property {team[]} teams
+ * @property {?gmatch[]} matches - if the matches are given instead of the teams
+ */
+
+/**
+ * @typedef gmatch
+ * @type {object}
+ * @property {team} team_home
+ * @property {team} team_away
  */
 
 /**

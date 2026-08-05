@@ -142,6 +142,16 @@ function checkZoneTeamCoverage(dzone) {
 	return true;
 }
 
+//a group has phases when every team plays against every other team more than once,
+//so its matches must be placed phase by phase. groups with explicitly given matches
+//have a single phase, thus no ordering between their matches.
+function hasGroupPhases(group_id) {
+	let group = config.groups[group_id];
+	if (!group || group.matches) return false;
+	let phases = group.team_matches / (group.teams.length - 1);
+	return group.team_matches % (group.teams.length - 1) === 0 && phases !== 1;
+}
+
 function hasPairPlayedInZone(dzone, team1Name, team2Name) {
 	if (!team1Name || !team2Name) return false;
 	for (let r = 0; r < dzone.rounds.length; r++) {
@@ -258,7 +268,7 @@ function ScheduleMatchesDefault(matches,days){
 								let gr_id = matches[m].id;
 								for (let ma=0; ma<matches.length; ma++){
 									if (matches[ma].id === gr_id){
-										if (config.groups[gr_id].team_matches % (config.groups[gr_id].teams.length-1) === 0 &&  config.groups[gr_id].team_matches / (config.groups[gr_id].teams.length-1) !== 1){
+										if (hasGroupPhases(gr_id)){
 											if (matches[m].sequence>matches[ma].sequence){
 												too_early = true;//if there is at least a not placed match of previous phase
 												break;
@@ -311,7 +321,7 @@ function ScheduleMatchesDefault(matches,days){
 												if (days[rd].dzones[rdz].rounds[rr].slots[sdate].match !== null){
 													if (typeof (days[rd].dzones[rdz].rounds[rr].slots[sdate].match.team_home.name) !== 'undefined' && typeof (days[rd].dzones[rdz].rounds[rr].slots[sdate].match.team_away.name) !== 'undefined'){
 														if (days[rd].dzones[rdz].rounds[rr].slots[sdate].match.id === gr_id){
-															if (config.groups[gr_id].team_matches % (config.groups[gr_id].teams.length-1) === 0 &&  config.groups[gr_id].team_matches / (config.groups[gr_id].teams.length-1) !== 1){
+															if (hasGroupPhases(gr_id)){
 																if (matches[m].sequence>days[rd].dzones[rdz].rounds[rr].slots[sdate].match.sequence){
 																	too_early = true;//if all first phase matches of a group are placed but we are trying to place a 2nd phase game before all 1st phase games are finished
 																	//console.log('προσπάθησα να βάλω το ματσ :',matches[m],'την μέρα',days[d],'αλλά υπάρχει το ματσ:',days[rd].dzones[rdz].rounds[rr].slots[sdate].match);

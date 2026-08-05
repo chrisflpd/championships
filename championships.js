@@ -99,6 +99,21 @@ function produce() {
 
 	//produce matches from groups
 	Object.values(config.groups).forEach(gr => {
+		if (gr.matches){//the matches of the group are given one by one, so there is nothing to produce
+			gr.matches.forEach(gm => {
+				matches.push({
+					id: gr.id,
+					sequence: 0, //all given matches belong to the same phase
+					sport: gr.sport,
+					team_home: gm.team_home,
+					team_away: gm.team_away,
+					score_home: null,
+					score_away: null,
+					points: 0,
+				});
+			});
+			return;
+		}
 		let total_matches = (gr.team_matches * gr.teams.length)/2;
 		if (total_matches % ((gr.teams.length * (gr.teams.length - 1)) / 2) === 0){ //if the teams play against each other x times exactly. 
 			for (let i = 0; i < gr.team_matches/(gr.teams.length-1); i++){

@@ -94,6 +94,8 @@ An integer range is formed by two integers separated by a dash (`-`).
 
 In case the number of teams in the group is odd, the number of matches each team will play must be even.
 
+The matches of the group are produced automatically out of this collection.
+
 #### examples
 
 ```
@@ -107,6 +109,28 @@ vg2 Volleyball 4: 2-3, 6, 8-9
 
 ```
 bg  Baseball   1: 2-5
+```
+
+#### given matches
+
+Alternatively, a collection of matches may be given in place of the collection of teams. Then no matches are produced and exactly the given ones are scheduled.
+
+A collection of matches consists of a colon (`:`) and a comma (`,`) separated list of matches. A match is formed by the indices of the two opponents separated by the letter `v`.
+
+The teams of the group are the ones appearing in the given matches. A team may play any number of matches, or the same opponent more than once.
+
+The two collection types can't be mixed within a group line.
+
+The integer indicating the number of matches each team will play is optional here, as the given matches already define it. If provided, it is ignored.
+
+#### examples
+
+```
+pg1 Soccer     4: 1v2, 1v3, 1v4, 5v6, 8v9
+```
+
+```
+kg  Basketball  : 1v2, 3v4, 1v3, 2v4
 ```
 
 ### knockouts

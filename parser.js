@@ -123,11 +123,63 @@ function parse_team_line(line) {
 }
 
 /**
+ * matches a single explicit group match, e.g. `1v2`
+ * @constant
+ * @type {RegExp}
+ */
+const match_expr_re = /^\s*(\d+)\s*[vV]\s*(\d+)\s*$/;
+
+/**
+ * a group whose matches are given one by one, instead of being produced
+ * from a team collection
+ *
+ * the team matches integer is optional here and kept only for reference,
+ * since the matches per team are already fixed by the given matches
+ *
+ * @param {string} line
+ * @param {string} group_id
+ * @param {sport} group_sport
+ * @param {string|undefined} group_team_matches_expr
+ * @param {string[]} match_exprs
+ * @returns {void}
+ */
+function parse_group_matches(line, group_id, group_sport, group_team_matches_expr, match_exprs) {
+	const group_teams = [];
+	const group_matches = [];
+	match_exprs.forEach(match_expr => {
+		const match_ma = match_expr.match(match_expr_re);
+		const th = parseInt(match_ma[1]);
+		const ta = parseInt(match_ma[2]);
+		[th, ta].forEach(t => {
+			if (t <= 0 || t > config.teams.length)
+				throw new Error(`parse_group_line ${line}: not valid group match team ${t}`);
+			if (!group_teams.includes(t))
+				group_teams.push(t);
+		});
+		if (th === ta)
+			throw new Error(`parse_group_line ${line}: not valid group match ${th}v${ta}`);
+		group_matches.push([th, ta]);
+	});
+	group_teams.sort((t1, t2) => t1 - t2);
+	const group = {
+		id: group_id,
+		sport: group_sport,
+		team_matches: group_team_matches_expr === undefined ? null : parseInt(group_team_matches_expr),
+		teams: group_teams.map(t => config.teams[t - 1]),
+		matches: group_matches.map(([th, ta]) => ({
+			team_home: config.teams[th - 1],
+			team_away: config.teams[ta - 1],
+		})),
+	};
+	config.groups[group.id] = group;
+}
+
+/**
  * @param {string} line
  * @returns {void}
  */
 function parse_group_line(line) {
-	const group_ma = line.match(/^\s*([^\s:,]+)\s+([^\s:,]+)\s+(\d+)\s*:(.*)$/);
+	const group_ma = line.match(/^\s*([^\s:,]+)\s+([^\s:,]+)(?:\s+(\d+))?\s*:(.*)$/);
 	if (group_ma === null)
 		throw new Error(`parse_group_line ${line}: not valid group line`);
 	const group_id = group_ma[1];
@@ -136,11 +188,23 @@ function parse_group_line(line) {
 	const group_sport = config.sports.filter(sport => sport.name === group_ma[2])[0];
 	if (group_sport === undefined)
 		throw new Error(`parse_group_line ${line}: not valid group sport ${group_ma[2]}`);
+
+	// a collection of explicit matches (`1v2`) replaces the team collection
+	const group_exprs = group_ma[4].split(',');
+	const match_exprs = group_exprs.filter(expr => match_expr_re.test(expr));
+	if (match_exprs.length) {
+		if (match_exprs.length !== group_exprs.length)
+			throw new Error(`parse_group_line ${line}: mixed group teams and group matches`);
+		return parse_group_matches(line, group_id, group_sport, group_ma[3], group_exprs);
+	}
+
+	if (group_ma[3] === undefined)
+		throw new Error(`parse_group_line ${line}: missing group team matches`);
 	const group_team_matches = parseInt(group_ma[3]);
 	if (group_team_matches <= 0)
 		throw new Error(`parse_group_line ${line}: not valid group team matches ${group_team_matches}`);
 	const group_teams = [];
-	group_ma[4].split(',').forEach(team_expr => {
+	group_exprs.forEach(team_expr => {
 		const teams = [];
 		const team_ma = team_expr.match(/^\s*(\d+)\s*$/);
 		if (team_ma !== null) {
