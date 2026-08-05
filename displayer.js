@@ -100,6 +100,7 @@ const PLAN_DAYS = 12;
 const PLAN_ROUNDS = 4;
 const PLAN_FIELDS = 5;
 const PLAN_UNUSED_RGB = 'FFD9D9D9'; // rgb 217,217,217
+const PLAN_SHEET = 'xl/worksheets/sheet1.xml';
 const XL_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 function getTeamChar(teamId) {
@@ -252,12 +253,73 @@ function unusedStyleFactory(stylesDoc) {
 		const copy = original.cloneNode(true);
 		copy.setAttribute('fillId', String(fillId));
 		copy.setAttribute('applyFill', '1');
+		// the unused rounds are merged, so whatever is written in them later on
+		// stands in the middle of the block
+		copy.setAttribute('applyAlignment', '1');
+		let alignElem = getChildNamed(copy, 'alignment');
+		if (alignElem === null) {
+			alignElem = stylesDoc.createElementNS(XL_NS, 'alignment');
+			copy.appendChild(alignElem);
+		}
+		alignElem.setAttribute('horizontal', 'center');
+		alignElem.setAttribute('vertical', 'center');
 		cellXfs.appendChild(copy);
 		cache[styleIdx] = String(xfCount);
 		xfCount++;
 		cellXfs.setAttribute('count', String(xfCount));
 		return cache[styleIdx];
 	};
+}
+
+/**
+ * the workbook is saved on whatever sheet and cell it was left, so it is opened
+ * on the plan, at its first cell.
+ *
+ * @param {JSZip} zip
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<void>}
+ */
+async function setOpeningView(zip, parser, serializer) {
+	const wbDoc = parser.parseFromString(await zip.file('xl/workbook.xml').async('string'), 'text/xml');
+	const wbViewElems = wbDoc.getElementsByTagName('workbookView');
+	for (let i = 0; i < wbViewElems.length; i++)
+		wbViewElems[i].setAttribute('activeTab', '0');
+	zip.file('xl/workbook.xml', serializer.serializeToString(wbDoc));
+
+	const sheetNames = [];
+	for (const name in zip.files) {
+		if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+			sheetNames.push(name);
+	}
+	for (const name of sheetNames) {
+		const doc = parser.parseFromString(await zip.file(name).async('string'), 'text/xml');
+		const viewElems = doc.getElementsByTagName('sheetView');
+		let changed = false;
+		for (let i = 0; i < viewElems.length; i++) {
+			const viewElem = viewElems[i];
+			if (name !== PLAN_SHEET) {
+				// only one sheet may be selected, or excel opens them as a group
+				if (viewElem.getAttribute('tabSelected')) {
+					viewElem.removeAttribute('tabSelected');
+					changed = true;
+				}
+				continue;
+			}
+			viewElem.setAttribute('tabSelected', '1');
+			viewElem.removeAttribute('topLeftCell');
+			const selectionElems = viewElem.getElementsByTagName('selection');
+			for (let j = selectionElems.length - 1; j >= 0; j--)
+				selectionElems[j].parentNode.removeChild(selectionElems[j]);
+			const selectionElem = doc.createElementNS(XL_NS, 'selection');
+			selectionElem.setAttribute('activeCell', 'A1');
+			selectionElem.setAttribute('sqref', 'A1');
+			viewElem.appendChild(selectionElem);
+			changed = true;
+		}
+		if (changed)
+			zip.file(name, serializer.serializeToString(doc));
+	}
 }
 
 /**
@@ -329,7 +391,7 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 		});
 	});
 
-	const sheetDoc = parser.parseFromString(await zip.file('xl/worksheets/sheet1.xml').async('string'), 'text/xml');
+	const sheetDoc = parser.parseFromString(await zip.file(PLAN_SHEET).async('string'), 'text/xml');
 	const stylesDoc = parser.parseFromString(await zip.file('xl/styles.xml').async('string'), 'text/xml');
 	const rows = indexRows(sheetDoc);
 	const unusedStyle = unusedStyleFactory(stylesDoc);
@@ -371,6 +433,7 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	// only the fill of a cell changes, everything else the template gives it is
 	// kept, and a round the template fills in itself, like the arrival of the
 	// first day, is left alone.
+	const unusedRounds = {};
 	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
 		for (let roundIdx = 0; roundIdx < PLAN_ROUNDS; roundIdx++) {
 			if (dIdx + ',' + roundIdx in givenRounds)
@@ -390,10 +453,34 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 			cellElems.forEach(cellElem => {
 				cellElem.setAttribute('s', unusedStyle(cellElem.getAttribute('s') || '0'));
 			});
+			unusedRounds[dIdx + ',' + roundIdx] = true;
 		}
 	}
 
-	zip.file('xl/worksheets/sheet1.xml', serializer.serializeToString(sheetDoc));
+	// the unused rounds of a zone are merged into a single block, so a whole
+	// unused zone reads as one. a merge never reaches over to the next zone,
+	// even when every round of the day is unused.
+	const mergeElem = sheetDoc.getElementsByTagName('mergeCells')[0];
+	if (mergeElem) {
+		for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
+			for (let zoneIdx = 0; zoneIdx * 2 < PLAN_ROUNDS; zoneIdx++) {
+				const rounds = [];
+				for (let roundIdx = zoneIdx * 2; roundIdx < zoneIdx * 2 + 2 && roundIdx < PLAN_ROUNDS; roundIdx++) {
+					if (unusedRounds[dIdx + ',' + roundIdx])
+						rounds.push(roundIdx);
+				}
+				if (rounds.length === 0)
+					continue;
+				const mergeCellElem = sheetDoc.createElementNS(XL_NS, 'mergeCell');
+				mergeCellElem.setAttribute('ref', getCellRef(dIdx, rounds[0], 0)
+					+ ':' + getCellRef(dIdx, rounds[rounds.length - 1], PLAN_FIELDS - 1));
+				mergeElem.appendChild(mergeCellElem);
+			}
+		}
+		mergeElem.setAttribute('count', String(mergeElem.getElementsByTagName('mergeCell').length));
+	}
+
+	zip.file(PLAN_SHEET, serializer.serializeToString(sheetDoc));
 	zip.file('xl/styles.xml', serializer.serializeToString(stylesDoc));
 	return warnings;
 }
@@ -419,6 +506,7 @@ async function exportToExcel() {
 		const serializer = new XMLSerializer();
 
 		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
+		await setOpeningView(zip, parser, serializer);
 
 		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 		const url = URL.createObjectURL(blob);
