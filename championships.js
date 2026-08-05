@@ -191,8 +191,103 @@ function produce_matches() {
 
 const SEARCH_WINDOW_MS = 3000; //the time limit that used to end the whole search
 const SEARCH_PAUSE_MS = 50; //handed to the browser between two windows
+const SEARCH_STRICT_TRIES = 5; //attempts before the adjacent round rules are dropped
 
 let search = null;
+
+/**
+ * the search runs until it finds a program, so a configuration that can never be
+ * scheduled would keep it running for ever. these look for a proof that no
+ * program exists and report only what they can prove, so that a configuration
+ * which is merely hard is still searched.
+ *
+ * @returns {string[]} - the reasons no program exists, empty when none is found
+ */
+function search_impossible() {
+	const reasons = [];
+
+	let rounds = 0;
+	config.days.forEach(day => day.dzones.forEach(dzone => {
+		rounds += dzone.rounds.length;
+	}));
+	if (rounds === 0) {
+		reasons.push('η διαμόρφωση δεν ορίζει κανέναν γύρο');
+		return reasons;
+	}
+
+	//the matches every group and every knockout is going to produce
+	const bySport = {};
+	let total = 0;
+	config.sports.forEach(sport => {
+		bySport[sport.name] = 0;
+	});
+	Object.values(config.groups).forEach(gr => {
+		const n = gr.matches ? gr.matches.length : (gr.team_matches * gr.teams.length) / 2;
+		bySport[gr.sport.name] += n;
+		total += n;
+	});
+	Object.values(config.knockouts).forEach(kn => {
+		bySport[kn.sport.name] += 1;
+		total += 1;
+	});
+
+	//a sport is played on its own courts only, and so is any set of sports
+	//together on the courts they share between them
+	const over = [];
+	for (let mask = 1; mask < (1 << config.sports.length); mask++) {
+		const chosen = config.sports.filter((sport, i) => mask & (1 << i));
+		const courts = [];
+		let need = 0;
+		chosen.forEach(sport => {
+			need += bySport[sport.name];
+			sport.courts.forEach(court => {
+				if (!courts.includes(court))
+					courts.push(court);
+			});
+		});
+		if (need > courts.length * rounds)
+			over.push({ mask: mask, chosen: chosen, need: need, courts: courts.length });
+	}
+	//every set holding one that is already over is over as well, so only the
+	//smallest ones are worth telling
+	over.filter(one => !over.some(other => other.mask !== one.mask && (other.mask & one.mask) === other.mask))
+		.forEach(one => {
+			reasons.push(`${one.chosen.map(sport => sport.name).join(' + ')}: ${one.need} αγώνες, αλλά ${one.courts} γήπεδα x ${rounds} γύροι = ${one.courts * rounds} θέσεις`);
+		});
+
+	//a round holds as many matches as the teams allow: the scheduler takes a match
+	//only while used slots x 2 < teams - 1
+	const maxPerRound = Math.max(1, Math.ceil((config.teams.length - 1) / 2));
+	const perRound = Math.min(config.courts.length, maxPerRound);
+	if (total > rounds * perRound) {
+		reasons.push(`${total} αγώνες συνολικά, αλλά ${rounds} γύροι x ${perRound} ταυτόχρονοι αγώνες = ${rounds * perRound} θέσεις (${config.teams.length} ομάδες επιτρέπουν ${maxPerRound} αγώνες ανά γύρο)`);
+	}
+
+	//the baseball match that brings a team to the sport holds a zone of two rounds
+	//on its own, and one match brings at most two teams
+	const bbTeams = {};
+	Object.values(config.groups).forEach(gr => {
+		if (gr.sport.name !== 'Μπέιζμπολ')
+			return;
+		gr.teams.forEach(team => {
+			bbTeams[team.id] = true;
+		});
+	});
+	const bbCount = Object.keys(bbTeams).length;
+	if (bbCount > 0) {
+		let zones = 0;
+		config.days.forEach((day, d) => day.dzones.forEach((dzone, dz) => {
+			if (dzone.rounds.length >= 2 && !(d === 0 && dz === 0))
+				zones++;
+		}));
+		const needed = Math.ceil(bbCount / 2);
+		if (needed > zones) {
+			reasons.push(`${bbCount} ομάδες παίζουν Μπέιζμπολ και χρειάζονται τουλάχιστον ${needed} ζώνες των 2 γύρων, ενώ η διαμόρφωση δίνει ${zones}`);
+		}
+	}
+
+	return reasons;
+}
 
 //one window of the search: a fresh set of matches, then as many orderings of it
 //as fit in the time limit. returns the program, or null if the window ran out.
@@ -202,8 +297,12 @@ function search_run_window() {
 	window.startTime = Date.now();
 	while (Date.now() - window.startTime < SEARCH_WINDOW_MS) {
 		let currentMatches = shuffle([...matches]);
+		//the scheduler puts the matches straight into the calendar it is given and
+		//takes them back out again, so every ordering starts from its own copy and
+		//the configuration keeps a clean one even when a window runs out mid way
+		let currentDays = deepCopy(config.days);
 		try {
-			program = ScheduleMatchesDefault(currentMatches, config.days);
+			program = ScheduleMatchesDefault(currentMatches, currentDays);
 			if (program)
 				break;
 		} catch (error) {
@@ -253,7 +352,18 @@ function search_window() {
 	if (search === null || search.stopped)
 		return;
 	search.windows++;
-	search_report(`Αναζήτηση προγράμματος: προσπάθεια ${search.windows}… (${search_seconds()} δευτ.)`);
+	//the adjacent round rules are preferences, so after the first attempts the
+	//search also looks for a program without them. dropping them helps some
+	//configurations and hurts others, since a rule that forbids also prunes, so
+	//the attempts take turns rather than leaving the stricter ones behind.
+	relax_adjacency = search.windows > SEARCH_STRICT_TRIES && search.windows % 2 === 0;
+	if (search.windows > SEARCH_STRICT_TRIES && !search.relaxed) {
+		search.relaxed = true;
+		const text = `Μετά από ${SEARCH_STRICT_TRIES} προσπάθειες δεν βρέθηκε πρόγραμμα. Η αναζήτηση δοκιμάζει πλέον και χωρίς τους κανόνες που κρατούν μια ομάδα εκτός δύο συνεχόμενων γύρων, εναλλάξ με αυτούς.`;
+		search_report(text);
+		search_notify(text);
+	}
+	search_report(`Αναζήτηση προγράμματος: προσπάθεια ${search.windows}${relax_adjacency ? ' (χαλαρωμένοι κανόνες)' : ''}… (${search_seconds()} δευτ.)`);
 	let program = null;
 	try {
 		program = search_run_window();
@@ -273,7 +383,10 @@ function search_window() {
 		setTimeout(search_window, SEARCH_PAUSE_MS);
 		return;
 	}
-	const text = `Το πρόγραμμα βρέθηκε στην προσπάθεια ${search.windows} (${search_seconds()} δευτ.).`;
+	//a program found without the adjacent round rules may put a team in the same
+	//sport twice in a row, which the user has to know
+	const text = `Το πρόγραμμα βρέθηκε στην προσπάθεια ${search.windows} (${search_seconds()} δευτ.).`
+		+ (relax_adjacency ? ' Οι κανόνες για δύο συνεχόμενους γύρους ήταν χαλαρωμένοι, οπότε μια ομάδα μπορεί να παίζει το ίδιο άθλημα σε δύο συνεχόμενους γύρους.' : '');
 	search = null;
 	search_report(text, true);
 	search_notify(text);
@@ -296,18 +409,29 @@ function search_stop() {
 function search_start() {
 	if (search !== null) //a submit during a search starts it over
 		search.stopped = true;
-	search = {
-		windows: 0,
-		started: Date.now(),
-		stopped: false,
-	};
-	//a browser only takes the request on an action of the user, such as the submit
-	if (typeof Notification !== 'undefined' && Notification.permission === 'default')
-		Notification.requestPermission();
+	search = null;
+	relax_adjacency = false;
 	//the program on the page belongs to the previous configuration
 	const previous = document.querySelector('.day-list');
 	if (previous !== null)
 		previous.remove();
+
+	//no point searching for ever for something that cannot exist
+	const reasons = search_impossible();
+	if (reasons.length) {
+		search_report('Η διαμόρφωση δεν μπορεί να προγραμματιστεί. ' + reasons.join(' · '), true);
+		return;
+	}
+
+	search = {
+		windows: 0,
+		started: Date.now(),
+		stopped: false,
+		relaxed: false,
+	};
+	//a browser only takes the request on an action of the user, such as the submit
+	if (typeof Notification !== 'undefined' && Notification.permission === 'default')
+		Notification.requestPermission();
 	search_report('Αναζήτηση προγράμματος…');
 	//let the page draw before a window takes the browser
 	setTimeout(search_window, 0);

@@ -2,6 +2,11 @@
 
 let result=null
 
+//the rules that keep a team, or a pair of teams, out of two rounds in a row are
+//preferences rather than needs, and a tight calendar may have no program that
+//honours them. the search turns this on to look for a program without them.
+let relax_adjacency = false;
+
 
 function deepCopyObj(obj) {//for deep copy without recursion (because js had enough of it...)
 	var copiedArr = [];
@@ -424,7 +429,9 @@ function ScheduleMatchesDefault(matches,days){
 									if (prev_round>=0 && r !== 0){//for previous round
 										for (let sl of Object.keys(crts)){
 											if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-												if (typeof days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name !== 'undefined'){
+												//everything below holds a team back from the round before, which is
+											//what the search drops when it relaxes
+											if (!relax_adjacency && typeof days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name !== 'undefined'){
 													if ((team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) && (team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name)){
 														
 														if (matches[m].sport.name === days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name){
@@ -473,7 +480,8 @@ function ScheduleMatchesDefault(matches,days){
 									if (next_round<days[d].dzones[dz].rounds.length){//for next round
 										for (let sl of Object.keys(crts)){
 											if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-												if (typeof days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name !== 'undefined'){
+												//same for the round after it
+											if (!relax_adjacency && typeof days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name !== 'undefined'){
 													//console.log(team1,team2,days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name,days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name);
 													if ((team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name) && (team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name)){
 														
@@ -566,17 +574,19 @@ function ScheduleMatchesDefault(matches,days){
 
 									
 									
-									let newdays=deepCopy(days);
-									newdays[d].dzones[dz].rounds[r].slots[s].match=matches[m];
+									//the match is put in the slot and taken back out if it leads
+									//nowhere, instead of the whole calendar being copied for it
+									days[d].dzones[dz].rounds[r].slots[s].match=matches[m];
 									let newMatches = matches.filter((element) => element !== matches[m]);
 									//console.log('Match: ',matches[m],' placed.',matches,crts);
-									
-									
-									result=ScheduleMatchesDefault(newMatches,newdays);
+
+
+									result=ScheduleMatchesDefault(newMatches,days);
 
 									if (result){
 										return result;
 									}
+									days[d].dzones[dz].rounds[r].slots[s].match=null;
 										
 								}
 								else if (matches[m].points < threshold){
@@ -744,15 +754,15 @@ function ScheduleMatchesDefault(matches,days){
 
 											//console.log('sk',scheduled_k,'FOR GROUP KN');
 											if (!scheduled_k){
-												let newdays=deepCopy(days);
-												newdays[d].dzones[dz].rounds[r].slots[s].match=matches[m];
+												days[d].dzones[dz].rounds[r].slots[s].match=matches[m];
 												let newMatches = matches.filter((element) => element !== matches[m]);
-												result=ScheduleMatchesDefault(newMatches,newdays);
-					
+												result=ScheduleMatchesDefault(newMatches,days);
+
 												if (result)
 												{
 													return result;
 												}
+												days[d].dzones[dz].rounds[r].slots[s].match=null;
 													
 											}
 										}
@@ -913,16 +923,15 @@ function ScheduleMatchesDefault(matches,days){
 											}*/
 											//console.log('sk',scheduled_k,'FOR KNOCKOUT');
 											if (!scheduled_k){
-												let newdays=deepCopy(days);
-												
-												newdays[d].dzones[dz].rounds[r].slots[s].match=matches[m];
+												days[d].dzones[dz].rounds[r].slots[s].match=matches[m];
 												let newMatches = matches.filter((element) => element !== matches[m]);
-												result=ScheduleMatchesDefault(newMatches,newdays);
-					
+												result=ScheduleMatchesDefault(newMatches,days);
+
 												if (result)
 												{
 													return result;
 												}
+												days[d].dzones[dz].rounds[r].slots[s].match=null;
 													
 											}
 										}
@@ -976,16 +985,15 @@ function ScheduleMatchesDefault(matches,days){
 									}*/
 									//console.log('sk',scheduled_k,'FOR FIXED');
 									if (!scheduled_k){
-										let newdays=deepCopy(days);
-										
-										newdays[d].dzones[dz].rounds[r].slots[s].match=matches[m];
+										days[d].dzones[dz].rounds[r].slots[s].match=matches[m];
 										let newMatches = matches.filter((element) => element !== matches[m]);
-										result=ScheduleMatchesDefault(newMatches,newdays);
-			
+										result=ScheduleMatchesDefault(newMatches,days);
+
 										if (result)
 										{
 											return result;
 										}
+										days[d].dzones[dz].rounds[r].slots[s].match=null;
 											
 									}
 								}

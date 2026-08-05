@@ -43,15 +43,15 @@ function parse_sport_line(line) {
  */
 function parse_zone_line(line) {
 	if (config.days.length > 0)
-		throw new Error(`parse_zone_line ${row}: zone declaration after day`);
+		throw new Error(`parse_zone_line ${line}: zone declaration after day`);
 	const zone_ma = line.match(/^([^:,]*)$/);
 	if (zone_ma === null)
-		throw new Error(`parse_zone_line ${row}: not valid zone line`);
+		throw new Error(`parse_zone_line ${line}: not valid zone line`);
 	const zone_name = zone_ma[1].trim().replace(/\s+/g, ' ');
 	if (zone_name.length === 0)
 		throw new Error(`parse_zone_line ${line}: empty zone name`);
 	if (config.zones.filter(zone => zone.name === zone_name).length)
-		throw new Error(`parse_zone_line ${row}: duplicate zone name ${zone_name}`);
+		throw new Error(`parse_zone_line ${line}: duplicate zone name ${zone_name}`);
 	config.zones.push({
 		rank: config.zones.length,
 		name: zone_name,

@@ -101,12 +101,9 @@ const PLAN_ROUNDS = 4;
 const PLAN_FIELDS = 5;
 const PLAN_UNUSED_RGB = 'FFD9D9D9'; // rgb 217,217,217
 const PLAN_SHEET = 'xl/worksheets/sheet1.xml';
+const TEAMS_SHEET = 'xl/worksheets/sheet2.xml';
+const SHARED_STRINGS = 'xl/sharedStrings.xml';
 const XL_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-
-function getTeamChar(teamId) {
-	if (teamId === 10) return "A";
-	return String(teamId);
-}
 
 /**
  * @param {number} num - 1 based column number
@@ -177,6 +174,68 @@ function getChildNamed(elem, name) {
 
 function hasContent(cellElem) {
 	return getChildNamed(cellElem, 'v') !== null || getChildNamed(cellElem, 'is') !== null;
+}
+
+function getCellValue(cellElem, shared) {
+	const isElem = getChildNamed(cellElem, 'is');
+	if (isElem !== null)
+		return isElem.textContent;
+	const vElem = getChildNamed(cellElem, 'v');
+	if (vElem === null)
+		return '';
+	if (cellElem.getAttribute('t') === 's') {
+		const idx = parseInt(vElem.textContent);
+		return shared[idx] === undefined ? '' : shared[idx];
+	}
+	return vElem.textContent;
+}
+
+async function readSharedStrings(zip, parser) {
+	const shared = [];
+	const file = zip.file(SHARED_STRINGS);
+	if (!file)
+		return shared;
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const siElems = doc.getElementsByTagName('si');
+	for (let i = 0; i < siElems.length; i++) {
+		const tElems = siElems[i].getElementsByTagName('t');
+		let text = '';
+		for (let j = 0; j < tElems.length; j++)
+			text += tElems[j].textContent;
+		shared.push(text);
+	}
+	return shared;
+}
+
+/**
+ * the template names the character of every team on its teams sheet, one row per
+ * team, the id on the first column and the character on the third. the plan is
+ * written with those characters, since the games sheet looks them up there.
+ *
+ * @param {JSZip} zip
+ * @param {DOMParser} parser
+ * @returns {Promise<object>} - team id -> character
+ */
+async function readTeamChars(zip, parser) {
+	const chars = {};
+	const file = zip.file(TEAMS_SHEET);
+	if (!file)
+		return chars;
+	const shared = await readSharedStrings(zip, parser);
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const rowElems = doc.getElementsByTagName('row');
+	for (let i = 0; i < rowElems.length; i++) {
+		const rowNum = rowElems[i].getAttribute('r');
+		const idCell = findCell(rowElems[i], 'A' + rowNum);
+		const charCell = findCell(rowElems[i], 'C' + rowNum);
+		if (idCell === null || charCell === null)
+			continue;
+		const id = parseInt(getCellValue(idCell, shared));
+		const char = getCellValue(charCell, shared);
+		if (!Number.isNaN(id) && char !== '')
+			chars[id] = char;
+	}
+	return chars;
 }
 
 //a cell keeps its style, only its content is replaced
@@ -356,6 +415,16 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	if (lastIdx >= PLAN_DAYS)
 		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} συνεχόμενες ημέρες, ενώ το πρόγραμμα απλώνεται σε ${lastIdx + 1}`);
 
+	const teamChars = await readTeamChars(zip, parser);
+	const missingChars = [];
+	function teamChar(team) {
+		if (team.id in teamChars)
+			return teamChars[team.id];
+		if (missingChars.indexOf(team.id) === -1)
+			missingChars.push(team.id);
+		return String(team.id);
+	}
+
 	// the matches of the program, per plan cell, along with the rounds the
 	// configuration gives, which are the ones that may hold a match at all
 	const scheduleData = {};
@@ -384,7 +453,7 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 					if (match?.sport?.name !== col.sport.name)
 						return;
 					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = ('id' in match.team_home && 'id' in match.team_away)
-						? [getTeamChar(match.team_home.id), getTeamChar(match.team_away.id)].join('-')
+						? [teamChar(match.team_home), teamChar(match.team_away)].join('-')
 						: match.id;
 				});
 			});
@@ -482,6 +551,10 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 
 	zip.file(PLAN_SHEET, serializer.serializeToString(sheetDoc));
 	zip.file('xl/styles.xml', serializer.serializeToString(stylesDoc));
+	// a team the teams sheet of the template does not name has no character to be
+	// written with, so the games and the points sheets cannot read its matches
+	if (missingChars.length)
+		warnings.push(`το φύλλο teams του προτύπου δεν ορίζει χαρακτήρα για τις ομάδες ${missingChars.join(', ')}, οπότε τα φύλλα games και points δεν θα μετρήσουν τους αγώνες τους`);
 	return warnings;
 }
 
