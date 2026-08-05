@@ -285,12 +285,19 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	});
 	if (cols.length > PLAN_FIELDS)
 		warnings.push(`το πρότυπο έχει ${PLAN_FIELDS} στήλες γηπέδων, ενώ η διαμόρφωση έχει ${cols.length}`);
-	if (program.length > PLAN_DAYS)
-		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} ημέρες, ενώ το πρόγραμμα έχει ${program.length}`);
+
+	// the plan is a calendar of 12 consecutive days, so a day takes the block of
+	// its own date and the days the program leaves out keep their place, empty
+	const firstSerial = getDateSerial(program[0].date);
+	const dayIndex = day => getDateSerial(day.date) - firstSerial;
+	const lastIdx = dayIndex(program[program.length - 1]);
+	if (lastIdx >= PLAN_DAYS)
+		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} συνεχόμενες ημέρες, ενώ το πρόγραμμα απλώνεται σε ${lastIdx + 1}`);
 
 	// the matches of the program, per plan cell
 	const scheduleData = {};
-	program.forEach((day, dIdx) => {
+	program.forEach(day => {
+		const dIdx = dayIndex(day);
 		if (dIdx >= PLAN_DAYS)
 			return;
 		day.dzones.forEach((dzone, dzIdx) => {
@@ -330,27 +337,22 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	}
 
 	// every date of the template except the first one is a formula counting
-	// consecutive days from it, while a program may skip days. only the offset
-	// of each formula is corrected, so that the cells keep their formula and
-	// the calculation chain of the template stays untouched.
-	const firstSerial = getDateSerial(program[0].date);
+	// consecutive days from it, which is exactly the calendar the blocks lay
+	// out, so only the first date is written and the formulas are left as they
+	// are. the blocks after the last day of the program hold no date at all.
 	for (let dIdx = 0; dIdx < PLAN_DAYS; dIdx++) {
 		const cellElem = cellOf(getDateCellRef(dIdx));
 		if (cellElem === null)
 			continue;
-		const hasFormula = getChildNamed(cellElem, 'f') !== null;
-		if (dIdx >= program.length) {
-			// no such day, the header is left empty
-			if (hasFormula)
-				setCellFormula(sheetDoc, cellElem, '""', '', 'str');
-			else
-				clearCell(cellElem);
-		} else if (hasFormula) {
-			const serial = getDateSerial(program[dIdx].date);
-			setCellFormula(sheetDoc, cellElem, getDateCellRef(0) + '+' + (serial - firstSerial), String(serial), null);
-		} else {
-			setCellNumber(sheetDoc, cellElem, getDateSerial(program[dIdx].date));
-		}
+		const fElem = getChildNamed(cellElem, 'f');
+		if (dIdx === 0)
+			setCellNumber(sheetDoc, cellElem, firstSerial);
+		else if (dIdx > lastIdx)
+			setCellFormula(sheetDoc, cellElem, '""', '', 'str');
+		else if (fElem !== null)
+			// the formula is kept as it is, only the value it evaluates to is
+			// refreshed, since the first date it counts from has changed
+			setCellFormula(sheetDoc, cellElem, fElem.textContent, String(firstSerial + dIdx), null);
 	}
 
 	// the matches
