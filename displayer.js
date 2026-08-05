@@ -102,6 +102,8 @@ const PLAN_FIELDS = 5;
 const PLAN_UNUSED_RGB = 'FFD9D9D9'; // rgb 217,217,217
 const PLAN_SHEET = 'xl/worksheets/sheet1.xml';
 const TEAMS_SHEET = 'xl/worksheets/sheet2.xml';
+const POINTS_SHEET = 'xl/worksheets/sheet6.xml';
+const POINTS_LEFTOVER_CELL = 'L1'; //a word left in the template by an older one
 const SHARED_STRINGS = 'xl/sharedStrings.xml';
 const XL_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
@@ -257,6 +259,12 @@ function setCellNumber(doc, cellElem, num) {
 	cellElem.appendChild(vElem);
 }
 
+//the content of a cell goes, its style stays
+function clearCell(cellElem) {
+	removeChildrenNamed(cellElem, ['v', 'is', 'f']);
+	cellElem.removeAttribute('t');
+}
+
 //a formula cell keeps its formula, so that the calculation chain of the
 //template stays valid, and carries the value the formula evaluates to
 function setCellFormula(doc, cellElem, formula, cached, type) {
@@ -328,6 +336,31 @@ function unusedStyleFactory(stylesDoc) {
 		cellXfs.setAttribute('count', String(xfCount));
 		return cache[styleIdx];
 	};
+}
+
+/**
+ * the points sheet of the template still carries a word of an older template,
+ * which has no place in the program that is handed out. only that one cell is
+ * emptied, keeping everything the template gives it.
+ *
+ * @param {JSZip} zip
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<void>}
+ */
+async function clearLeftoverNote(zip, parser, serializer) {
+	const file = zip.file(POINTS_SHEET);
+	if (!file)
+		return;
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const rowElem = indexRows(doc)[POINTS_LEFTOVER_CELL.replace(/[A-Z]+/g, '')];
+	if (rowElem === undefined)
+		return;
+	const cellElem = findCell(rowElem, POINTS_LEFTOVER_CELL);
+	if (cellElem === null)
+		return;
+	clearCell(cellElem);
+	zip.file(POINTS_SHEET, serializer.serializeToString(doc));
 }
 
 /**
@@ -579,6 +612,7 @@ async function exportToExcel() {
 		const serializer = new XMLSerializer();
 
 		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
+		await clearLeftoverNote(zip, parser, serializer);
 		await setOpeningView(zip, parser, serializer);
 
 		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
