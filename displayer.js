@@ -693,16 +693,16 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 			});
 		});
 	});
-	if (cols.length > PLAN_FIELDS)
-		warnings.push(`το πρότυπο έχει ${PLAN_FIELDS} στήλες γηπέδων, ενώ η διαμόρφωση έχει ${cols.length}`);
+	// the rows of a day are shared out equally between the zones, so a zone of a
+	// two zone day takes two of the four. planBlockers has already refused
+	// anything that does not divide or does not fit.
+	const zoneBand = PLAN_ROUNDS / config.zones.length;
 
 	// the plan is a calendar of 12 consecutive days, so a day takes the block of
 	// its own date and the days the program leaves out keep their place, empty
 	const firstSerial = getDateSerial(program[0].date);
 	const dayIndex = day => getDateSerial(day.date) - firstSerial;
 	const lastIdx = dayIndex(program[program.length - 1]);
-	if (lastIdx >= PLAN_DAYS)
-		warnings.push(`το πρότυπο έχει ${PLAN_DAYS} συνεχόμενες ημέρες, ενώ το πρόγραμμα απλώνεται σε ${lastIdx + 1}`);
 
 	const teamChars = await readTeamChars(zip, parser);
 	const missingChars = [];
@@ -724,12 +724,13 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 			return;
 		day.dzones.forEach((dzone, dzIdx) => {
 			dzone.rounds.forEach((round, rIdx) => {
-				let roundIdx = dzIdx * 2 + rIdx;
-				// on the arrival day the single morning round is the second one,
-				// the first is taken by the arrival itself
+				let roundIdx = dzIdx * zoneBand + rIdx;
+				// on the arrival day the single morning round is the last one of
+				// the morning, the ones before it taken by the arrival itself
 				if (dIdx === 0 && dzIdx === 0 && dzone.rounds.length === 1)
-					roundIdx = 1;
+					roundIdx = zoneBand - 1;
 				if (roundIdx >= PLAN_ROUNDS) {
+					// planBlockers should have caught this; never write past the grid
 					warnings.push(`το πρότυπο έχει ${PLAN_ROUNDS} γύρους ανά ημέρα`);
 					return;
 				}
@@ -847,6 +848,46 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	return warnings;
 }
 
+/**
+ * the plan sheet of the template is a grid of a fixed size: PLAN_DAYS days, each
+ * of PLAN_ROUNDS rows shared out equally between the zones, each of PLAN_FIELDS
+ * columns. a program needing more than that cannot be written into it, and a
+ * workbook quietly missing matches is worse than no workbook at all, so it is
+ * refused with the numbers that do not fit.
+ *
+ * @param {day[]} program
+ * @returns {string[]} - what does not fit, empty when everything does
+ */
+function planBlockers(program) {
+	const reasons = [];
+
+	let courts = 0;
+	config.sports.forEach(sport => {
+		courts += sport.courts.length;
+	});
+	if (courts > PLAN_FIELDS)
+		reasons.push(`το πρότυπο έχει ${PLAN_FIELDS} στήλες γηπέδων, ενώ η διαμόρφωση έχει ${courts}`);
+
+	const zones = config.zones.length;
+	if (PLAN_ROUNDS % zones !== 0) {
+		reasons.push(`το πρότυπο έχει ${PLAN_ROUNDS} γύρους ανά ημέρα, που δεν μοιράζονται ισόποσα σε ${zones} ζώνες`);
+	} else {
+		const band = PLAN_ROUNDS / zones;
+		let most = 0;
+		program.forEach(day => day.dzones.forEach(dzone => {
+			most = Math.max(most, dzone.rounds.length);
+		}));
+		if (most > band)
+			reasons.push(`κάθε ζώνη χωράει ${band} ${band === 1 ? 'γύρο' : 'γύρους'} στο πρότυπο, ενώ η διαμόρφωση φτάνει τους ${most}`);
+	}
+
+	const span = getDateSerial(program[program.length - 1].date) - getDateSerial(program[0].date) + 1;
+	if (span > PLAN_DAYS)
+		reasons.push(`το πρότυπο έχει ${PLAN_DAYS} συνεχόμενες ημέρες, ενώ το πρόγραμμα απλώνεται σε ${span}`);
+
+	return reasons;
+}
+
 async function exportToExcel() {
 	if (!window.currentProgram || window.currentProgram.length === 0) {
 		alert("Δεν υπάρχει διαθέσιμο πρόγραμμα για εξαγωγή. Παρακαλώ υποβάλετε τη διαμόρφωση πρώτα.");
@@ -855,6 +896,13 @@ async function exportToExcel() {
 
 	if (typeof JSZip === 'undefined') {
 		alert("Η βιβλιοθήκη JSZip δεν έχει φορτωθεί ακόμα. Παρακαλώ δοκιμάστε ξανά.");
+		return;
+	}
+
+	//nothing is written at all unless the whole program fits the template
+	const blockers = planBlockers(window.currentProgram);
+	if (blockers.length) {
+		alert("Το πρόγραμμα δεν χωράει στο πρότυπο, οπότε δεν δημιουργήθηκε αρχείο:\n" + blockers.join("\n"));
 		return;
 	}
 

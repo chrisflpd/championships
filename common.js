@@ -8,6 +8,7 @@
  * @type {object}
  * @property {string} name - trimmed word, unique, non-empty
  * @property {court[]} courts
+ * @property {function} points_fn - what a score is worth to the two sides
  */
 
 /**
@@ -120,6 +121,36 @@
  * @type {config}
  */
 const config = {};
+
+
+/*
+ * the sports the baseball rules turn on, named here rather than in each of the
+ * conditions that ask for them. a camp that calls them something else has one
+ * place to say so.
+ */
+const FOOTBALL_SPORT = 'Ποδόσφαιρο';
+const BASEBALL_SPORT = 'Μπέιζμπολ';
+const BASEBALL_COURT = 'Π Ποδόσφαιρο'; //the field kept clear around a first baseball match
+
+
+/**
+ * the ordinary way of scoring a sport: so much for a win, so much for a draw
+ * and so much for a loss.
+ *
+ * @param {number} win
+ * @param {number} draw
+ * @param {number} loss
+ * @returns {function} - the points of the two sides, home first
+ */
+function wdl_points_fn(win, draw, loss) {
+	return (sh, sa) => {
+		if (sh > sa)
+			return [win, loss];
+		if (sh < sa)
+			return [loss, win];
+		return [draw, draw];
+	};
+}
 
 
 const points_fn_obj = {

@@ -71,7 +71,7 @@ function isSlotAfter(d1, dz1, r1, d2, dz2, r2) {
 }
 
 function isBaseballGroupMatch(m) {
-	return m && m.sport && m.sport.name === "Μπέιζμπολ" && typeof m.team_home !== 'undefined' && typeof m.team_home.name !== 'undefined';
+	return m && m.sport && m.sport.name === BASEBALL_SPORT && typeof m.team_home !== 'undefined' && typeof m.team_home.name !== 'undefined';
 }
 
 function hasBaseballGroupMatchInZone(dzone) {
@@ -268,7 +268,7 @@ function ScheduleMatchesDefault(matches,days){
 					let courtsToIterate = Object.keys(crts);
 					if (!(d === 0 && dz === 0) && r === 0) {
 						if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
-							let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+							let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 							if (bbSport) {
 								courtsToIterate.sort((a, b) => {
 									let aIsBB = bbSport.courts.includes(a);
@@ -371,7 +371,7 @@ function ScheduleMatchesDefault(matches,days){
 								} else {
 									if (!(d === 0 && dz === 0) && r === 0) {
 										if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
-											let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+											let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 											if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 												scheduled = true;
 											}
@@ -469,8 +469,8 @@ function ScheduleMatchesDefault(matches,days){
 												}
 												//the baseball court is left free around a match that brings a
 												//team to the sport for the first time, not around every one
-												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[prev_round].slots[sl].match, d, dz, prev_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[prev_round].slots[sl].match, d, dz, prev_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes(BASEBALL_COURT))){
+													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 														scheduled=true;
 													}	
 												}
@@ -519,8 +519,8 @@ function ScheduleMatchesDefault(matches,days){
 													}
 												}
 												//same for the round after it
-												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[next_round].slots[sl].match, d, dz, next_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[next_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[next_round].slots[sl].match, d, dz, next_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[next_round].slots[sl].court.includes(BASEBALL_COURT))){
+													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 														scheduled=true;
 													}	
 												}
@@ -566,7 +566,7 @@ function ScheduleMatchesDefault(matches,days){
 									for (let c of Object.keys(crts)){
 										if (!matches[m].sport.courts.includes(c)){
 											crts[c]+=1;//all sports must be played simultaneously, so the sports that did not used in this round are more valuable for next round.
-											if (c.includes("Ποδόσφαιρο")){
+											if (c.includes(FOOTBALL_SPORT)){
 												crts[c]+=50 //TODO this must be lower and for the courts that will host the more matches, now it is for testing purposes.
 											}
 										}
@@ -665,18 +665,18 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 										if (isFinalMatch(matches[m])) {
-											if (matches[m].sport.name === "Ποδόσφαιρο") {
-												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === "Μπέιζμπολ");
+											if (matches[m].sport.name === FOOTBALL_SPORT) {
+												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === BASEBALL_SPORT);
 												if (hasBaseballFinal) {
-													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Μπέιζμπολ" && isFinalMatch(match));
+													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === BASEBALL_SPORT && isFinalMatch(match));
 													if (!baseballFinalSlot) {
 														too_early = true;
 													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
 														too_early = true;
 													}
 												}
-											} else if (matches[m].sport.name === "Μπέιζμπολ") {
-												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Ποδόσφαιρο" && isFinalMatch(match));
+											} else if (matches[m].sport.name === BASEBALL_SPORT) {
+												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === FOOTBALL_SPORT && isFinalMatch(match));
 												if (footballFinalSlot) {
 													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
 														too_late = true;
@@ -686,7 +686,7 @@ function ScheduleMatchesDefault(matches,days){
 										}
 										if (!(d === 0 && dz === 0) && r === 0) {
 											if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
-												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+												let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													scheduled_k = true;
 												}
@@ -731,8 +731,8 @@ function ScheduleMatchesDefault(matches,days){
 											if (prev_round>=0 && r !== 0){//for previous round
 												for (let sl of Object.keys(crts)){
 													if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null && typeof (days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) !== 'undefined' && typeof (days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) !== 'undefined'){
-														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== "Μπέιζμπολ" || (matches[m].sport.name==="Μπέιζμπολ" && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes("Π Ποδόσφαιρο"))){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT || (matches[m].sport.name===BASEBALL_SPORT && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes(BASEBALL_COURT))){
+															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 																scheduled_k=true;
 															}	
 														}
@@ -742,8 +742,8 @@ function ScheduleMatchesDefault(matches,days){
 											if (next_round<days[d].dzones[dz].rounds.length){//for next round
 												for (let sl of Object.keys(crts)){
 													if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== "Μπέιζμπολ"){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
+															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 																scheduled_k=true;
 															}	
 														}
@@ -837,18 +837,18 @@ function ScheduleMatchesDefault(matches,days){
 											}
 										}
 										if (isFinalMatch(matches[m])) {
-											if (matches[m].sport.name === "Ποδόσφαιρο") {
-												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === "Μπέιζμπολ");
+											if (matches[m].sport.name === FOOTBALL_SPORT) {
+												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === BASEBALL_SPORT);
 												if (hasBaseballFinal) {
-													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Μπέιζμπολ" && isFinalMatch(match));
+													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === BASEBALL_SPORT && isFinalMatch(match));
 													if (!baseballFinalSlot) {
 														too_early = true;
 													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
 														too_early = true;
 													}
 												}
-											} else if (matches[m].sport.name === "Μπέιζμπολ") {
-												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === "Ποδόσφαιρο" && isFinalMatch(match));
+											} else if (matches[m].sport.name === BASEBALL_SPORT) {
+												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === FOOTBALL_SPORT && isFinalMatch(match));
 												if (footballFinalSlot) {
 													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
 														too_early = true;
@@ -858,7 +858,7 @@ function ScheduleMatchesDefault(matches,days){
 										}
 										if (!(d === 0 && dz === 0) && r === 0) {
 											if (bbIntroLeft && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
-												let bbSport = config.sports.find(sp => sp.name === "Μπέιζμπολ");
+												let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													too_early = true;
 												}
@@ -902,8 +902,8 @@ function ScheduleMatchesDefault(matches,days){
 											if (prev_round>=0 && r !== 0){//for previous round
 												for (let sl of Object.keys(crts)){
 													if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== "Μπέιζμπολ"){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
+															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 																scheduled_k=true;
 															}	
 														}
@@ -913,8 +913,8 @@ function ScheduleMatchesDefault(matches,days){
 											if (next_round<days[d].dzones[dz].rounds.length){//for next round
 												for (let sl of Object.keys(crts)){
 													if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== "Μπέιζμπολ"){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
+															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 																scheduled_k=true;
 															}	
 														}
@@ -964,8 +964,8 @@ function ScheduleMatchesDefault(matches,days){
 									if (prev_round>=0 && r !== 0){//for previous round
 										for (let sl of Object.keys(crts)){
 											if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-												if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== "Μπέιζμπολ"){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+												if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
+													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 														scheduled_k=true;
 													}	
 												}
@@ -975,8 +975,8 @@ function ScheduleMatchesDefault(matches,days){
 									if (next_round<days[d].dzones[dz].rounds.length){//for next round
 										for (let sl of Object.keys(crts)){
 											if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-												if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== "Μπέιζμπολ"){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes("Π Ποδόσφαιρο")){
+												if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
+													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
 														scheduled_k=true;
 													}	
 												}

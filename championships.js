@@ -95,6 +95,10 @@ function produce_matches() {
 	matches = [];
 
 	// produce court metric (to know which court has more games in a given time)
+	//built afresh rather than added to: the courts of a configuration submitted
+	//earlier would otherwise stay in it, and the scheduler, which walks these
+	//names to find the slots of a round, would look for a court that has none
+	crts = {};
 	config.courts.forEach(court => {
 		crts[court] = 0;
 	});
@@ -267,7 +271,7 @@ function search_impossible() {
 	//on its own, and one match brings at most two teams
 	const bbTeams = {};
 	Object.values(config.groups).forEach(gr => {
-		if (gr.sport.name !== 'Μπέιζμπολ')
+		if (gr.sport.name !== BASEBALL_SPORT)
 			return;
 		gr.teams.forEach(team => {
 			bbTeams[team.id] = true;
@@ -282,7 +286,7 @@ function search_impossible() {
 		}));
 		const needed = Math.ceil(bbCount / 2);
 		if (needed > zones) {
-			reasons.push(`${bbCount} ομάδες παίζουν Μπέιζμπολ και χρειάζονται τουλάχιστον ${needed} ζώνες των 2 γύρων, ενώ η διαμόρφωση δίνει ${zones}`);
+			reasons.push(`${bbCount} ομάδες παίζουν ${BASEBALL_SPORT} και χρειάζονται τουλάχιστον ${needed} ζώνες των 2 γύρων, ενώ η διαμόρφωση δίνει ${zones}`);
 		}
 	}
 

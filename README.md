@@ -23,13 +23,17 @@ Detailed syntax is explained in the subsections below.
 
 ### sports
 
-A sport line contains the sport name (a single word), optionally followed by a court list definition.
+A sport line contains the sport name (a single word), optionally followed by a points definition, optionally followed by a court list definition.
+
+A points definition consists of three numbers joined by hyphens (`-`), giving what a win, a draw and a loss are worth.
 
 A court list definition consists of a colon (`:`) and a comma (`,`) separated list of courts.
 
 Sports with the same name are not allowed.
 
 If no court list definition is provided, a court named by the sport will be considered.
+
+Any sport name is accepted. If no points definition is provided, the sport keeps the scoring the program already knows for that name, and a name the program does not know scores 3 for a win, 1 for a draw and 0 for a loss.
 
 #### examples
 
@@ -38,6 +42,8 @@ If no court list definition is provided, a court named by the sport will be cons
 `Volleyball`
 
 `Baseball: Old Soccer Court`
+
+`Handball 3-1-0: Old Soccer Court`
 
 ### zones
 
