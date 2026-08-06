@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+
+# the before and after of your own working copy, taken by "npm run snap"
+.snapshot/

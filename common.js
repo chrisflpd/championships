@@ -170,6 +170,10 @@ const points_fn_obj = {
 		else
 			throw 'ισοπαλία στο μπάσκετ;';
 	},
-	'Βόλεϊ': (sh, sa) => sh - sa, // TODO fix volley fn
-	'Μπέιζμπολ': (sh, sa) => sh - sa, // TODO fix baseball fn
+	// TODO these two hand back a difference where every other one hands back the
+	// points of the two sides, so they have to be settled before anything reads
+	// them. a sport line may say what it scores in the meantime, as in
+	// "Βόλεϊ 3-0-1", which is taken over whatever stands here.
+	'Βόλεϊ': (sh, sa) => sh - sa,
+	'Μπέιζμπολ': (sh, sa) => sh - sa,
 };

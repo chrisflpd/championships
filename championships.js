@@ -200,6 +200,61 @@ const SEARCH_STRICT_TRIES = 5; //attempts before the adjacent round rules are dr
 let search = null;
 
 /**
+ * the teams that are actually going to play: the ones a group holds, the ones a
+ * given match names, and the ones a knockout starts with. a team may be declared
+ * and then left out of every one of them.
+ *
+ * @returns {team[]}
+ */
+function playing_teams() {
+	const playing = {};
+	const add = team => {
+		if (team && typeof team.id !== 'undefined')
+			playing[team.id] = true;
+	};
+	Object.values(config.groups).forEach(gr => {
+		(gr.teams || []).forEach(add);
+		(gr.matches || []).forEach(gm => {
+			add(gm.team_home);
+			add(gm.team_away);
+		});
+	});
+	Object.values(config.knockouts).forEach(kn => {
+		[kn.home, kn.away].forEach(side => {
+			if (side && side.type === 'fixed')
+				add(side.team);
+		});
+	});
+	return config.teams.filter(team => team.id in playing);
+}
+
+/**
+ * what is worth saying about a configuration without refusing it. a team that is
+ * declared and never plays is almost always a mistake, and nothing else in the
+ * program would ever mention it.
+ *
+ * @returns {string[]}
+ */
+function config_notices() {
+	const notices = [];
+	const playing = playing_teams();
+	const idle = config.teams.filter(team => !playing.includes(team));
+	if (idle.length)
+		notices.push(idle.length === 1
+			? `Η ομάδα ${idle[0].name} δεν παίζει σε κανέναν αγώνα.`
+			: `Οι ομάδες ${idle.map(team => team.name).join(', ')} δεν παίζουν σε κανέναν αγώνα.`);
+	return notices;
+}
+
+function config_report(notices) {
+	const box = document.getElementById('notice');
+	if (box === null)
+		return;
+	box.textContent = notices.join(' ');
+	box.hidden = notices.length === 0;
+}
+
+/**
  * the search runs until it finds a program, so a configuration that can never be
  * scheduled would keep it running for ever. these look for a proof that no
  * program exists and report only what they can prove, so that a configuration
@@ -260,11 +315,13 @@ function search_impossible() {
 		});
 
 	//a round holds as many matches as the teams allow: the scheduler takes a match
-	//only while used slots x 2 < teams - 1
-	const maxPerRound = Math.max(1, Math.ceil((config.teams.length - 1) / 2));
+	//only while used slots x 2 < teams - 1. a team that is declared and never
+	//plays does not widen a round, so it is not counted here.
+	const playing = playing_teams().length;
+	const maxPerRound = Math.max(1, Math.ceil((playing - 1) / 2));
 	const perRound = Math.min(config.courts.length, maxPerRound);
 	if (total > rounds * perRound) {
-		reasons.push(`${total} αγώνες συνολικά, αλλά ${rounds} γύροι x ${perRound} ταυτόχρονοι αγώνες = ${rounds * perRound} θέσεις (${config.teams.length} ομάδες επιτρέπουν ${maxPerRound} αγώνες ανά γύρο)`);
+		reasons.push(`${total} αγώνες συνολικά, αλλά ${rounds} γύροι x ${perRound} ταυτόχρονοι αγώνες = ${rounds * perRound} θέσεις (${playing} ομάδες επιτρέπουν ${maxPerRound} αγώνες ανά γύρο)`);
 	}
 
 	//the baseball match that brings a team to the sport holds a zone of two rounds
@@ -433,6 +490,9 @@ function search_start() {
 	const excel_button = document.getElementById('excel');
 	if (excel_button !== null)
 		excel_button.disabled = true;
+
+	//what is worth knowing about the configuration but does not stop it
+	config_report(config_notices());
 
 	//no point searching for ever for something that cannot exist
 	const reasons = search_impossible();

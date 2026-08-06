@@ -1,5 +1,3 @@
-console.log("DEBUG: displayer.js loaded (updated template version)");
-
 //the side a match is played by is a team of the configuration in a group and a
 //place still to be filled in a knockout, so only the first of the two has a name
 function side_name(side) {

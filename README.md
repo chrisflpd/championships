@@ -5,6 +5,18 @@ An HTML-JS application to plan championships.
 
 1.2
 
+## checks
+
+`test/` holds checks that load these very files into node and drive them: the page
+in a headless browser, configurations the camp has never used, and the exported
+workbook compared part by part before and after a change. Run them with
+`cd test && npm install && npm test`, and read `test/README.md` before changing
+the export.
+
+Note that `index.html` carries a version on every stylesheet and script it links,
+so that a browser holding an old one does not draw a new page with it. Bump it
+whenever one of them changes.
+
 ## configuration
 
 A configuration string is provided through a `textarea` element.

@@ -446,6 +446,22 @@ h2 {
 	color: var(--warn);
 }
 
+/* what is worth knowing about the configuration but does not stop it */
+#notice {
+	background: var(--warn-soft);
+	border: 1px solid var(--warn);
+	border-radius: var(--radius-sm);
+	color: var(--warn);
+	font-size: 14px;
+	margin: 0 16px 16px;
+	padding: 10px 12px;
+}
+
+/* display overrides hidden, so it has to be turned off by hand */
+#notice[hidden] {
+	display: none;
+}
+
 .spinner {
 	animation: spin 700ms linear infinite;
 	border: 2px solid var(--border-strong);

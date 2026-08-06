@@ -313,13 +313,14 @@ document.addEventListener('DOMContentLoaded', () => {
 	const form = document.forms[0];
 
 	// avoid copy-paste during testing
-	document.getElementById('save').addEventListener('click', event => {
+	function keep_config() {
 		const value = form['config'].value;
 		if (value.length)
 			localStorage.setItem('config', value);
 		else
 			localStorage.removeItem('config');
-	});
+	}
+	document.getElementById('save').addEventListener('click', keep_config);
 	document.getElementById('load').addEventListener('click', event => {
 		const value = localStorage.getItem('config');
 		if (value !== null)
@@ -333,6 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		console.log('submit');
 		event.preventDefault();
+
+		// a configuration that was worth submitting is worth keeping, so that an
+		// edit is not lost to a reload that has only what was last saved by hand
+		keep_config();
 
 		// initialize config
 		config.courts = [];
