@@ -33,6 +33,18 @@ function ui_theme() {
 	return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+//the slider is drawn from the theme showing rather than from the theme chosen,
+//so that a page left to the system still opens with the knob on the right side
+function ui_mark_theme(button) {
+	if (button === null)
+		return;
+	const dark = ui_theme() === 'dark';
+	button.setAttribute('aria-checked', dark ? 'true' : 'false');
+	const label = dark ? 'Φωτεινό θέμα' : 'Σκοτεινό θέμα';
+	button.setAttribute('aria-label', label);
+	button.title = label;
+}
+
 function ui_set_theme(theme) {
 	document.documentElement.setAttribute('data-theme', theme);
 	ui_store(THEME_KEY, theme);
@@ -44,7 +56,9 @@ function ui_set_theme(theme) {
 function ui_collapse(panel, button, collapsed, remember) {
 	panel.classList.toggle('is-collapsed', collapsed);
 	button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-	button.textContent = collapsed ? 'Ανάπτυξη' : 'Σύμπτυξη';
+	const label = (collapsed ? 'Ανάπτυξη' : 'Σύμπτυξη') + ' διαμόρφωσης';
+	button.setAttribute('aria-label', label);
+	button.title = label;
 	if (remember)
 		ui_store(PANEL_KEY, collapsed ? 'collapsed' : 'open');
 }
@@ -53,9 +67,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	const theme_button = document.getElementById('theme');
 	if (theme_button !== null) {
+		ui_mark_theme(theme_button);
 		theme_button.addEventListener('click', () => {
 			ui_set_theme(ui_theme() === 'dark' ? 'light' : 'dark');
+			ui_mark_theme(theme_button);
 		});
+		//a page that was never told which theme to use follows the system, so it
+		//has to follow it when it changes as well
+		if (window.matchMedia) {
+			const dark = window.matchMedia('(prefers-color-scheme: dark)');
+			const follow = () => ui_mark_theme(theme_button);
+			if (dark.addEventListener)
+				dark.addEventListener('change', follow);
+		}
 	}
 
 	const panel = document.querySelector('.panel-config');

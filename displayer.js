@@ -46,15 +46,15 @@ function displayer(program) {
 		sport_index[sport.name] = i;
 	});
 
-	//the zone of a day is named only when there is more than the one unnamed zone
+	//the zone of a day is named only when there is more than the one unnamed zone.
+	//the label columns down the left of a card are that name and the number of the
+	//round, or the number of the round alone.
 	const named_zones = config.zones.length !== 1 || config.zones[0].name !== null;
+	const label_cols = named_zones ? 2 : 1;
 
 	// create html
 	const home = document.createElement('div');
 	home.classList.add('day-list');
-	if (!named_zones)
-		home.classList.add('no-zone-names');
-	home.style.setProperty('--cols', cols.length);
 	//the program sits in its own section of the page, and on a page that has none
 	//it goes where it used to go
 	(document.getElementById('program') || document.body).appendChild(home);
@@ -116,98 +116,99 @@ function displayer(program) {
 		});
 		day_h.appendChild(day_full);
 
+		//a table, so that every column takes the width its own name needs and the
+		//rows stay in line with one another without a width being named anywhere
+		const table = document.createElement('table');
+		table.classList.add('day-table');
+		day_div.appendChild(table);
+
 		//the fields named once at the top of the day, so that a cell underneath is
 		//read by looking up instead of by counting across
-		const head = document.createElement('div');
-		head.classList.add('day-head');
-		day_div.appendChild(head);
-		const sport_row = document.createElement('div');
-		sport_row.classList.add('head-row');
-		head.appendChild(sport_row);
-		const sport_spacer = document.createElement('div');
-		sport_spacer.classList.add('head-spacer');
-		sport_row.appendChild(sport_spacer);
-		const sport_cells = document.createElement('div');
-		sport_cells.classList.add('head-cells');
-		sport_row.appendChild(sport_cells);
+		const thead = document.createElement('thead');
+		table.appendChild(thead);
+		const sport_row = document.createElement('tr');
+		thead.appendChild(sport_row);
+		const sport_corner = document.createElement('th');
+		sport_corner.classList.add('corner');
+		sport_corner.colSpan = label_cols;
+		sport_corner.scope = 'col';
+		sport_corner.textContent = 'Άθλημα';
+		sport_row.appendChild(sport_corner);
 		config.sports.forEach((sport, i) => {
 			if (sport.courts.length === 0)
 				return;
-			const sport_cell = document.createElement('div');
+			const sport_cell = document.createElement('th');
 			sport_cell.classList.add('head-sport');
 			sport_cell.dataset.sportIndex = i;
 			//the name of a sport stands over every one of its fields
-			sport_cell.style.gridColumn = `span ${sport.courts.length}`;
+			sport_cell.colSpan = sport.courts.length;
+			sport_cell.scope = 'colgroup';
 			sport_cell.textContent = sport.name;
-			sport_cell.title = sport.name;
-			sport_cells.appendChild(sport_cell);
+			sport_row.appendChild(sport_cell);
 		});
-		const court_row = document.createElement('div');
-		court_row.classList.add('head-row');
-		head.appendChild(court_row);
-		const court_spacer = document.createElement('div');
-		court_spacer.classList.add('head-spacer');
-		court_row.appendChild(court_spacer);
-		const court_cells = document.createElement('div');
-		court_cells.classList.add('head-cells');
-		court_row.appendChild(court_cells);
+		const court_row = document.createElement('tr');
+		thead.appendChild(court_row);
+		const court_corner = document.createElement('th');
+		court_corner.classList.add('corner');
+		court_corner.colSpan = label_cols;
+		court_corner.scope = 'col';
+		court_corner.textContent = 'Γήπεδο';
+		court_row.appendChild(court_corner);
 		cols.forEach(col => {
-			const court_cell = document.createElement('div');
-			court_cell.classList.add('cell', 'cell-head');
+			const court_cell = document.createElement('th');
+			court_cell.classList.add('cell-head');
 			court_cell.dataset.sportIndex = sport_index[col.sport.name];
+			court_cell.scope = 'col';
 			court_cell.textContent = col.court;
 			court_cell.title = `${col.court} · ${col.sport.name}`;
-			court_cells.appendChild(court_cell);
+			court_row.appendChild(court_cell);
 		});
 
-		const zone_ul = document.createElement('div');
-		zone_ul.classList.add('zone-list');
-		day_div.appendChild(zone_ul);
+		//a zone of the day is a body of its own, which is what the line between two
+		//of them is drawn from
 		day.dzones.forEach(dzone => {
 			if (dzone.rounds.length === 0)
 				return;
-			const zone_li = document.createElement('div');
-			zone_li.classList.add('zone');
-			zone_ul.appendChild(zone_li);
-			if (named_zones) {
-				const zone_h = document.createElement('div');
-				zone_h.classList.add('zone-name');
-				zone_li.appendChild(zone_h);
-				zone_h.textContent = dzone.zone.name;
-			}
-			const round_ul = document.createElement('div');
-			round_ul.classList.add('round-list');
-			zone_li.appendChild(round_ul);
+			const zone_body = document.createElement('tbody');
+			zone_body.classList.add('zone');
+			table.appendChild(zone_body);
 			dzone.rounds.forEach((round, r) => {
-				const round_li = document.createElement('div');
-				round_li.classList.add('round');
-				round_ul.appendChild(round_li);
-				const round_h = document.createElement('div');
+				const round_row = document.createElement('tr');
+				round_row.classList.add('round');
+				zone_body.appendChild(round_row);
+				if (named_zones && r === 0) {
+					//the name of the zone stands beside every round it holds
+					const zone_h = document.createElement('th');
+					zone_h.classList.add('zone-name');
+					zone_h.rowSpan = dzone.rounds.length;
+					zone_h.scope = 'rowgroup';
+					zone_h.textContent = dzone.zone.name;
+					round_row.appendChild(zone_h);
+				}
+				const round_h = document.createElement('th');
 				round_h.classList.add('round-rank');
+				round_h.scope = 'row';
 				round_h.textContent = `Γ${r + 1}`;
 				round_h.title = `${r + 1}ος γύρος`;
-				round_li.appendChild(round_h);
-				const col_ul = document.createElement('div');
-				col_ul.classList.add('cell-list');
-				round_li.appendChild(col_ul);
+				round_row.appendChild(round_h);
 				cols.forEach(col => {
-					const col_li = document.createElement('div');
-					col_li.classList.add('cell');
-					col_ul.appendChild(col_li);
+					const col_td = document.createElement('td');
+					col_td.classList.add('cell');
+					round_row.appendChild(col_td);
 					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
 					const match = slot?.match;
 					if (match?.sport?.name === col.sport.name) { // TODO compare objects
-						col_li.classList.add('cell-match');
-						col_li.dataset.sportIndex = sport_index[col.sport.name];
-						col_li.title = match_title(match, col.court);
+						col_td.classList.add('cell-match');
+						col_td.dataset.sportIndex = sport_index[col.sport.name];
+						col_td.title = match_title(match, col.court);
 						if ('id' in match.team_home && 'id' in match.team_away) {
-							col_li.textContent = [match.team_home.id, match.team_away.id].join('-');
+							col_td.textContent = [match.team_home.id, match.team_away.id].join('-');
 						} else {
-							col_li.textContent = match.id;
+							col_td.textContent = match.id;
 						}
 					} else {
-						col_li.classList.add('cell-empty');
-						col_li.textContent = '·';
+						col_td.classList.add('cell-empty');
+						col_td.textContent = '·';
 					}
 				});
 			});

@@ -1,26 +1,14 @@
 /*
  * the program: a card for every day, holding a row for every round and a column
- * for every field, with the fields named once at the top of the card.
+ * for every field, with the sports and their fields named at the top of it.
  *
- * every row of a card is laid out the same way — a label of a fixed width, then
- * a grid of as many equal columns as there are fields — so that a cell stands
- * under the name of its own field.
+ * a card is a table and no width is named anywhere in here, so every column
+ * takes what its own name needs and no name is ever cut. the rows stay in line
+ * with one another because they are rows of the one table.
  */
 
 .program {
 	overflow-x: auto;
-}
-
-.day-list {
-	--cell-w: 58px;
-	--zone-w: 92px;
-	--rank-w: 30px;
-	--label-w: calc(var(--zone-w) + var(--rank-w));
-}
-
-/* an unnamed zone takes no room of its own */
-.day-list.no-zone-names {
-	--zone-w: 0px;
 }
 
 
@@ -99,112 +87,99 @@
 }
 
 
+/* the table */
+
+.day-table {
+	border-collapse: collapse;
+	/* auto is the default, and it is the whole point: the browser measures */
+	table-layout: auto;
+}
+
+.day-table th,
+.day-table td {
+	font-weight: normal;
+	padding: 0 8px;
+	text-align: center;
+	/* a name is never wrapped and never cut; the column widens instead */
+	white-space: nowrap;
+}
+
+
 /* the two rows naming the sports and their fields */
 
-.head-row {
-	display: flex;
+.day-table thead th {
+	color: var(--muted);
+	font-size: 10.5px;
+	font-weight: 550;
+	height: 22px;
 }
 
-.head-spacer {
-	flex: none;
-	width: var(--label-w);
+.day-table .corner {
+	color: var(--faint);
+	font-size: 10px;
+	letter-spacing: .02em;
+	text-align: left;
+	text-transform: uppercase;
 }
 
-.head-cells {
-	display: grid;
-	grid-template-columns: repeat(var(--cols), var(--cell-w));
-}
-
-.head-sport {
+.day-table .head-sport {
 	border-bottom: 2px solid var(--sport-color);
 	color: var(--sport-color);
 	font-size: 10.5px;
 	font-weight: 650;
 	letter-spacing: .02em;
-	min-width: 0;
-	overflow: hidden;
-	padding: 6px 4px 3px;
-	text-align: center;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	padding-top: 5px;
 }
 
-.cell-head {
-	color: var(--muted);
-	font-size: 10.5px;
-	font-weight: 550;
-	height: 24px;
-	min-width: 0;
-	overflow: hidden;
-	padding: 0 3px;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+.day-table .cell-head {
+	padding-bottom: 3px;
 }
 
 
-/* the zones and the rounds inside them */
+/* the rounds, grouped by the zone they belong to */
 
-.zone {
+.zone > tr:first-child > * {
 	border-top: 1px solid var(--border);
-	display: flex;
 }
 
-.zone-name {
-	align-items: center;
-	color: var(--muted);
-	display: flex;
-	flex: none;
-	font-size: 11.5px;
-	font-weight: 600;
-	line-height: 1.25;
-	overflow: hidden;
-	padding: 4px 8px;
-	width: var(--zone-w);
+/* the line between two zones of a day is the strong one; the line between two
+   rounds of the same zone is the light one */
+.zone + .zone > tr:first-child > * {
+	border-top: 2px solid var(--border-strong);
 }
 
-.round-list {
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-	min-width: 0;
-}
-
-.round {
-	display: flex;
-}
-
-.round + .round {
+.zone > tr + tr > * {
 	border-top: 1px dashed var(--border);
 }
 
-.round-rank {
-	align-items: center;
-	color: var(--faint);
-	display: flex;
-	flex: none;
-	font-size: 10.5px;
-	justify-content: center;
-	width: var(--rank-w);
+.day-table .zone-name {
+	color: var(--muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	text-align: left;
 }
 
-.cell-list {
-	display: grid;
-	grid-template-columns: repeat(var(--cols), var(--cell-w));
+.day-table .round-rank {
+	color: var(--faint);
+	font-size: 10.5px;
+	padding: 0 6px;
 }
 
 
 /* a single field in a single round */
 
 .cell {
-	align-items: center;
-	display: flex;
 	font-size: 12.5px;
 	font-variant-numeric: tabular-nums;
 	height: 30px;
-	justify-content: center;
+	min-width: 46px;
 }
 
-.cell + .cell {
+/* a light rule down between the columns, and one where the labels give way to
+   the fields */
+.day-table thead th + th,
+.day-table tbody td + td,
+.day-table .round-rank + .cell {
 	border-left: 1px solid var(--border);
 }
 
@@ -212,7 +187,6 @@
 	/* the tint is a fallback away from the sport colour, for a browser without color-mix */
 	background: var(--surface);
 	background: color-mix(in srgb, var(--sport-color) 12%, var(--surface));
-	box-shadow: inset 2px 0 0 var(--sport-color);
 	font-weight: 600;
 }
 
@@ -223,7 +197,7 @@
 
 /* one hue per sport, in the order the sports were given */
 
-/* a sixth sport onwards shares the last hue rather than losing its colour */
+/* a seventh sport onwards shares the last hue rather than losing its colour */
 [data-sport-index] {
 	--sport-color: var(--sport-6);
 }

@@ -175,21 +175,6 @@ h2 {
 	z-index: 5;
 }
 
-.topbar-title {
-	align-items: center;
-	display: flex;
-	gap: 10px;
-	min-width: 0;
-}
-
-.topbar-mark {
-	background: var(--accent);
-	border-radius: var(--radius-sm);
-	flex: none;
-	height: 22px;
-	width: 22px;
-}
-
 .app {
 	display: flex;
 	flex-direction: column;
@@ -282,59 +267,129 @@ h2 {
 	color: var(--text);
 }
 
-.button-icon {
+/*
+ * the slider between the light and the dark. the knob sits over the sun on the
+ * one side and over the moon on the other, so the side it is not on is the one
+ * being offered.
+ */
+
+.switch {
+	background: none;
+	border: none;
+	border-radius: 999px;
+	cursor: pointer;
+	flex: none;
+	padding: 0;
+}
+
+.switch:focus-visible {
+	box-shadow: var(--ring);
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.switch-track {
 	align-items: center;
-	background: transparent;
-	border: 1px solid transparent;
+	background: var(--surface-2);
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	display: flex;
+	height: 26px;
+	justify-content: space-between;
+	padding: 0 5px;
+	position: relative;
+	transition: background .16s ease, border-color .16s ease;
+	width: 52px;
+}
+
+.switch:hover .switch-track {
+	border-color: var(--faint);
+}
+
+.switch-track svg {
+	color: var(--faint);
+	height: 13px;
+	position: relative;
+	width: 13px;
+	z-index: 1;
+}
+
+.switch-knob {
+	background: var(--surface);
+	border-radius: 50%;
+	box-shadow: var(--shadow-sm);
+	height: 20px;
+	left: 2px;
+	position: absolute;
+	top: 2px;
+	transition: transform .16s ease;
+	width: 20px;
+	z-index: 2;
+}
+
+.switch[aria-checked="true"] .switch-track {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+}
+
+.switch[aria-checked="true"] .switch-knob {
+	transform: translateX(26px);
+}
+
+/* the icon the knob is standing on is the one that is switched on */
+.switch[aria-checked="true"] .switch-moon,
+.switch[aria-checked="false"] .switch-sun {
+	color: var(--accent);
+}
+
+
+/*
+ * a square button that stays down while what it opened is closed
+ */
+
+.toggle {
+	align-items: center;
+	background: var(--surface);
+	border: 1px solid var(--border-strong);
 	border-radius: var(--radius-sm);
 	color: var(--muted);
 	cursor: pointer;
 	display: flex;
 	flex: none;
-	height: 34px;
+	height: 26px;
 	justify-content: center;
 	padding: 0;
-	transition: background .12s ease, color .12s ease;
-	width: 34px;
+	transition: background .12s ease, border-color .12s ease, color .12s ease;
+	width: 26px;
 }
 
-.button-icon:hover {
+.toggle:hover {
 	background: var(--surface-2);
+	border-color: var(--faint);
 	color: var(--text);
 }
 
-.button-icon:focus-visible {
+.toggle:focus-visible {
 	box-shadow: var(--ring);
 	outline: 2px solid var(--accent);
 	outline-offset: 1px;
 }
 
-.button-icon svg {
-	height: 18px;
-	width: 18px;
+.toggle svg {
+	height: 15px;
+	transition: transform .16s ease;
+	width: 15px;
 }
 
-/* the switch shows the theme it is going to bring, so only one of the two */
-.button-icon .icon-dark {
-	display: none;
+.toggle[aria-expanded="false"] {
+	background: var(--surface-2);
+	border-color: var(--faint);
+	box-shadow: inset 0 1px 3px rgba(16, 20, 30, .16);
+	color: var(--text);
 }
 
-:root[data-theme="dark"] .button-icon .icon-dark {
-	display: block;
-}
-
-:root[data-theme="dark"] .button-icon .icon-light {
-	display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) .button-icon .icon-dark {
-		display: block;
-	}
-
-	:root:not([data-theme="light"]) .button-icon .icon-light {
-		display: none;
-	}
+.toggle[aria-expanded="false"] svg {
+	transform: rotate(180deg);
 }
 
 

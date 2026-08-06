@@ -1,14 +1,9 @@
 /* the panel the configuration is written in */
 
-.panel-config .panel-head h2 {
-	align-items: baseline;
-	display: flex;
-	gap: 4px;
-}
-
-.required {
-	color: var(--danger);
-	cursor: help;
+/* the button that folds the panel stands beside its name, not across the row */
+.panel-config .panel-head {
+	gap: 8px;
+	justify-content: flex-start;
 }
 
 textarea[name="config"] {
