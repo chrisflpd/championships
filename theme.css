@@ -27,9 +27,9 @@
 	--warn-soft: #fdf1dc;
 
 	/* one hue per sport, in the order the sports are given */
-	--sport-1: #2f6df0;
-	--sport-2: #e07b1a;
-	--sport-3: #12977f;
+	--sport-1: #12977f;
+	--sport-2: #2f6df0;
+	--sport-3: #e07b1a;
 	--sport-4: #a755c2;
 	--sport-5: #d4405f;
 	--sport-6: #5b6470;
@@ -72,9 +72,9 @@
 		--warn: #e0ac5c;
 		--warn-soft: #362a17;
 
-		--sport-1: #5b8cff;
-		--sport-2: #f0994a;
-		--sport-3: #35bfa4;
+		--sport-1: #35bfa4;
+		--sport-2: #5b8cff;
+		--sport-3: #f0994a;
 		--sport-4: #c281d8;
 		--sport-5: #ef6d88;
 		--sport-6: #8a94a3;
@@ -107,9 +107,9 @@
 	--warn: #e0ac5c;
 	--warn-soft: #362a17;
 
-	--sport-1: #5b8cff;
-	--sport-2: #f0994a;
-	--sport-3: #35bfa4;
+	--sport-1: #35bfa4;
+	--sport-2: #5b8cff;
+	--sport-3: #f0994a;
 	--sport-4: #c281d8;
 	--sport-5: #ef6d88;
 	--sport-6: #8a94a3;
