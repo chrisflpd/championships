@@ -17,6 +17,58 @@ function match_title(match, court) {
 	return home !== null && away !== null ? `${home} – ${away}\n${where}` : where;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * a day the configuration passes over is still a day of the tournament, and a
+ * calendar that leaves it out reads as though the tournament had none. every
+ * date from the first to the last is given a card, the ones that were passed
+ * over holding no zone of their own.
+ *
+ * the dates are read out of an iso day, so they are all midnight utc and a day
+ * apart is a day of milliseconds apart exactly.
+ *
+ * @param {day[]} program
+ * @returns {object[]} - the days to draw, a passed over one carrying blank
+ */
+function calendar_days(program) {
+	if (program.length === 0)
+		return [];
+	const given = {};
+	program.forEach(day => {
+		given[day.date.getTime()] = day;
+	});
+	const days = [];
+	const last = program[program.length - 1].date.getTime();
+	for (let t = program[0].date.getTime(); t <= last; t += DAY_MS) {
+		days.push(t in given ? given[t] : {
+			date: new Date(t),
+			dzones: config.zones.map(zone => ({ zone: zone, rounds: [] })),
+			blank: true,
+		});
+	}
+	return days;
+}
+
+/**
+ * a zone that holds no round is given the room of the most rounds that zone
+ * holds on any day, so that a day with nothing in it is the same shape as a day
+ * with something, and the calendar keeps its lines across the cards.
+ *
+ * @param {day[]} program
+ * @returns {object.<number, number>} - rows to draw, by the rank of the zone
+ */
+function zone_rows(program) {
+	const rows = {};
+	config.zones.forEach(zone => {
+		rows[zone.rank] = 1;
+	});
+	program.forEach(day => day.dzones.forEach(dzone => {
+		rows[dzone.zone.rank] = Math.max(rows[dzone.zone.rank] || 1, dzone.rounds.length);
+	}));
+	return rows;
+}
+
 function displayer(program) {
 	window.currentProgram = program;
 
@@ -94,9 +146,12 @@ function displayer(program) {
 	day_grid.classList.add('day-grid');
 	home.appendChild(day_grid);
 
-	program.forEach(day => {
+	const rows_of = zone_rows(program);
+	calendar_days(program).forEach(day => {
 		const day_div = document.createElement('div');
 		day_div.classList.add('day');
+		if (day.blank)
+			day_div.classList.add('day-blank');
 		day_grid.appendChild(day_div);
 		const day_h = document.createElement('div');
 		day_h.classList.add('day-date');
@@ -165,22 +220,26 @@ function displayer(program) {
 		});
 
 		//a zone of the day is a body of its own, which is what the line between two
-		//of them is drawn from
+		//of them is drawn from. a zone holding no round is drawn all the same, with
+		//as many empty rows as that zone takes on the fullest of the days.
 		day.dzones.forEach(dzone => {
-			if (dzone.rounds.length === 0)
-				return;
 			const zone_body = document.createElement('tbody');
 			zone_body.classList.add('zone');
 			table.appendChild(zone_body);
-			dzone.rounds.forEach((round, r) => {
+			const rounds = dzone.rounds.length
+				? dzone.rounds
+				: new Array(rows_of[dzone.zone.rank] || 1).fill(null);
+			rounds.forEach((round, r) => {
 				const round_row = document.createElement('tr');
 				round_row.classList.add('round');
+				if (round === null)
+					round_row.classList.add('round-blank');
 				zone_body.appendChild(round_row);
 				if (named_zones && r === 0) {
 					//the name of the zone stands beside every round it holds
 					const zone_h = document.createElement('th');
 					zone_h.classList.add('zone-name');
-					zone_h.rowSpan = dzone.rounds.length;
+					zone_h.rowSpan = rounds.length;
 					zone_h.scope = 'rowgroup';
 					zone_h.textContent = dzone.zone.name;
 					round_row.appendChild(zone_h);
@@ -188,14 +247,16 @@ function displayer(program) {
 				const round_h = document.createElement('th');
 				round_h.classList.add('round-rank');
 				round_h.scope = 'row';
-				round_h.textContent = `Γ${r + 1}`;
-				round_h.title = `${r + 1}ος γύρος`;
+				//a row standing in for a round the day does not hold is not numbered
+				round_h.textContent = round === null ? '' : `Γ${r + 1}`;
+				if (round !== null)
+					round_h.title = `${r + 1}ος γύρος`;
 				round_row.appendChild(round_h);
 				cols.forEach(col => {
 					const col_td = document.createElement('td');
 					col_td.classList.add('cell');
 					round_row.appendChild(col_td);
-					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
+					const slot = round !== null && col.court in round.slots ? round.slots[col.court] : undefined;
 					const match = slot?.match;
 					if (match?.sport?.name === col.sport.name) { // TODO compare objects
 						col_td.classList.add('cell-match');

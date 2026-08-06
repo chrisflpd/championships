@@ -116,10 +116,8 @@
 
 .day-table .corner {
 	color: var(--faint);
-	font-size: 10px;
-	letter-spacing: .02em;
+	font-size: 10.5px;
 	text-align: left;
-	text-transform: uppercase;
 }
 
 .day-table .head-sport {
@@ -192,6 +190,21 @@
 
 .cell-empty {
 	color: var(--faint);
+}
+
+/* a day the configuration passes over, and a zone of a day that holds no round,
+   are drawn in their place so that the calendar keeps its shape. they are kept
+   quiet, since there is nothing in them to read. */
+.day-blank .day-date {
+	color: var(--muted);
+}
+
+.day-blank .day-weekday {
+	font-weight: 600;
+}
+
+.round-blank > * {
+	background: var(--surface-2);
 }
 
 
