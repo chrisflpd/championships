@@ -2,37 +2,74 @@
 <html lang="el">
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>Ομαδικά Πρωταθλήματα</title>
+		<link rel="stylesheet" href="theme.css">
 		<link rel="stylesheet" href="config.css">
 		<link rel="stylesheet" href="displayer.css">
+		<script>
+			// the theme is put on before the page is drawn, so that a dark one does
+			// not go through a white flash on its way in
+			try {
+				const stored = localStorage.getItem('theme');
+				if (stored === 'dark' || stored === 'light')
+					document.documentElement.setAttribute('data-theme', stored);
+			} catch (error) {
+				// a browser that keeps no storage simply follows the system
+			}
+		</script>
 	</head>
 	<body>
-		<h1>Ομαδικά Πρωταθλήματα</h1>
-		<form>
-			<p>
-				<label>
-					<span>Διαμόρφωση</span>
-					<span style="color: red;">*</span>
-					<br>
-					<textarea name="config" required="required" rows="30"></textarea>
-				</label>
-			</p>
-			<p>
-				<button type="submit">Υποβολή</button>
-				<button type="button" id="load">Φόρτωση</button>
-				<button type="button" id="save">Αποθήκευση</button>
-				<button type="button" id="excel">Δημιουργία Excel</button>
-			</p>
-			<p id="search" hidden="hidden">
-				<span id="search-status"></span>
-				<button type="button" id="stop">Διακοπή</button>
-			</p>
-		</form>
+		<header class="topbar">
+			<div class="topbar-title">
+				<span class="topbar-mark" aria-hidden="true"></span>
+				<h1>Ομαδικά Πρωταθλήματα</h1>
+			</div>
+			<button type="button" id="theme" class="button-icon" aria-label="Εναλλαγή θέματος" title="Εναλλαγή θέματος">
+				<svg class="icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<circle cx="12" cy="12" r="4"></circle>
+					<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+				</svg>
+				<svg class="icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+				</svg>
+			</button>
+		</header>
+		<main class="app">
+			<section class="panel panel-config">
+				<div class="panel-head">
+					<h2><label for="config-input">Διαμόρφωση</label> <span class="required" title="υποχρεωτικό">*</span></h2>
+					<button type="button" id="collapse" class="button button-quiet" aria-expanded="true" aria-controls="config-body">Σύμπτυξη</button>
+				</div>
+				<form>
+					<div class="panel-body" id="config-body">
+						<!-- the id is not "config": a named element becomes a property of the
+						     window, and common.js already keeps a "config" of its own there -->
+						<textarea id="config-input" name="config" required="required" rows="26" spellcheck="false" wrap="off" placeholder="[sports]&#10;Ποδόσφαιρο: Γήπεδο 1, Γήπεδο 2&#10;&#10;[zones]&#10;…"></textarea>
+						<p class="hint">Ενότητες: <code>[sports]</code> <code>[zones]</code> <code>[days]</code> <code>[teams]</code> <code>[groups]</code> <code>[knockouts]</code>. Οι γραμμές που ξεκινούν με <code>#</code> αγνοούνται.</p>
+					</div>
+					<div class="toolbar">
+						<button type="submit" class="button button-primary">Υποβολή</button>
+						<span class="toolbar-gap"></span>
+						<button type="button" id="load" class="button">Φόρτωση</button>
+						<button type="button" id="save" class="button">Αποθήκευση</button>
+						<button type="button" id="excel" class="button" disabled="disabled">Δημιουργία Excel</button>
+					</div>
+					<div id="search" hidden="hidden" role="status" aria-live="polite">
+						<span class="spinner" aria-hidden="true"></span>
+						<span id="search-status"></span>
+						<button type="button" id="stop" class="button button-quiet">Διακοπή</button>
+					</div>
+				</form>
+			</section>
+			<section id="program" class="program"></section>
+		</main>
 		<script src="common.js"></script>
 		<script src="parser.js"></script>
 		<script src="championships.js"></script>
 		<script src="scheduling_algorithms.js"></script>
 		<script src="jszip.min.js"></script>
 		<script src="displayer.js"></script>
+		<script src="ui.js"></script>
 	</body>
 </html>

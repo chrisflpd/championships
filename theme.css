@@ -1,0 +1,456 @@
+/*
+ * the look of the page: the colours and the measures every other sheet reads,
+ * the shell around the two sections, the buttons and the status of the search.
+ *
+ * a colour is named after the job it does and not after the colour it is, so
+ * that the dark set can answer to the same names.
+ */
+
+:root {
+	--bg: #f4f5f7;
+	--surface: #ffffff;
+	--surface-2: #f0f1f4;
+	--border: #dcdfe5;
+	--border-strong: #c2c7d0;
+	--text: #1a1d23;
+	--muted: #6b7280;
+	--faint: #a2a8b4;
+	--accent: #2f6df0;
+	--accent-hover: #2559cc;
+	--accent-text: #ffffff;
+	--accent-soft: #e7effd;
+	--ok: #1d8a4e;
+	--ok-soft: #e4f5ea;
+	--danger: #c3372b;
+	--danger-soft: #fbe9e7;
+	--warn: #9a6412;
+	--warn-soft: #fdf1dc;
+
+	/* one hue per sport, in the order the sports are given */
+	--sport-1: #2f6df0;
+	--sport-2: #e07b1a;
+	--sport-3: #12977f;
+	--sport-4: #a755c2;
+	--sport-5: #d4405f;
+	--sport-6: #5b6470;
+
+	--radius: 10px;
+	--radius-sm: 6px;
+	--shadow: 0 1px 2px rgba(16, 20, 30, .06), 0 4px 16px rgba(16, 20, 30, .06);
+	--shadow-sm: 0 1px 2px rgba(16, 20, 30, .08);
+	--ring: 0 0 0 3px var(--accent-soft);
+
+	--font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+
+	color-scheme: light;
+}
+
+/*
+ * the dark set is written twice: once for a browser that asks for it and has
+ * not been told otherwise, and once for the switch on the page, so that either
+ * of the two can have the last word.
+ */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #14171c;
+		--surface: #1c2027;
+		--surface-2: #23272f;
+		--border: #313742;
+		--border-strong: #454d5b;
+		--text: #e8eaee;
+		--muted: #9aa2b1;
+		--faint: #6a7382;
+		--accent: #5b8cff;
+		--accent-hover: #7aa1ff;
+		--accent-text: #10131a;
+		--accent-soft: #22304d;
+		--ok: #4ac07d;
+		--ok-soft: #1b3327;
+		--danger: #f0776a;
+		--danger-soft: #3a2220;
+		--warn: #e0ac5c;
+		--warn-soft: #362a17;
+
+		--sport-1: #5b8cff;
+		--sport-2: #f0994a;
+		--sport-3: #35bfa4;
+		--sport-4: #c281d8;
+		--sport-5: #ef6d88;
+		--sport-6: #8a94a3;
+
+		--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+		--shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+		--ring: 0 0 0 3px rgba(91, 140, 255, .3);
+
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme="dark"] {
+	--bg: #14171c;
+	--surface: #1c2027;
+	--surface-2: #23272f;
+	--border: #313742;
+	--border-strong: #454d5b;
+	--text: #e8eaee;
+	--muted: #9aa2b1;
+	--faint: #6a7382;
+	--accent: #5b8cff;
+	--accent-hover: #7aa1ff;
+	--accent-text: #10131a;
+	--accent-soft: #22304d;
+	--ok: #4ac07d;
+	--ok-soft: #1b3327;
+	--danger: #f0776a;
+	--danger-soft: #3a2220;
+	--warn: #e0ac5c;
+	--warn-soft: #362a17;
+
+	--sport-1: #5b8cff;
+	--sport-2: #f0994a;
+	--sport-3: #35bfa4;
+	--sport-4: #c281d8;
+	--sport-5: #ef6d88;
+	--sport-6: #8a94a3;
+
+	--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+	--ring: 0 0 0 3px rgba(91, 140, 255, .3);
+
+	color-scheme: dark;
+}
+
+
+/* the ground everything stands on */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font);
+	font-size: 15px;
+	line-height: 1.5;
+	margin: 0;
+	min-height: 100vh;
+}
+
+h1,
+h2 {
+	font-weight: 650;
+	letter-spacing: -.01em;
+	margin: 0;
+}
+
+h1 {
+	font-size: 19px;
+}
+
+h2 {
+	font-size: 15px;
+}
+
+
+/* the bar at the top of the page */
+
+.topbar {
+	align-items: center;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+	padding: 12px 20px;
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.topbar-title {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+	min-width: 0;
+}
+
+.topbar-mark {
+	background: var(--accent);
+	border-radius: var(--radius-sm);
+	flex: none;
+	height: 22px;
+	width: 22px;
+}
+
+.app {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin: 0 auto;
+	max-width: 1600px;
+	padding: 16px 20px 48px;
+}
+
+
+/* a panel is a sheet of surface with a heading over it */
+
+.panel {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-sm);
+}
+
+.panel-head {
+	align-items: center;
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+	padding: 12px 16px;
+}
+
+.panel-body {
+	padding: 0 16px 12px;
+}
+
+
+/* the buttons */
+
+.button {
+	background: var(--surface);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	cursor: pointer;
+	font: inherit;
+	font-weight: 550;
+	line-height: 1.2;
+	padding: 8px 14px;
+	transition: background .12s ease, border-color .12s ease, color .12s ease;
+	white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+	background: var(--surface-2);
+	border-color: var(--faint);
+}
+
+.button:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.button:focus-visible {
+	box-shadow: var(--ring);
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.button:disabled {
+	cursor: not-allowed;
+	opacity: .5;
+}
+
+.button-primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-text);
+}
+
+.button-primary:hover:not(:disabled) {
+	background: var(--accent-hover);
+	border-color: var(--accent-hover);
+}
+
+.button-quiet {
+	background: transparent;
+	border-color: transparent;
+	color: var(--muted);
+	padding: 6px 10px;
+}
+
+.button-quiet:hover:not(:disabled) {
+	background: var(--surface-2);
+	border-color: var(--border);
+	color: var(--text);
+}
+
+.button-icon {
+	align-items: center;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	color: var(--muted);
+	cursor: pointer;
+	display: flex;
+	flex: none;
+	height: 34px;
+	justify-content: center;
+	padding: 0;
+	transition: background .12s ease, color .12s ease;
+	width: 34px;
+}
+
+.button-icon:hover {
+	background: var(--surface-2);
+	color: var(--text);
+}
+
+.button-icon:focus-visible {
+	box-shadow: var(--ring);
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.button-icon svg {
+	height: 18px;
+	width: 18px;
+}
+
+/* the switch shows the theme it is going to bring, so only one of the two */
+.button-icon .icon-dark {
+	display: none;
+}
+
+:root[data-theme="dark"] .button-icon .icon-dark {
+	display: block;
+}
+
+:root[data-theme="dark"] .button-icon .icon-light {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .button-icon .icon-dark {
+		display: block;
+	}
+
+	:root:not([data-theme="light"]) .button-icon .icon-light {
+		display: none;
+	}
+}
+
+
+/* what the search has to say */
+
+#search {
+	align-items: center;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	display: flex;
+	gap: 10px;
+	margin: 0 16px 16px;
+	padding: 10px 12px;
+}
+
+/* display overrides hidden, so it has to be turned off by hand */
+#search[hidden] {
+	display: none;
+}
+
+#search-status {
+	flex: 1;
+	font-size: 14px;
+	min-width: 0;
+}
+
+#search.is-ok {
+	background: var(--ok-soft);
+	border-color: var(--ok);
+}
+
+#search.is-ok #search-status {
+	color: var(--ok);
+	font-weight: 600;
+}
+
+#search.is-error {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+}
+
+#search.is-error #search-status {
+	color: var(--danger);
+	font-weight: 600;
+}
+
+#search.is-stopped {
+	background: var(--warn-soft);
+	border-color: var(--warn);
+}
+
+#search.is-stopped #search-status {
+	color: var(--warn);
+}
+
+.spinner {
+	animation: spin 700ms linear infinite;
+	border: 2px solid var(--border-strong);
+	border-radius: 50%;
+	border-top-color: var(--accent);
+	flex: none;
+	height: 15px;
+	width: 15px;
+}
+
+/* it only spins while there is something to wait for */
+#search:not(.is-busy) .spinner {
+	display: none;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: .001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: .001ms !important;
+	}
+
+	.spinner {
+		border-top-color: var(--border-strong);
+	}
+}
+
+
+@media print {
+
+	:root {
+		--bg: #ffffff;
+		--surface: #ffffff;
+		--surface-2: #ffffff;
+		--shadow: none;
+		--shadow-sm: none;
+	}
+
+	.topbar,
+	.panel-config,
+	#search {
+		display: none !important;
+	}
+
+	.app {
+		max-width: none;
+		padding: 0;
+	}
+
+	.panel {
+		border: none;
+	}
+}

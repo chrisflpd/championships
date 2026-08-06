@@ -324,7 +324,13 @@ function search_tries(n) {
 	return n === 1 ? '1 προσπάθεια' : `${n} προσπάθειες`;
 }
 
-function search_report(text, over) {
+/**
+ * @param {string} text - what the search has to say
+ * @param {?boolean} over - true when there is nothing left to stop
+ * @param {?string} state - 'busy', 'ok', 'error' or 'stopped', which only tells
+ *                          the page how to draw the line, not what to do with it
+ */
+function search_report(text, over, state) {
 	console.log(text);
 	const box = document.getElementById('search');
 	const status = document.getElementById('search-status');
@@ -333,6 +339,10 @@ function search_report(text, over) {
 		return;
 	box.hidden = false;
 	status.textContent = text;
+	const shown = state ? state : (over === true ? 'ok' : 'busy');
+	['busy', 'ok', 'error', 'stopped'].forEach(one => {
+		box.classList.toggle('is-' + one, one === shown);
+	});
 	if (stop !== null)
 		stop.hidden = over === true;
 }
@@ -369,7 +379,7 @@ function search_window() {
 		program = search_run_window();
 	} catch (error) {
 		search = null;
-		search_report(`Η αναζήτηση σταμάτησε: ${error.message}`, true);
+		search_report(`Η αναζήτηση σταμάτησε: ${error.message}`, true, 'error');
 		alert(error.toString());
 		return;
 	}
@@ -388,7 +398,7 @@ function search_window() {
 	const text = `Το πρόγραμμα βρέθηκε στην προσπάθεια ${search.windows} (${search_seconds()} δευτ.).`
 		+ (relax_adjacency ? ' Οι κανόνες για δύο συνεχόμενους γύρους ήταν χαλαρωμένοι, οπότε μια ομάδα μπορεί να παίζει το ίδιο άθλημα σε δύο συνεχόμενους γύρους.' : '');
 	search = null;
-	search_report(text, true);
+	search_report(text, true, 'ok');
 	search_notify(text);
 	try {
 		displayer(program); // IDEA save 'program' globally and trigger 'championships_program_ready'
@@ -403,7 +413,7 @@ function search_stop() {
 	const text = `Η αναζήτηση σταμάτησε μετά από ${search_tries(search.windows)} (${search_seconds()} δευτ.).`;
 	search.stopped = true;
 	search = null;
-	search_report(text, true);
+	search_report(text, true, 'stopped');
 }
 
 function search_start() {
@@ -411,15 +421,19 @@ function search_start() {
 		search.stopped = true;
 	search = null;
 	relax_adjacency = false;
-	//the program on the page belongs to the previous configuration
+	//the program on the page belongs to the previous configuration, and so does
+	//anything that would be handed out of it
 	const previous = document.querySelector('.day-list');
 	if (previous !== null)
 		previous.remove();
+	const excel_button = document.getElementById('excel');
+	if (excel_button !== null)
+		excel_button.disabled = true;
 
 	//no point searching for ever for something that cannot exist
 	const reasons = search_impossible();
 	if (reasons.length) {
-		search_report('Η διαμόρφωση δεν μπορεί να προγραμματιστεί. ' + reasons.join(' · '), true);
+		search_report('Η διαμόρφωση δεν μπορεί να προγραμματιστεί. ' + reasons.join(' · '), true, 'error');
 		return;
 	}
 

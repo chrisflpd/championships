@@ -1,41 +1,253 @@
+/*
+ * the program: a card for every day, holding a row for every round and a column
+ * for every field, with the fields named once at the top of the card.
+ *
+ * every row of a card is laid out the same way — a label of a fixed width, then
+ * a grid of as many equal columns as there are fields — so that a cell stands
+ * under the name of its own field.
+ */
+
+.program {
+	overflow-x: auto;
+}
+
 .day-list {
-	align-items: start;
+	--cell-w: 58px;
+	--zone-w: 92px;
+	--rank-w: 30px;
+	--label-w: calc(var(--zone-w) + var(--rank-w));
+}
+
+/* an unnamed zone takes no room of its own */
+.day-list.no-zone-names {
+	--zone-w: 0px;
+}
+
+
+/* what the colours stand for, and how much there is */
+
+.program-bar {
+	align-items: center;
+	color: var(--muted);
 	display: flex;
 	flex-wrap: wrap;
-	padding: 4px;
+	font-size: 12.5px;
+	gap: 8px 18px;
+	justify-content: space-between;
+	padding: 0 2px 12px;
+}
+
+.legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 16px;
+}
+
+.legend-item {
+	align-items: center;
+	display: inline-flex;
+	gap: 6px;
+}
+
+.legend-swatch {
+	background: var(--sport-color);
+	border-radius: 3px;
+	height: 10px;
+	width: 10px;
+}
+
+.program-counts {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+
+/* the card of a day */
+
+.day-grid {
+	align-items: flex-start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
 }
 
 .day {
-	border: thin solid;
-	margin: 4px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-sm);
+	overflow: hidden;
 }
 
 .day-date {
-	padding: 4px;
-	text-align: center;
+	background: var(--surface-2);
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	padding: 8px 12px;
 }
 
+.day-weekday {
+	font-size: 13px;
+	font-weight: 650;
+	text-transform: capitalize;
+}
+
+.day-full {
+	color: var(--muted);
+	font-size: 11.5px;
+}
+
+
+/* the two rows naming the sports and their fields */
+
+.head-row {
+	display: flex;
+}
+
+.head-spacer {
+	flex: none;
+	width: var(--label-w);
+}
+
+.head-cells {
+	display: grid;
+	grid-template-columns: repeat(var(--cols), var(--cell-w));
+}
+
+.head-sport {
+	border-bottom: 2px solid var(--sport-color);
+	color: var(--sport-color);
+	font-size: 10.5px;
+	font-weight: 650;
+	letter-spacing: .02em;
+	min-width: 0;
+	overflow: hidden;
+	padding: 6px 4px 3px;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cell-head {
+	color: var(--muted);
+	font-size: 10.5px;
+	font-weight: 550;
+	height: 24px;
+	min-width: 0;
+	overflow: hidden;
+	padding: 0 3px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+
+/* the zones and the rounds inside them */
+
 .zone {
-	border-top: thin solid;
+	border-top: 1px solid var(--border);
 	display: flex;
 }
 
 .zone-name {
-	margin: 4px;
-	width: 100px;
+	align-items: center;
+	color: var(--muted);
+	display: flex;
+	flex: none;
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1.25;
+	overflow: hidden;
+	padding: 4px 8px;
+	width: var(--zone-w);
 }
 
 .round-list {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
+	min-width: 0;
 }
 
-.cell-list {
+.round {
 	display: flex;
 }
 
+.round + .round {
+	border-top: 1px dashed var(--border);
+}
+
+.round-rank {
+	align-items: center;
+	color: var(--faint);
+	display: flex;
+	flex: none;
+	font-size: 10.5px;
+	justify-content: center;
+	width: var(--rank-w);
+}
+
+.cell-list {
+	display: grid;
+	grid-template-columns: repeat(var(--cols), var(--cell-w));
+}
+
+
+/* a single field in a single round */
+
 .cell {
-	margin: 4px;
-	text-align: center;
-	width: 50px;
+	align-items: center;
+	display: flex;
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+	height: 30px;
+	justify-content: center;
+}
+
+.cell + .cell {
+	border-left: 1px solid var(--border);
+}
+
+.cell-match {
+	/* the tint is a fallback away from the sport colour, for a browser without color-mix */
+	background: var(--surface);
+	background: color-mix(in srgb, var(--sport-color) 12%, var(--surface));
+	box-shadow: inset 2px 0 0 var(--sport-color);
+	font-weight: 600;
+}
+
+.cell-empty {
+	color: var(--faint);
+}
+
+
+/* one hue per sport, in the order the sports were given */
+
+/* a sixth sport onwards shares the last hue rather than losing its colour */
+[data-sport-index] {
+	--sport-color: var(--sport-6);
+}
+
+[data-sport-index="0"] { --sport-color: var(--sport-1); }
+[data-sport-index="1"] { --sport-color: var(--sport-2); }
+[data-sport-index="2"] { --sport-color: var(--sport-3); }
+[data-sport-index="3"] { --sport-color: var(--sport-4); }
+[data-sport-index="4"] { --sport-color: var(--sport-5); }
+
+
+@media print {
+
+	.program-bar {
+		padding-bottom: 8px;
+	}
+
+	.day {
+		box-shadow: none;
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+
+	.cell-match {
+		background: none;
+	}
 }
