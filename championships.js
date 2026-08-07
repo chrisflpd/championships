@@ -381,6 +381,31 @@ function search_seconds() {
 	return Math.round((Date.now() - search.started) / 1000);
 }
 
+//a match as it is named in a complaint: the two sides when they are known, and
+//the name of the knockout when they are not yet
+function match_label(m) {
+	const home = m.team_home && typeof m.team_home.name === 'string' ? m.team_home.name : null;
+	const away = m.team_away && typeof m.team_away.name === 'string' ? m.team_away.name : null;
+	return `${m.sport.name} ${home !== null && away !== null ? home + '–' + away : m.id}`;
+}
+
+/**
+ * how close the search has come, so that a configuration which keeps failing
+ * says what it is failing on rather than only how many times it has tried.
+ *
+ * @returns {string} - empty until the search has got somewhere
+ */
+function search_progress() {
+	if (schedule_best_left === Infinity || matches.length === 0)
+		return '';
+	const placed = matches.length - schedule_best_left;
+	if (schedule_best_left === 0)
+		return '';
+	const left = schedule_best_unplaced.slice(0, 3).map(match_label).join(', ')
+		+ (schedule_best_unplaced.length > 3 ? ` και ${schedule_best_unplaced.length - 3} ακόμη` : '');
+	return ` Το πιο κοντινό ως τώρα: ${placed} από ${matches.length} αγώνες, έμεινε ${left}.`;
+}
+
 function search_tries(n) {
 	return n === 1 ? '1 προσπάθεια' : `${n} προσπάθειες`;
 }
@@ -448,7 +473,8 @@ function search_window() {
 		return;
 	if (program === null) {
 		//the time limit was hit, which is not the end any more: say so and try again
-		search_report(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε στην προσπάθεια ${search.windows}, νέα προσπάθεια… (${search_seconds()} δευτ.)`);
+		search_report(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε στην προσπάθεια ${search.windows}, νέα προσπάθεια… (${search_seconds()} δευτ.)`
+			+ search_progress());
 		if (search.windows === 1) //told once, so that a search left alone is not silent
 			search_notify(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε. Η αναζήτηση συνεχίζεται μόνη της.`);
 		setTimeout(search_window, SEARCH_PAUSE_MS);
@@ -471,7 +497,8 @@ function search_window() {
 function search_stop() {
 	if (search === null)
 		return;
-	const text = `Η αναζήτηση σταμάτησε μετά από ${search_tries(search.windows)} (${search_seconds()} δευτ.).`;
+	const text = `Η αναζήτηση σταμάτησε μετά από ${search_tries(search.windows)} (${search_seconds()} δευτ.).`
+		+ search_progress();
 	search.stopped = true;
 	search = null;
 	search_report(text, true, 'stopped');
@@ -482,6 +509,7 @@ function search_start() {
 		search.stopped = true;
 	search = null;
 	relax_adjacency = false;
+	schedule_forget_best();
 	//the program on the page belongs to the previous configuration, and so does
 	//anything that would be handed out of it
 	const previous = document.querySelector('.day-list');

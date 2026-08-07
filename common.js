@@ -153,27 +153,50 @@ function wdl_points_fn(win, draw, loss) {
 }
 
 
+/**
+ * a sport that cannot be drawn: so much for a win and so much for a loss, and a
+ * score that is level is a mistake in the entering of it rather than a result.
+ *
+ * @param {number} win
+ * @param {number} loss
+ * @param {string} sport - as it is read in the complaint
+ * @returns {function}
+ */
+function win_loss_points_fn(win, loss, sport) {
+	return (sh, sa) => {
+		if (sh > sa)
+			return [win, loss];
+		if (sh < sa)
+			return [loss, win];
+		throw `ισοπαλία στο ${sport};`;
+	};
+}
+
+
+/*
+ * what each sport scores, taken from the points sheet of the template, which is
+ * where these are added up for real:
+ *
+ *   football     PTS = 3*W + 1*D + 0*L
+ *   basketball   PTS = 2*W + 1*L          and no column for a draw
+ *   baseball     PTS = 2*W + 1*L          the same
+ *   volleyball   PTS = PLD + L + GD       counted in sets
+ *
+ * a sport may say otherwise in its own line of the configuration.
+ */
 const points_fn_obj = {
-	'Ποδόσφαιρο': (sh, sa) => {
-		if (sh > sa)
-			return [3, 0];
-		else if (sh < sa)
-			return [0, 3];
-		else
-			return [1, 1];
+	'Ποδόσφαιρο': wdl_points_fn(3, 1, 0),
+	'Μπάσκετ': win_loss_points_fn(2, 1, 'μπάσκετ'),
+	'Μπέιζμπολ': win_loss_points_fn(2, 1, 'μπέιζμπολ'),
+	//one point for turning up, one more for losing, and the difference of the
+	//sets. over two sets that comes to three points against nothing for winning
+	//both, and two against one for winning it in three.
+	'Βόλεϊ': (sh, sa) => {
+		if (sh === sa)
+			throw 'ισοπαλία στο βόλεϊ;';
+		return [
+			1 + (sh < sa ? 1 : 0) + (sh - sa),
+			1 + (sa < sh ? 1 : 0) + (sa - sh),
+		];
 	},
-	'Μπάσκετ': (sh, sa) => {
-		if (sh > sa)
-			return [2, 1];
-		else if (sh < sa)
-			return [1, 2];
-		else
-			throw 'ισοπαλία στο μπάσκετ;';
-	},
-	// TODO these two hand back a difference where every other one hands back the
-	// points of the two sides, so they have to be settled before anything reads
-	// them. a sport line may say what it scores in the meantime, as in
-	// "Βόλεϊ 3-0-1", which is taken over whatever stands here.
-	'Βόλεϊ': (sh, sa) => sh - sa,
-	'Μπέιζμπολ': (sh, sa) => sh - sa,
 };

@@ -32,18 +32,34 @@ program has never heard of. It checks that anything too big for the template is
 refused outright rather than exported with matches missing, and that anything
 that does fit exports every single one of them.
 
-**`npm run snap` / `npm run snap:check`** — the workbook, byte for byte.
+**`npm run snap` / `npm run snap:check`** — the workbook and the schedule, before
+and after a change.
 
-    npm run snap          # before you touch the export
+    npm run snap          # before you touch the export or the rules
     ...make your change...
     npm run snap:check    # after
 
-A search finds a different program every time, so `snap` keeps the program it
-found beside the workbook that program produced. `snap:check` exports that same
-program again and compares the workbook part by part. Same program in, same
-workbook out — or the change did something it did not mean to. The snapshots are
-not committed: they are a before and after of your own working copy, which is
-what makes them worth trusting.
+Two snapshots are taken.
+
+`export.js` covers the workbook. A search finds a different program every time,
+so it keeps the program it found beside the workbook that program produced, and
+the check exports that same program again and compares the workbook part by
+part. Same program in, same workbook out — or the change did something it did
+not mean to.
+
+`schedule.js` covers the scheduler itself, which is what makes it safe to touch
+the rules. Ordinarily two runs cannot be compared at all: the matches are
+shuffled and the search gives up on a clock. So the shuffle is given a fixed
+seed, and the clock is replaced by a count of the times the scheduler is entered
+— it reads the clock exactly once per entry — which makes the budget the same on
+every machine. Six orderings of each configuration are then run and fingerprinted,
+**the ones that fail as well as the ones that succeed**, so a change that alters
+what the rules prune shows up even where it finds no program. A refactoring meant
+to keep the rules must leave every fingerprint alone; a change meant to alter them
+will say exactly which configurations it moved.
+
+The snapshots are not committed: they are a before and after of your own working
+copy, which is what makes them worth trusting.
 
 ## what they cannot tell you
 

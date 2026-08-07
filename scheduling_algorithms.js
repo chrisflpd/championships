@@ -7,6 +7,17 @@ let result=null
 //honours them. the search turns this on to look for a program without them.
 let relax_adjacency = false;
 
+//how close the search has come: the fewest matches it has ever been left
+//holding, and which ones those were. nothing reads these to decide anything —
+//they are only so that a search that keeps failing can say what it fails on.
+let schedule_best_left = Infinity;
+let schedule_best_unplaced = [];
+
+function schedule_forget_best() {
+	schedule_best_left = Infinity;
+	schedule_best_unplaced = [];
+}
+
 
 function deepCopyObj(obj) {//for deep copy without recursion (because js had enough of it...)
 	var copiedArr = [];
@@ -126,6 +137,58 @@ function hasBaseballIntroLeft(ranks, matches) {
 		&& (!(m.team_home.name in ranks) || !(m.team_away.name in ranks)));
 }
 
+/**
+ * the rules that read the round beside the one a match is being put in: the
+ * same pair meeting again, a team playing the same sport again, the same sport
+ * on the same field again, and the baseball field kept clear around a match
+ * that brings a team to the sport. the round before and the round after are
+ * read exactly alike, so they are read here once.
+ *
+ * the first three are held back by relax_adjacency; the baseball one is not.
+ *
+ * @param {day[]} days
+ * @param {number} d - the day
+ * @param {number} dz - the zone of the day
+ * @param {number} r - the round the match would go in
+ * @param {number} adj - the round beside it, before or after
+ * @param {slot} slot - the slot the match would go in
+ * @param {match} m - the match being placed
+ * @param {string} team1 - its two sides, by name
+ * @param {string} team2
+ * @param {object} bbRanks - where each team first meets baseball
+ * @returns {boolean} - true when the round beside forbids the placement
+ */
+function adjacentRoundForbids(days, d, dz, r, adj, slot, m, team1, team2, bbRanks) {
+	for (let sl of Object.keys(crts)) {
+		const beside = days[d].dzones[dz].rounds[adj].slots[sl];
+		if (beside.match === null)
+			continue;
+		const home = beside.match.team_home.name;
+		const away = beside.match.team_away.name;
+		//a side of a knockout carries no name until it is known, and the second of
+		//these has always asked whether the name is the word and not whether there
+		//is one, so a match that has no names passes it
+		if (!relax_adjacency && typeof home !== 'undefined' && away !== 'undefined') {
+			if ((team1 === home || team2 === home) && (team1 === away || team2 === away))
+				return true; //the same pair again, whatever the sport
+			if (team1 === home || team2 === home || team1 === away || team2 === away) {
+				//a team of this match again in the same sport. the same field in the
+				//same sport was told apart from it once, but both forbid it alike.
+				if (m.sport.name === beside.match.sport.name)
+					return true;
+			}
+		}
+		//the baseball field is left free around a match that brings a team to the
+		//sport for the first time, not around every one
+		if (isBaseballIntroMatch(bbRanks, beside.match, d, dz, adj)
+			|| (isBaseballIntroMatch(bbRanks, m, d, dz, r) && beside.court.includes(BASEBALL_COURT))) {
+			if (slot.court.includes(BASEBALL_COURT))
+				return true;
+		}
+	}
+	return false;
+}
+
 function involvesFirstTeam(m) {
 	if (!config.teams || config.teams.length === 0) return false;
 	let firstTeam = config.teams[0];
@@ -235,6 +298,11 @@ function hasPairPlayedInZone(dzone, team1Name, team2Name) {
 function ScheduleMatchesDefault(matches,days){
 	if (window.startTime && Date.now() - window.startTime > 3000) {
 		throw new Error("TIMEOUT");
+	}
+	//nothing below reads these; they only remember how far the search has got
+	if (matches.length < schedule_best_left) {
+		schedule_best_left = matches.length;
+		schedule_best_unplaced = matches.slice();
 	}
 	for (let pd = 0; pd < days.length; pd++) {
 		for (let pdz = 0; pdz < days[pd].dzones.length; pdz++) {
@@ -426,107 +494,11 @@ function ScheduleMatchesDefault(matches,days){
 									}
 									let prev_round=r-1
 									let next_round=r+1
-									if (prev_round>=0 && r !== 0){//for previous round
-										for (let sl of Object.keys(crts)){
-											if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-												//everything below holds a team back from the round before, which is
-											//what the search drops when it relaxes
-											if (!relax_adjacency && typeof days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name !== 'undefined'){
-													if ((team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) && (team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name)){
-														
-														if (matches[m].sport.name === days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name){
-															scheduled=true;
-															//matches[m].points-=15;//we do not want the same pair of teams to play the same sport again next round if possible.
-															//console.log('points-1 because same pair same sport');
-															
-														}
-														else{
-															scheduled=true;
-															//matches[m].points-=12;//we do not want the same pair of teams to another sport again next round if possible.
-															//console.log('points-1 because same pair another sport');
-														}
-													}
-													else if(team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name || team1 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_away.name){
-														if (matches[m].sport.name === days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name && days[d].dzones[dz].rounds[r].slots[s].court === days[d].dzones[dz].rounds[prev_round].slots[sl].court && matches[m].sport.courts.length > 1){
-															scheduled=true;
-															//matches[m].points-=11;//we do not want a team to play the same sport in the same court (if sport.courts > 1) again next round if possible.
-															//console.log('points-1 because same court in same sport');
-														}
-														else if (matches[m].sport.name === days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name){
-															scheduled=true;
-															//matches[m].points-=15;//we do not want a team to play the same sport again next round if possible.
-															//console.log('points-10 because same sport');
-														}
-													}
-													if (matches[m].sport.name === days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name){
-														//matches[m].points-=1;//we want all sports to be played simultaneously by a team.
-														//console.log('points-1 in same sport games');
-													}
-													else{
-														//matches[m].points+=0.5;//1/(sports.length-1);
-														//console.log('points+0.5 in different sport games');
-													}
-												}
-												//the baseball court is left free around a match that brings a
-												//team to the sport for the first time, not around every one
-												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[prev_round].slots[sl].match, d, dz, prev_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes(BASEBALL_COURT))){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-														scheduled=true;
-													}	
-												}
-											}
-										}
-									}
-									if (next_round<days[d].dzones[dz].rounds.length){//for next round
-										for (let sl of Object.keys(crts)){
-											if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-												//same for the round after it
-											if (!relax_adjacency && typeof days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name !== 'undefined' && days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name !== 'undefined'){
-													//console.log(team1,team2,days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name,days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name);
-													if ((team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name) && (team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name)){
-														
-														if (matches[m].sport.name === days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name){
-															scheduled=true;
-															//matches[m].points-=15;//we do not want the same pair of teams to play the same sport again next round if possible.
-															//console.log('points-1 because same pair same sport');
-															
-														}
-														else{
-															scheduled=true;
-															//matches[m].points-=12;//we do not want the same pair of teams to another sport again next round if possible.
-															//console.log('points-1 because same pair another sport');
-														}
-													}
-													else if(team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_home.name || team1 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name || team2 === days[d].dzones[dz].rounds[next_round].slots[sl].match.team_away.name){
-														if (matches[m].sport.name === days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name && days[d].dzones[dz].rounds[r].slots[s].court === days[d].dzones[dz].rounds[next_round].slots[sl].court && matches[m].sport.courts.length > 1){
-															scheduled=true;
-															//matches[m].points-=11;//we do not want a team to play the same sport in the same court (if sport.courts > 1) again next round if possible.
-															//console.log('points-1 because same court in same sport');
-														}
-														else if (matches[m].sport.name === days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name){
-															scheduled=true;
-															//matches[m].points-=15;//we do not want a team to play the same sport again next round if possible.
-															//console.log('points-10 because same sport');
-														}
-													}
-													if (matches[m].sport.name === days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name){
-														//matches[m].points-=1;//we want all sports to be played simultaneously by a team.
-														//console.log('points-1 in same sport games');
-													}
-													else{
-														//matches[m].points+=0.5;//1/(sports.length-1);
-														//console.log('points+0.5 in different sport games');
-													}
-												}
-												//same for the round after it
-												if (isBaseballIntroMatch(bbRanks, days[d].dzones[dz].rounds[next_round].slots[sl].match, d, dz, next_round) || (isBaseballIntroMatch(bbRanks, matches[m], d, dz, r) && days[d].dzones[dz].rounds[next_round].slots[sl].court.includes(BASEBALL_COURT))){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-														scheduled=true;
-													}	
-												}
-											}
-										}
-									}
+									const here = days[d].dzones[dz].rounds[r].slots[s];
+									if (prev_round >= 0 && r !== 0 && adjacentRoundForbids(days, d, dz, r, prev_round, here, matches[m], team1, team2, bbRanks))
+										scheduled = true;
+									if (next_round < days[d].dzones[dz].rounds.length && adjacentRoundForbids(days, d, dz, r, next_round, here, matches[m], team1, team2, bbRanks))
+										scheduled = true;
 									for (let dz_whole = 0; dz_whole< days[d].dzones.length; dz_whole++){//for the whole day
 										for (let r_whole = 0; r_whole < days[d].dzones[dz_whole].rounds.length; r_whole++){
 											for (let sl of Object.keys(crts)){
@@ -725,31 +697,7 @@ function ScheduleMatchesDefault(matches,days){
 													break;
 												}
 
-											}/*
-											let prev_round=r-1
-											let next_round=r+1
-											if (prev_round>=0 && r !== 0){//for previous round
-												for (let sl of Object.keys(crts)){
-													if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null && typeof (days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) !== 'undefined' && typeof (days[d].dzones[dz].rounds[prev_round].slots[sl].match.team_home.name) !== 'undefined'){
-														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT || (matches[m].sport.name===BASEBALL_SPORT && days[d].dzones[dz].rounds[prev_round].slots[sl].court.includes(BASEBALL_COURT))){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-																scheduled_k=true;
-															}	
-														}
-													}
-												}
 											}
-											if (next_round<days[d].dzones[dz].rounds.length){//for next round
-												for (let sl of Object.keys(crts)){
-													if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-																scheduled_k=true;
-															}	
-														}
-													}
-												}
-											}*/
 											
 
 											//console.log('sk',scheduled_k,'FOR GROUP KN');
@@ -896,31 +844,7 @@ function ScheduleMatchesDefault(matches,days){
 													scheduled_k = true;
 													break;
 												}
-											}/*
-											let prev_round=r-1
-											let next_round=r+1
-											if (prev_round>=0 && r !== 0){//for previous round
-												for (let sl of Object.keys(crts)){
-													if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-																scheduled_k=true;
-															}	
-														}
-													}
-												}
 											}
-											if (next_round<days[d].dzones[dz].rounds.length){//for next round
-												for (let sl of Object.keys(crts)){
-													if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-														if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
-															if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-																scheduled_k=true;
-															}	
-														}
-													}
-												}
-											}*/
 											//console.log('sk',scheduled_k,'FOR KNOCKOUT');
 											if (!scheduled_k){
 												days[d].dzones[dz].rounds[r].slots[s].match=matches[m];
@@ -958,31 +882,7 @@ function ScheduleMatchesDefault(matches,days){
 											scheduled_k = true;
 											break;
 										}
-									}/*
-									let prev_round=r-1
-									let next_round=r+1
-									if (prev_round>=0 && r !== 0){//for previous round
-										for (let sl of Object.keys(crts)){
-											if (days[d].dzones[dz].rounds[prev_round].slots[sl].match !== null){
-												if (days[d].dzones[dz].rounds[prev_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-														scheduled_k=true;
-													}	
-												}
-											}
-										}
 									}
-									if (next_round<days[d].dzones[dz].rounds.length){//for next round
-										for (let sl of Object.keys(crts)){
-											if (days[d].dzones[dz].rounds[next_round].slots[sl].match !== null){
-												if (days[d].dzones[dz].rounds[next_round].slots[sl].match.sport.name=== BASEBALL_SPORT){
-													if (days[d].dzones[dz].rounds[r].slots[s].court.includes(BASEBALL_COURT)){
-														scheduled_k=true;
-													}	
-												}
-											}
-										}
-									}*/
 									//console.log('sk',scheduled_k,'FOR FIXED');
 									if (!scheduled_k){
 										days[d].dzones[dz].rounds[r].slots[s].match=matches[m];

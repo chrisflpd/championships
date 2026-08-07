@@ -6,8 +6,8 @@
     "test": "node page.js && node robust.js",
     "page": "node page.js",
     "robust": "node robust.js",
-    "snap": "node export.js save",
-    "snap:check": "node export.js check"
+    "snap": "node export.js save && node schedule.js save",
+    "snap:check": "node export.js check && node schedule.js check"
   },
   "devDependencies": {
     "@xmldom/xmldom": "^0.9.10",
