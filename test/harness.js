@@ -101,6 +101,9 @@ function browser_bits() {
 	global.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
 	global.document.createElement = () => ({ style: {}, classList: { add() {} }, click() {}, set href(v) {}, set download(v) {} });
 	global.document.body = { appendChild() {}, removeChild() {} };
+	// the export writes the workbook and not the program, so what stands behind
+	// the three tabs comes with it
+	load('workbook.js');
 	load('displayer.js');
 	// jszip cannot build a Blob outside a browser, so it is asked for bytes
 	const generate = JSZip.prototype.generateAsync;

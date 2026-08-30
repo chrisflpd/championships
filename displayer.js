@@ -1,20 +1,3 @@
-//the side a match is played by is a team of the configuration in a group and a
-//place still to be filled in a knockout, so only the first of the two has a name
-function side_name(side) {
-	if (side === null || typeof side !== 'object')
-		return null;
-	return typeof side.name === 'string' ? side.name : null;
-}
-
-//what is read on hovering a cell: the sport and the field, and the two sides
-//whenever they are already known
-function match_title(match, court) {
-	const home = side_name(match.team_home);
-	const away = side_name(match.team_away);
-	const where = `${match.sport.name} · ${court}`;
-	return home !== null && away !== null ? `${home} – ${away}\n${where}` : where;
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -67,27 +50,48 @@ function zone_rows(program) {
 	return rows;
 }
 
+/**
+ * the whole program: the three tabs and what is on them. the plan is drawn here,
+ * the pages and the points by their own sheets, and all three read the workbook
+ * rather than the program, so that a match moved by hand is drawn where it was
+ * put and not where the search first placed it.
+ *
+ * @param {day[]} program
+ * @returns {void}
+ */
 function displayer(program) {
 	window.currentProgram = program;
 
-	// clear previous day list if re-generating
-	if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-		const existingHome = document.querySelector('.day-list');
-		if (existingHome) {
-			existingHome.remove();
-		}
-	}
+	//everything on the page belongs to the program that was there before, tabs and
+	//all, so it goes rather than being picked over
+	const home = document.getElementById('program') || document.body;
+	if (typeof home.replaceChildren === 'function')
+		home.replaceChildren();
+	else
+		home.textContent = '';
+
+	wb_build(program);
+	sheets_shell(home);
+	sheets_draw();
+
+	//there is something to hand out now
+	const excel_button = document.getElementById('excel');
+	if (excel_button !== null)
+		excel_button.disabled = false;
+}
+
+/**
+ * draws the plan: a card per day, a row per round and a column per field, every
+ * cell of it able to be dragged somewhere else or opened and changed.
+ *
+ * @param {Element} sheet - where the plan goes
+ * @returns {void}
+ */
+function plan_draw(sheet) {
+	const program = window.currentProgram;
 
 	// collect columns
-	const cols = [];
-	config.sports.forEach(sport => {
-		sport.courts.forEach(court => {
-			cols.push({
-				sport: sport,
-				court: court,
-			});
-		});
-	});
+	const cols = workbook.cols;
 
 	//a sport is told apart from the next one by its colour, which follows the
 	//order the sports were given in
@@ -102,12 +106,12 @@ function displayer(program) {
 	const named_zones = config.zones.length !== 1 || config.zones[0].name !== null;
 	const label_cols = named_zones ? 2 : 1;
 
+	sheets_offer(sheet);
+
 	// create html
 	const home = document.createElement('div');
 	home.classList.add('day-list');
-	//the program sits in its own section of the page, and on a page that has none
-	//it goes where it used to go
-	(document.getElementById('program') || document.body).appendChild(home);
+	sheet.appendChild(home);
 
 	//over the days, what the colours stand for and how much there is to read
 	const bar = document.createElement('div');
@@ -128,13 +132,7 @@ function displayer(program) {
 		label.textContent = `${sport.name} (${sport.courts.length})`;
 		item.appendChild(label);
 	});
-	let placed = 0;
-	program.forEach(day => day.dzones.forEach(dzone => dzone.rounds.forEach(round => {
-		Object.values(round.slots).forEach(slot => {
-			if (slot.match)
-				placed++;
-		});
-	})));
+	const placed = wb_placed().length;
 	const counts = document.createElement('div');
 	counts.classList.add('program-counts');
 	counts.textContent = `${program.length} ημέρες · ${placed} αγώνες`;
@@ -250,35 +248,323 @@ function displayer(program) {
 				if (round !== null)
 					round_h.title = `${r + 1}ος γύρος`;
 				round_row.appendChild(round_h);
-				cols.forEach(col => {
+				cols.forEach((col, ci) => {
 					const col_td = document.createElement('td');
 					col_td.classList.add('cell');
 					round_row.appendChild(col_td);
-					const slot = round !== null && col.court in round.slots ? round.slots[col.court] : undefined;
-					const match = slot?.match;
-					if (match?.sport?.name === col.sport.name) { // TODO compare objects
+					//a round the day does not hold is not a place a match can be put
+					if (round === null) {
+						col_td.classList.add('cell-empty');
+						col_td.textContent = '·';
+						return;
+					}
+					const key = wb_key(wb_iso(day.date), dzone.zone.rank, round.rank, col.court);
+					const game = wb_at(key);
+					const shows = game === null || wb_shows(game, col, ci);
+					//a field two sports share is one field, so a match on it is drawn
+					//and changed under its own sport only. the other column stands for
+					//the same field taken, and is not a second place to put anything.
+					if (shows) {
+						col_td.dataset.key = key;
+						//a slot is opened by the keyboard as well as by the pointer
+						col_td.tabIndex = 0;
+					}
+					if (game !== null && shows) {
 						col_td.classList.add('cell-match');
-						col_td.dataset.sportIndex = sport_index[col.sport.name];
-						col_td.title = match_title(match, col.court);
-						if ('id' in match.team_home && 'id' in match.team_away) {
-							col_td.textContent = [match.team_home.id, match.team_away.id].join('-');
-						} else {
-							col_td.textContent = match.id;
+						//the colour is the sport's own, which is how a match on a
+						//field of another sport is seen to be on one
+						col_td.dataset.sportIndex = sport_index[game.sport.name];
+						col_td.title = plan_title(game, col.court);
+						col_td.draggable = true;
+						col_td.textContent = game.kn !== null
+							? game.kn
+							: [game.home, game.away].join('-');
+						//what does not hold is said on the cell rather than refused
+						const said = wb_complaints(key);
+						if (said.length) {
+							col_td.classList.add('cell-wrong');
+							col_td.title += '\n⚠ ' + said.join('\n⚠ ');
 						}
 					} else {
 						col_td.classList.add('cell-empty');
 						col_td.textContent = '·';
+						if (game === null) {
+							col_td.title = `${col.court} · ${col.sport.name}`;
+						} else {
+							col_td.classList.add('cell-taken');
+							col_td.title = `${col.court} · πιασμένο από ${game.sport.name}`;
+						}
 					}
 				});
 			});
 		});
 	});
 
-	//there is something to hand out now
-	const excel_button = document.getElementById('excel');
-	if (excel_button !== null)
-		excel_button.disabled = false;
+	plan_wire(home);
 }
+
+//what is read on hovering a cell of the plan: the two sides as they stand now,
+//and where the match is played
+function plan_title(game, court) {
+	const sides = wb_sides(game);
+	const where = `${game.sport.name} · ${court}`;
+	if (sides.home_label === '' && sides.away_label === '')
+		return where;
+	return `${sides.home_label} – ${sides.away_label}\n${where}`;
+}
+
+
+/*
+ * changing the plan
+ *
+ * a match is dragged from the slot it is in onto another one, swapping with
+ * whatever is already there, or a slot is opened and what is played in it said
+ * outright. neither is refused for breaking a rule: a plan being put right by
+ * hand goes through states that do not hold, so what is wrong is marked on the
+ * cell and left to the camp.
+ */
+
+function plan_wire(home) {
+	let dragging = null;
+
+	home.addEventListener('dragstart', event => {
+		const cell = event.target.closest ? event.target.closest('td.cell-match') : null;
+		if (cell === null)
+			return;
+		dragging = cell.dataset.key;
+		home.classList.add('is-dragging');
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			//firefox hands out no drag at all unless something is carried
+			event.dataTransfer.setData('text/plain', dragging);
+		}
+	});
+
+	home.addEventListener('dragend', () => {
+		dragging = null;
+		home.classList.remove('is-dragging');
+		home.querySelectorAll('.cell-drop').forEach(cell => cell.classList.remove('cell-drop'));
+	});
+
+	home.addEventListener('dragover', event => {
+		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
+		if (cell === null || dragging === null || cell.dataset.key === dragging)
+			return;
+		event.preventDefault();
+		if (event.dataTransfer)
+			event.dataTransfer.dropEffect = 'move';
+		cell.classList.add('cell-drop');
+	});
+
+	home.addEventListener('dragleave', event => {
+		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
+		if (cell !== null)
+			cell.classList.remove('cell-drop');
+	});
+
+	home.addEventListener('drop', event => {
+		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
+		if (cell === null)
+			return;
+		event.preventDefault();
+		const from = dragging !== null ? dragging
+			: (event.dataTransfer ? event.dataTransfer.getData('text/plain') : '');
+		dragging = null;
+		if (!from || from === cell.dataset.key)
+			return;
+		wb_move(from, cell.dataset.key);
+		sheets_draw();
+	});
+
+	home.addEventListener('click', event => {
+		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
+		if (cell !== null)
+			plan_editor(cell);
+	});
+
+	home.addEventListener('keydown', event => {
+		if (event.key !== 'Enter' && event.key !== ' ')
+			return;
+		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
+		if (cell === null)
+			return;
+		event.preventDefault();
+		plan_editor(cell);
+	});
+}
+
+//the groups and the knockouts that could be played on a field: the ones of a
+//sport that field belongs to
+function plan_choices(court) {
+	const choices = [];
+	Object.values(config.groups).forEach(group => {
+		if (group.sport.courts.includes(court))
+			choices.push({ value: 'g:' + group.id, label: `${group.id} · ${group.sport.name}`, group: group });
+	});
+	Object.values(config.knockouts).forEach(kn => {
+		if (kn.sport.courts.includes(court))
+			choices.push({ value: 'k:' + kn.id, label: `${kn.id} · ${kn.sport.name}`, kn: kn });
+	});
+	return choices;
+}
+
+function plan_close() {
+	const open = document.querySelector('.plan-editor');
+	if (open !== null)
+		open.remove();
+	const marked = document.querySelector('.cell-editing');
+	if (marked !== null)
+		marked.classList.remove('cell-editing');
+}
+
+/**
+ * the slot laid open: what is played in it, and by whom. a knockout names no
+ * teams of its own, so the two of them are read off the matches feeding it and
+ * cannot be set here.
+ *
+ * @param {Element} cell
+ * @returns {void}
+ */
+function plan_editor(cell) {
+	plan_close();
+	cell.classList.add('cell-editing');
+	const key = cell.dataset.key;
+	const parts = key.split('|');
+	const court = parts[3];
+	const game = wb_at(key);
+	const choices = plan_choices(court);
+
+	const box = document.createElement('div');
+	box.classList.add('plan-editor');
+	box.setAttribute('role', 'dialog');
+	box.setAttribute('aria-label', 'Αλλαγή αγώνα');
+
+	const head = document.createElement('div');
+	head.classList.add('plan-editor-head');
+	const zone = config.zones.filter(one => String(one.rank) === parts[1])[0];
+	const when = new Date(parts[0] + 'T00:00:00Z').toLocaleDateString('el', { day: '2-digit', month: 'short' });
+	head.textContent = `${when} · ${zone && zone.name !== null ? zone.name + ' ' : ''}Γ${Number(parts[2]) + 1} · ${court}`;
+	box.appendChild(head);
+
+	const field = (label_text, control) => {
+		const row = document.createElement('label');
+		row.classList.add('plan-editor-row');
+		const span = document.createElement('span');
+		span.textContent = label_text;
+		row.appendChild(span);
+		row.appendChild(control);
+		box.appendChild(row);
+		return control;
+	};
+
+	const what = document.createElement('select');
+	const blank = document.createElement('option');
+	blank.value = '';
+	blank.textContent = '— κενό —';
+	what.appendChild(blank);
+	choices.forEach(choice => {
+		const option = document.createElement('option');
+		option.value = choice.value;
+		option.textContent = choice.label;
+		what.appendChild(option);
+	});
+	what.value = game === null ? '' : (game.kn !== null ? 'k:' + game.kn : 'g:' + game.id);
+	//a group the field does not play host to is still where the match belongs, so
+	//it is offered rather than dropped on opening
+	if (game !== null && what.value === '') {
+		const option = document.createElement('option');
+		option.value = game.kn !== null ? 'k:' + game.kn : 'g:' + game.id;
+		option.textContent = `${game.id} · ${game.sport.name}`;
+		what.appendChild(option);
+		what.value = option.value;
+	}
+	field('Αγώνας', what);
+
+	const team_select = chosen => {
+		const select = document.createElement('select');
+		config.teams.forEach(team => {
+			const option = document.createElement('option');
+			option.value = String(team.id);
+			option.textContent = `${wb_char(team.id)} · ${team.name}`;
+			select.appendChild(option);
+		});
+		if (chosen !== null)
+			select.value = String(chosen);
+		return select;
+	};
+	const home_select = field('Γηπεδούχος', team_select(game === null ? null : game.home));
+	const away_select = field('Φιλοξενούμενη', team_select(game === null ? null : game.away));
+
+	const note = document.createElement('p');
+	note.classList.add('plan-editor-note');
+	box.appendChild(note);
+
+	//a knockout is whoever comes through to it, so its two sides are read and not
+	//chosen
+	const follow = () => {
+		const knockout = what.value.indexOf('k:') === 0;
+		home_select.disabled = knockout || what.value === '';
+		away_select.disabled = knockout || what.value === '';
+		if (!knockout) {
+			note.textContent = '';
+			return;
+		}
+		const kn = config.knockouts[what.value.slice(2)];
+		note.textContent = kn === undefined ? ''
+			: `${wb_side_label(kn.home)} – ${wb_side_label(kn.away)}`;
+	};
+	what.addEventListener('change', follow);
+	follow();
+
+	const bar = document.createElement('div');
+	bar.classList.add('plan-editor-bar');
+	box.appendChild(bar);
+	const button = (text, cls) => {
+		const one = document.createElement('button');
+		one.type = 'button';
+		one.classList.add('button');
+		if (cls)
+			one.classList.add(cls);
+		one.textContent = text;
+		bar.appendChild(one);
+		return one;
+	};
+	const cancel = button('Άκυρο', 'button-quiet');
+	const ok = button('Εφαρμογή', 'button-primary');
+
+	cancel.addEventListener('click', plan_close);
+	ok.addEventListener('click', () => {
+		if (what.value === '')
+			wb_clear(key);
+		else
+			wb_put(key, what.value.slice(2), parseInt(home_select.value), parseInt(away_select.value));
+		plan_close();
+		sheets_draw();
+	});
+
+	document.body.appendChild(box);
+	//the editor stands beside the cell it belongs to, and inside the window
+	const at = cell.getBoundingClientRect();
+	const width = box.offsetWidth || 240;
+	const left = Math.max(8, Math.min(at.left, (window.innerWidth || 1024) - width - 8));
+	box.style.left = `${left + (window.scrollX || 0)}px`;
+	box.style.top = `${at.bottom + 6 + (window.scrollY || 0)}px`;
+	what.focus();
+}
+
+document.addEventListener('keydown', event => {
+	if (event.key === 'Escape')
+		plan_close();
+});
+
+//a click anywhere else puts the editor away
+document.addEventListener('click', event => {
+	if (document.querySelector('.plan-editor') === null)
+		return;
+	if (event.target.closest && (event.target.closest('.plan-editor') || event.target.closest('td.cell[data-key]')))
+		return;
+	plan_close();
+});
 
 
 /*
@@ -296,7 +582,14 @@ const PLAN_FIELDS = 5;
 const PLAN_UNUSED_RGB = 'FFD9D9D9'; // rgb 217,217,217
 const PLAN_SHEET = 'xl/worksheets/sheet1.xml';
 const TEAMS_SHEET = 'xl/worksheets/sheet2.xml';
+const PAGES_SHEET = 'xl/worksheets/sheet5.xml';
 const POINTS_SHEET = 'xl/worksheets/sheet6.xml';
+//the pages sheet gives every day a block of its own, this far apart, the date on
+//the first row of it and the matches on the rows after
+const PAGES_STRIDE = 22;
+const PAGES_FIRST = 4;
+//the three columns the camp fills in: the two scores and the referee
+const PAGES_INPUT = { sh: 'I', sa: 'J', ref: 'K' };
 const POINTS_LEFTOVER_CELL = 'L1'; //a word left in the template by an older one
 const SHARED_STRINGS = 'xl/sharedStrings.xml';
 const WORKBOOK = 'xl/workbook.xml';
@@ -323,6 +616,12 @@ function getCellRef(dayIdx, roundIdx, fieldIdx) {
 	const blockRow = Math.floor(dayIdx / 4);
 	const dayInBlock = dayIdx % 4;
 	return getColName(3 + dayInBlock * 7 + fieldIdx) + (3 + blockRow * 6 + roundIdx);
+}
+
+//the row a match takes on the pages sheet: the block of its day, then the fields
+//of one round after the fields of the one before
+function getPageRow(dayIdx, roundIdx, fieldIdx) {
+	return PAGES_FIRST + dayIdx * PAGES_STRIDE + roundIdx * PLAN_FIELDS + fieldIdx;
 }
 
 //the date of a day sits on the header row of its block, on the block first column
@@ -704,22 +1003,28 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 
 	const teamChars = await readTeamChars(zip, parser);
 	const missingChars = [];
-	function teamChar(team) {
-		if (team.id in teamChars)
-			return teamChars[team.id];
-		if (missingChars.indexOf(team.id) === -1)
-			missingChars.push(team.id);
-		return String(team.id);
+	function teamChar(id) {
+		if (id in teamChars)
+			return teamChars[id];
+		if (missingChars.indexOf(id) === -1)
+			missingChars.push(id);
+		return String(id);
 	}
 
-	// the matches of the program, per plan cell, along with the rounds the
-	// configuration gives, which are the ones that may hold a match at all
+	// the matches as they stand now, per plan cell, along with the rounds the
+	// configuration gives, which are the ones that may hold a match at all. the
+	// workbook is read and not the program, so a match moved by hand is written
+	// where it was put.
 	const scheduleData = {};
 	const givenRounds = {};
+	// where every match of the plan ends up on the pages sheet, so that the score
+	// entered against it goes on the same row the printed sheet gave it
+	const pageOf = {};
 	program.forEach(day => {
 		const dIdx = dayIndex(day);
 		if (dIdx >= PLAN_DAYS)
 			return;
+		const iso = wb_iso(day.date);
 		day.dzones.forEach((dzone, dzIdx) => {
 			dzone.rounds.forEach((round, rIdx) => {
 				let roundIdx = dzIdx * zoneBand + rIdx;
@@ -736,13 +1041,13 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 				cols.forEach((col, fIdx) => {
 					if (fIdx >= PLAN_FIELDS)
 						return;
-					const slot = col.court in round.slots ? round.slots[col.court] : undefined;
-					const match = slot?.match;
-					if (match?.sport?.name !== col.sport.name)
+					const game = wb_at(wb_key(iso, dzone.zone.rank, round.rank, col.court));
+					if (game === null || !wb_shows(game, col, fIdx))
 						return;
-					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = ('id' in match.team_home && 'id' in match.team_away)
-						? [teamChar(match.team_home), teamChar(match.team_away)].join('-')
-						: match.id;
+					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = game.kn !== null
+						? game.kn
+						: [teamChar(game.home), teamChar(game.away)].join('-');
+					pageOf[getPageRow(dIdx, roundIdx, fIdx)] = wb_result(game);
 				});
 			});
 		});
@@ -843,7 +1148,82 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 	// written with, so the games and the points sheets cannot read its matches
 	if (missingChars.length)
 		warnings.push(`το φύλλο teams του προτύπου δεν ορίζει χαρακτήρα για τις ομάδες ${missingChars.join(', ')}, οπότε τα φύλλα games και points δεν θα μετρήσουν τους αγώνες τους`);
-	return warnings;
+	return { warnings: warnings, pageOf: pageOf };
+}
+
+/**
+ * writes the scores and the referees onto the pages sheet, on the rows the plan
+ * gave every match. only those three columns are touched: everything else on the
+ * sheet is a formula reading the plan back, and the workbook works it out again
+ * when it is opened.
+ *
+ * @param {JSZip} zip
+ * @param {object} pageOf - row number -> the result entered against that match
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<void>}
+ */
+async function fillPagesSheet(zip, pageOf, parser, serializer) {
+	const file = zip.file(PAGES_SHEET);
+	if (!file)
+		return;
+	let any = false;
+	for (const row in pageOf) {
+		const result = pageOf[row];
+		if (result.sh !== null || result.sa !== null || result.ref !== '')
+			any = true;
+	}
+	if (!any)
+		return;
+
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const rows = indexRows(doc);
+	for (const row in pageOf) {
+		const rowElem = rows[row];
+		if (rowElem === undefined)
+			continue;
+		const result = pageOf[row];
+		const write = (which, value) => {
+			const cellElem = findCell(rowElem, PAGES_INPUT[which] + row);
+			if (cellElem === null)
+				return;
+			//a match that has not been played leaves its cell as the template left
+			//it, which is empty and ready to be written in
+			if (value === null || value === '')
+				clearCell(cellElem);
+			else if (which === 'ref')
+				setCellText(doc, cellElem, value);
+			else
+				setCellNumber(doc, cellElem, value);
+		};
+		write('sh', result.sh);
+		write('sa', result.sa);
+		write('ref', result.ref);
+	}
+	zip.file(PAGES_SHEET, serializer.serializeToString(doc));
+}
+
+/**
+ * the games and the points sheets are formulas over the plan, and the values
+ * cached beside them are the ones the template was saved with. the plan has just
+ * been rewritten, so the workbook is told to work the lot out on opening rather
+ * than showing the numbers of the template until something is touched.
+ *
+ * @param {JSZip} zip
+ * @param {DOMParser} parser
+ * @param {XMLSerializer} serializer
+ * @returns {Promise<void>}
+ */
+async function setFullCalc(zip, parser, serializer) {
+	const file = zip.file(WORKBOOK);
+	if (!file)
+		return;
+	const doc = parser.parseFromString(await file.async('string'), 'text/xml');
+	const calcElems = doc.getElementsByTagName('calcPr');
+	if (calcElems.length === 0)
+		return;
+	calcElems[0].setAttribute('fullCalcOnLoad', '1');
+	zip.file(WORKBOOK, serializer.serializeToString(doc));
 }
 
 /**
@@ -897,6 +1277,12 @@ async function exportToExcel() {
 		return;
 	}
 
+	//the workbook is what is written out, not the program, so that the plan the
+	//camp has been changing is the one that is handed out. it is built here as
+	//well as by the displayer, so that the export stands on its own.
+	if (workbook.sig !== wb_signature())
+		wb_build(window.currentProgram);
+
 	//nothing is written at all unless the whole program fits the template
 	const blockers = planBlockers(window.currentProgram);
 	if (blockers.length) {
@@ -913,10 +1299,13 @@ async function exportToExcel() {
 		const parser = new DOMParser();
 		const serializer = new XMLSerializer();
 
-		const warnings = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
+		const filled = await fillPlanSheet(zip, window.currentProgram, parser, serializer);
+		const warnings = filled.warnings;
+		await fillPagesSheet(zip, filled.pageOf, parser, serializer);
 		await clearLeftoverNote(zip, parser, serializer);
 		await orderSheets(zip, parser, serializer);
 		await setOpeningView(zip, parser, serializer);
+		await setFullCalc(zip, parser, serializer);
 
 		const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 		const url = URL.createObjectURL(blob);

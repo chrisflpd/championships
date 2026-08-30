@@ -26,6 +26,28 @@ a search, a configuration that cannot be scheduled, and a team that never plays.
 Runs over every `input*.txt` in the repository plus the configurations in
 `configs/`, or over the ones you name: `node page.js input26g.txt`.
 
+**`npm run sheets`** — the three tabs, driven the way the camp drives them. It
+switches between them, counts the rows of every printed day sheet against the
+rounds and the fields of that day, types a score and a referee into a match and
+reads them back out of the workbook, checks the standings that follow — the
+played, won, lost, for, against and the points the sport pays — against what the
+score should make them, and that a sport which cannot be drawn has no D column.
+Then it moves a match on the plan and checks the plan, the printed sheet and the
+count all follow it, opens the editor over a slot and changes who plays in it,
+and puts two teams into one round twice over to see the clash marked rather than
+refused.
+
+Runs over `input26g.txt` and `configs/unnamed-zone.txt` by default, or the ones
+you name.
+
+**`npm run export-scores`** — the workbook that is handed out, read back cell by
+cell. It moves a match and enters a score and a referee, exports, and checks the
+score is on the pages sheet on the row of the right day and the right field, that
+the plan cell above it holds that very pair, that the moved match is written
+where it was moved to and not where it came from, that every match of the plan is
+on the sheet as many times as it is played, and that the workbook is told to work
+its formulas out when it is opened rather than showing the template's numbers.
+
 **`npm run robust`** — configurations the camp has never used: three and four
 rounds a zone, one zone, four zones, six fields, fourteen days, a sport the
 program has never heard of. It checks that anything too big for the template is

@@ -1,0 +1,534 @@
+/*
+ * the three tabs: the strip that switches between them, the pages that are
+ * handed out and the points that are added up. the plan keeps its own sheet.
+ *
+ * every colour and measure in here is one theme.css already names, so the dark
+ * set needs nothing of its own.
+ */
+
+.sheet-tabs {
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	gap: 2px;
+	margin-bottom: 14px;
+}
+
+.sheet-tab {
+	background: none;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	color: var(--muted);
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: -1px;
+	padding: 8px 14px;
+}
+
+.sheet-tab:hover {
+	color: var(--text);
+}
+
+.sheet-tab:focus-visible {
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	box-shadow: var(--ring);
+	outline: none;
+}
+
+.sheet-tab.is-open {
+	border-bottom-color: var(--accent);
+	color: var(--accent);
+}
+
+
+/* the plan a previous visit left, offered rather than forced back */
+
+.sheet-offer {
+	align-items: center;
+	background: var(--warn-soft);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--warn);
+	display: flex;
+	flex-wrap: wrap;
+	font-size: 12.5px;
+	gap: 10px;
+	margin-bottom: 12px;
+	padding: 8px 12px;
+}
+
+.sheet-offer span {
+	flex: 1 1 16em;
+}
+
+
+/* ------------------------------------------------------- changing a plan cell */
+
+.cell[data-key] {
+	cursor: pointer;
+}
+
+.cell[data-key]:hover {
+	background: var(--surface-2);
+}
+
+.cell-match[data-key]:hover {
+	background: color-mix(in srgb, var(--sport-color) 24%, var(--surface));
+}
+
+.cell[data-key]:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+/* the cell being dragged and the one it is over */
+.day-list.is-dragging .cell[data-key] {
+	cursor: grabbing;
+}
+
+.cell-drop {
+	background: var(--accent-soft);
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.cell-editing {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* a field two sports share, taken by the other one: there is no match of this
+   sport here, and no room for one either */
+.cell-taken {
+	background: repeating-linear-gradient(
+		-45deg,
+		transparent,
+		transparent 3px,
+		var(--surface-2) 3px,
+		var(--surface-2) 6px);
+}
+
+/* a slot that does not hold: the wrong field for the sport, or a team already
+   playing that round. it is drawn and not refused. */
+.cell-wrong {
+	color: var(--danger);
+	text-decoration: underline wavy var(--danger) 1px;
+	text-underline-offset: 3px;
+}
+
+.plan-editor {
+	background: var(--surface);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	display: flex;
+	flex-direction: column;
+	font-size: 12.5px;
+	gap: 8px;
+	padding: 12px;
+	position: absolute;
+	width: 250px;
+	z-index: 30;
+}
+
+.plan-editor-head {
+	color: var(--muted);
+	font-size: 11.5px;
+	font-weight: 600;
+}
+
+.plan-editor-row {
+	align-items: center;
+	display: grid;
+	gap: 8px;
+	grid-template-columns: 6.5em 1fr;
+}
+
+.plan-editor-row select {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	font: inherit;
+	min-width: 0;
+	padding: 4px 6px;
+}
+
+.plan-editor-row select:disabled {
+	color: var(--faint);
+}
+
+.plan-editor-note {
+	color: var(--muted);
+	font-size: 11.5px;
+	margin: 0;
+	min-height: 1em;
+}
+
+.plan-editor-bar {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+
+/* ------------------------------------------------------------------ the pages */
+
+.pages-bar {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.pages-hint {
+	color: var(--muted);
+	font-size: 12.5px;
+}
+
+.pages-list {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.pages-day {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-sm);
+	overflow: hidden;
+}
+
+.pages-head {
+	align-items: center;
+	background: var(--surface-2);
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	gap: 10px;
+	padding: 8px 12px;
+}
+
+.pages-date {
+	flex: 1;
+	font-size: 13.5px;
+	font-weight: 650;
+	margin: 0;
+	text-transform: capitalize;
+}
+
+.pages-table {
+	border-collapse: collapse;
+	font-size: 12.5px;
+	width: 100%;
+}
+
+.pages-table th,
+.pages-table td {
+	border-top: 1px solid var(--border);
+	padding: 3px 8px;
+	text-align: left;
+}
+
+.pages-table thead th {
+	border-top: 0;
+	color: var(--muted);
+	font-size: 10.5px;
+	font-weight: 550;
+	letter-spacing: .02em;
+	padding-bottom: 5px;
+	text-transform: uppercase;
+}
+
+/* the round names the rows beside it, as the template merged it down the block */
+.pages-round {
+	border-right: 1px solid var(--border);
+	color: var(--muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.pages-round-first > * {
+	border-top: 2px solid var(--border-strong);
+}
+
+.pages-field {
+	color: var(--muted);
+	white-space: nowrap;
+}
+
+.pages-id {
+	color: var(--faint);
+	font-variant-numeric: tabular-nums;
+	padding-right: 0;
+	text-align: right;
+	width: 1.5em;
+}
+
+.pages-team {
+	white-space: nowrap;
+}
+
+/* a place in a knockout that nobody has come through to yet */
+.pages-open {
+	color: var(--faint);
+	font-style: italic;
+}
+
+.pages-none {
+	color: var(--faint);
+}
+
+.pages-score,
+.pages-ref {
+	padding: 2px 4px;
+}
+
+.pages-input {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+	padding: 2px 5px;
+	width: 3.2em;
+}
+
+.pages-ref .pages-input {
+	width: 9em;
+}
+
+.pages-input:focus {
+	border-color: var(--accent);
+	box-shadow: var(--ring);
+	outline: none;
+}
+
+/* a match both scores are in for */
+.pages-played .pages-team {
+	color: var(--muted);
+}
+
+.pages-played .pages-input {
+	background: var(--ok-soft);
+	border-color: var(--ok);
+}
+
+
+/* ----------------------------------------------------------------- the points */
+
+.points-sport {
+	margin-bottom: 22px;
+}
+
+.points-sport-name {
+	border-bottom: 2px solid var(--sport-color, var(--border-strong));
+	color: var(--sport-color, var(--text));
+	font-size: 12.5px;
+	font-weight: 650;
+	letter-spacing: .03em;
+	margin: 0 0 10px;
+	padding-bottom: 3px;
+	text-transform: uppercase;
+}
+
+.points-tables {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+}
+
+.points-group,
+.points-knockouts,
+.points-legend {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-sm);
+	padding: 10px 12px;
+	/* a table is as wide as what is in it, and the box around it no wider */
+	width: fit-content;
+}
+
+.points-knockouts,
+.points-legend {
+	display: block;
+	max-width: 100%;
+}
+
+.points-knockouts {
+	margin-top: 14px;
+}
+
+.points-legend {
+	margin-top: 22px;
+}
+
+.points-group-name {
+	color: var(--muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	margin: 0 0 6px;
+}
+
+.points-table {
+	border-collapse: collapse;
+	font-size: 12.5px;
+}
+
+.points-table th,
+.points-table td {
+	padding: 2px 7px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.points-table thead th {
+	border-bottom: 1px solid var(--border);
+	color: var(--muted);
+	font-size: 10px;
+	font-weight: 550;
+	letter-spacing: .03em;
+}
+
+.points-id {
+	color: var(--faint);
+	font-variant-numeric: tabular-nums;
+	padding-right: 2px;
+	text-align: right;
+}
+
+.points-team {
+	font-weight: normal;
+	text-align: left;
+}
+
+.points-num {
+	font-variant-numeric: tabular-nums;
+}
+
+.points-pts {
+	font-weight: 650;
+}
+
+.points-rnk {
+	color: var(--muted);
+}
+
+.points-rnk[title] {
+	text-decoration: underline dotted;
+}
+
+/* a team nobody has played yet has nothing to say */
+.points-unplayed {
+	color: var(--faint);
+}
+
+.points-unplayed .points-pts {
+	font-weight: normal;
+}
+
+.points-kn-table td,
+.points-kn-table th {
+	text-align: left;
+}
+
+.points-kn-score {
+	color: var(--muted);
+	text-align: center;
+}
+
+.points-won {
+	font-weight: 650;
+}
+
+.points-total .points-table {
+	min-width: 18em;
+}
+
+.points-legend dl {
+	display: grid;
+	gap: 2px 10px;
+	grid-template-columns: auto 1fr;
+	margin: 0;
+}
+
+.points-legend dt {
+	color: var(--muted);
+	font-size: 11px;
+	font-weight: 650;
+	text-align: right;
+}
+
+.points-legend dd {
+	font-size: 11.5px;
+	margin: 0;
+}
+
+
+/* ---------------------------------------------------------------- the printer */
+
+@media print {
+
+	/* what goes on the paper is the days that were picked and nothing else: not
+	   the configuration, not the tabs, not the plan, not the points */
+	body.is-printing .topbar,
+	body.is-printing .panel-config,
+	body.is-printing .sheet-tabs,
+	body.is-printing .pages-bar,
+	body.is-printing .pages-head .pages-pick,
+	body.is-printing .pages-head .pages-print,
+	body.is-printing .sheet-offer,
+	body.is-printing .sheet[data-sheet="plan"],
+	body.is-printing .sheet[data-sheet="points"] {
+		display: none !important;
+	}
+
+	body.is-printing .pages-day {
+		display: none;
+	}
+
+	body.is-printing .pages-day.is-print {
+		box-shadow: none;
+		break-inside: avoid;
+		display: block;
+		page-break-inside: avoid;
+	}
+
+	/* two days to a side of A4, which is how they fitted in the workbook */
+	body.is-printing .pages-day.print-break {
+		break-after: page;
+		page-break-after: always;
+	}
+
+	body.is-printing .pages-list {
+		gap: 10px;
+	}
+
+	body.is-printing .pages-head {
+		background: none;
+	}
+
+	/* a score is written on the paper by hand, so the box has to be a line to
+	   write on rather than a filled in field */
+	body.is-printing .pages-input {
+		background: none !important;
+		border: 0;
+		border-bottom: 1px solid #000;
+		border-radius: 0;
+		color: #000;
+	}
+
+	body.is-printing .pages-played .pages-input {
+		border-bottom-color: #000;
+	}
+
+	@page {
+		margin: 10mm;
+		size: A4 portrait;
+	}
+}

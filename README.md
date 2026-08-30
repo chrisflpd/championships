@@ -3,7 +3,43 @@ An HTML-JS application to plan championships.
 
 ## version
 
-1.2
+1.3
+
+## the page
+
+Once a program has been found, it is shown under three tabs, which are the three
+sheets of `template.xlsx` the camp actually reads.
+
+**Πρόγραμμα** is the plan: a card per day, a row per round, a column per field.
+Every slot can be changed. Drag a match onto a free slot to move it, or onto
+another match to swap the two. Click a slot to say what is played in it and by
+whom, or to empty it. Nothing is refused for breaking a rule — a plan being put
+right by hand passes through states that do not hold — but a slot on the wrong
+field for its sport, or holding a team that already plays that round, is marked
+and says why. A field two sports share is one field: the match stands under the
+column of its own sport, and the other column is hatched to show the field taken.
+
+**Φύλλα αγώνων** is what was printed every morning and handed out: a block per
+day with the round, the field, the two teams by number and by name, and the boxes
+for the two scores and the referee. Print one day, or tick several and print them
+two to a side of A4, which is how they fitted in the workbook.
+
+**Βαθμολογία** is the points. Each group gets a table of the template's columns —
+PLD W D L GF GA GD PTS RNK — ranked inside the group, which is what a knockout
+reading `kg1:1` means by it. A sport that cannot be drawn has no D column, and
+what a score is worth is the sport's own, so football counts 3-1-0, basketball
+and baseball 2-1 and volleyball its sets. Under each sport are its knockouts,
+showing who has come through to each of them so far.
+
+The plan and the scores are kept in the browser between visits. The scores are
+kept against the match, so a fresh search that moves a match somewhere else does
+not lose its result; the plan is offered back rather than forced over the program
+a new search has just found.
+
+The `teams`, `fields` and `games` sheets of the template only ever carried
+numbers from one readable sheet to the next, so they have no tab: `workbook.js`
+does that work. The exported workbook still has all six, and carries the plan as
+it stands along with every score entered.
 
 ## checks
 

@@ -76,7 +76,10 @@ async function run(CONFIG, fail) {
 	check(doc.forms[0]['config'] && doc.forms[0]['config'].tagName === 'TEXTAREA', "form['config'] is the textarea");
 	check(doc.getElementById('excel').disabled === true, 'excel starts disabled');
 	check(doc.getElementById('search').hidden === true, 'status starts hidden');
-	check(doc.styleSheets.length === 3, `${doc.styleSheets.length} stylesheets parsed`);
+	// every stylesheet the page links has to parse; the number of them is the
+	// page's business and not this check's
+	const linked = doc.querySelectorAll('link[rel="stylesheet"]').length;
+	check(doc.styleSheets.length === linked, `all ${linked} stylesheets parsed`);
 
 	console.log('\n=== save and load still work ===');
 	doc.forms[0]['config'].value = 'ΔΟΚΙΜΗ';

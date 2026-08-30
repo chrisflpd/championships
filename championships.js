@@ -511,10 +511,14 @@ function search_start() {
 	relax_adjacency = false;
 	schedule_forget_best();
 	//the program on the page belongs to the previous configuration, and so does
-	//anything that would be handed out of it
-	const previous = document.querySelector('.day-list');
-	if (previous !== null)
-		previous.remove();
+	//anything that would be handed out of it: the three tabs go with it
+	const previous = document.getElementById('program');
+	if (previous !== null) {
+		if (typeof previous.replaceChildren === 'function')
+			previous.replaceChildren();
+		else
+			previous.textContent = '';
+	}
 	const excel_button = document.getElementById('excel');
 	if (excel_button !== null)
 		excel_button.disabled = true;
