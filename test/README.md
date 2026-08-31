@@ -97,6 +97,17 @@ copy, which is what makes them worth trusting.
 tell you a column is not set up to be clipped; it cannot tell you the card looks
 right. Look at the page for that.
 
+jsdom also resolves no `var()` into a computed style: a border given as
+`1px solid #333` computes to `solid`, and the same border given as
+`var(--w) solid var(--c)` computes to `none`. Every rule of the printed sheet is
+drawn in the measures its own side declares, so those are read off the stylesheet
+rather than off the page, and a check that asks the page what it computed will
+lie to you about them.
+
+And nothing here prints. The measures of the printed day were taken off a page
+that came out of the real workbook and are checked against the stylesheet; that
+the printer agrees is something only a printer can say.
+
 jsdom also does not give a form the named properties a browser gives it, and
 `parser.js` reads `form['config']`, so the page is served with that one browser
 behaviour put back by a small script. Nothing else about the page is changed.

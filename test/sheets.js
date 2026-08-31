@@ -208,6 +208,13 @@ async function run(CONFIG, fail) {
 	}), `every round names its fields ${wantFields.join(', ')}`);
 	check(new Set(wantFields).size === wantFields.length,
 		'and no two of them read the same');
+	// the columns the upright rules stand between are all there to be ruled. that
+	// they are ruled is read off the stylesheet above and not off the page: jsdom
+	// resolves no var() into a computed style, and every rule of this sheet is
+	// drawn in the measures its side declares.
+	const upright = ['pages-home-id', 'pages-away-id', 'pages-home-score', 'pages-away-score', 'pages-ref'];
+	check(cards.every(card => upright.every(kind => card.querySelector('.' + kind) !== null)),
+		`every day sheet carries the ${upright.length} columns the upright rules stand between`);
 	if (4 % cfg.zones.length === 0)
 		check(cards.every(card => card.querySelectorAll('tbody tr').length === 4 * fields),
 			'the Excel sheet keeps four ruled round blocks per printed day');
@@ -256,16 +263,26 @@ async function run(CONFIG, fail) {
 	// referee, dotted between the two scores, and nothing between a number and
 	// the name it belongs to
 	check(/border-right:\s*var\(--pages-rule-weight\) dotted var\(--pages-rule\)/.test(printCss)
-		&& /border-left:\s*0\.3mm solid #000/.test(printCss)
-		&& /border-left:\s*0\.3mm dotted #000/.test(printCss)
+		&& /border-left:\s*var\(--pages-rule-weight\) solid var\(--pages-rule\)/.test(printCss)
+		&& /border-left:\s*var\(--pages-rule-weight\) dotted var\(--pages-rule\)/.test(printCss)
 		&& !/pages-home-team[^{]*{[^}]*border-right/s.test(printCss),
 		'and the upright rules leave a team number joined to its name');
+	// declared once, so the tab is ruled down as well as across
+	check(!/is-printing[^{]*pages-home-id/.test(printCss),
+		'and are the screen\u2019s rules as much as the paper\u2019s');
 	// the round names its block from one merged cell with nothing drawn through it,
 	// which is what makes the block read as one round. drawing the rules of the
 	// rows across it was tried and is not worth it: what a browser makes of a
 	// strip laid over a cell that spans rows is not a rule.
 	check(!/pages-round::after/.test(printCss),
 		'nothing is drawn through the merged round cell');
+	// and the name stands in the middle of it rather than riding the baseline of
+	// whatever line it happens to be on
+	check(/pages-round-said[^{]*{[^}]*display:\s*inline-block/s.test(printCss)
+		&& /pages-round-said[^{]*{[^}]*vertical-align:\s*middle/s.test(printCss)
+		&& /\.pages-round\s*{[^}]*vertical-align:\s*middle/s.test(printCss)
+		&& /\.pages-round\s*{[^}]*text-align:\s*center/s.test(printCss),
+		'and the round name stands in the middle of it, both ways');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 
@@ -350,6 +367,10 @@ async function run(CONFIG, fail) {
 
 	// the table on the page says the same
 	click(tabs[2]);
+	// the standings are read from across a table by whoever reads them out, so
+	// they are not set as small as the rest of the page
+	const pointsSize = parseFloat(window.getComputedStyle(doc.querySelector('#sheet-points .points-table')).fontSize);
+	check(pointsSize >= 16, `the points tables are set at ${pointsSize}px`);
 	const table = [...doc.querySelectorAll('.points-group')]
 		.filter(box => box.querySelector('.points-group-name').textContent === group.id)[0];
 	check(table !== undefined, `the ${group.id} standings are on the page`);

@@ -61,9 +61,9 @@ is named by the sport it is being played for: the baseball diamond laid out on
 the football pitch reads Μπέιζμπολ on the baseball line and Π Ποδόσφαιρο on the
 football one.
 
-The screen is ruled the same way, so that the tab reads as the sheet it prints.
-The rules are declared once and drawn in whichever measures the side asks for —
-a row and a rule weight — and nothing else is said twice. The screen keeps the column names and the print
+The screen is ruled the same way, across and down, so that the tab reads as the
+sheet it prints. The rules are declared once and drawn in whichever measures the
+side asks for — a row and a rule weight — and nothing else is said twice. The screen keeps the column names and the print
 takes them off, as the workbook had none.
 
 **Βαθμολογία** is the points. Each group gets a table of the template's columns —
