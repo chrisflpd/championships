@@ -10,6 +10,8 @@ An HTML-JS application to plan championships.
 Once a program has been found, it is shown under four draggable tabs. The first
 three are the sheets of `template.xlsx` the camp actually reads; the fourth is
 the program configuration. Drag any tab to keep them in the order you prefer.
+The strip stays under the title bar however far down a sheet is read, so the four
+are always there to be switched between.
 
 **Πρόγραμμα** is the plan: a card per day, a row per round, a column per field.
 Every slot can be changed. Drag a match onto a free slot to move it, or onto
@@ -51,7 +53,12 @@ rule, the round named down the side of its own five field rows, the fields in
 italic, and the rules that tell the parts apart — dotted between the fields of a
 round, single between the rounds of a zone, double between the zones, and the
 frame of the day around the lot. Every one of them runs the whole width of the
-block, the round column included, broken only where the name of the round stands. The screen keeps the column names and the print
+block, the round column included: the name of the round is written over the rule
+rather than breaking it.
+
+The screen is ruled the same way, so that the tab reads as the sheet it prints.
+The rules are declared once and drawn in whichever measures the side asks for —
+a row and a rule weight — and nothing else is said twice. The screen keeps the column names and the print
 takes them off, as the workbook had none.
 
 **Βαθμολογία** is the points. Each group gets a table of the template's columns —

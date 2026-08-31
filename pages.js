@@ -174,11 +174,8 @@ function pages_day(day, retell) {
 			const game = wb_at(key);
 			const mine = game !== null && wb_shows(game, col, c);
 			const row = document.createElement('tr');
-			if (c === 0) {
-				row.classList.add('pages-round-first');
-				if (round_index === 0)
-					row.classList.add('pages-zone-first');
-			}
+			//the last row of a round carries the rule that closes it, and says which
+			//of the three that rule is
 			if (c === workbook.cols.length - 1) {
 				row.classList.add('pages-round-last');
 				if (round_index === rounds.length - 1) {
@@ -205,6 +202,9 @@ function pages_day(day, retell) {
 					: 'pages-round-end');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
+				//the rules drawn down the cell are spaced off its own height, so it
+				//carries how many fields it stands beside
+				name.style.setProperty('--pages-fields', workbook.cols.length);
 				//the name is a thing of its own inside the cell, so that the rules
 				//drawn across the cell can pass behind it and be broken by it rather
 				//than being struck through the letters

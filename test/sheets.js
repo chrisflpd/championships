@@ -97,6 +97,8 @@ async function run(CONFIG, fail) {
 	check(tabs[1].getAttribute('aria-selected') === 'true' && tabs[0].getAttribute('aria-selected') === 'false',
 		'and says which one is open');
 	check(configPanel.hidden === true, 'and Configuration leaves the other tabs');
+	check(window.getComputedStyle(doc.querySelector('.sheet-tabs')).position === 'sticky',
+		'the strip of tabs stays in view however far down a sheet is read');
 	check(window.getComputedStyle(doc.querySelector('.pages-bar')).position === 'sticky',
 		'the selected-days print control stays visible while the sheets scroll');
 	check(window.getComputedStyle(doc.getElementById('program')).overflow === 'visible',
@@ -172,25 +174,31 @@ async function run(CONFIG, fail) {
 		&& /height:\s*5\.4mm/.test(printCss) && /font-size:\s*11\.9pt/.test(printCss),
 		'the paper uses the measured Excel block, row height and type size');
 	// dotted between the fields of a round, solid between the rounds, double
-	// between the zones, and the medium frame around the day
-	check(/border-bottom:\s*0\.3mm dotted #000/.test(printCss)
-		&& /border-bottom:\s*0\.3mm solid #000/.test(printCss)
-		&& /border-bottom:\s*0\.9mm double #000/.test(printCss)
+	// between the zones, and the medium frame around the day. the three are
+	// declared once and drawn in whichever measures the side asks for, so the
+	// screen is ruled the same way as the paper.
+	check(/border-bottom:\s*var\(--pages-rule-weight\) dotted var\(--pages-rule\)/.test(printCss)
+		&& /border-bottom:\s*var\(--pages-rule-weight\) solid var\(--pages-rule-strong\)/.test(printCss)
+		&& /border-bottom:\s*calc\(var\(--pages-rule-weight\) \* 3\) double var\(--pages-rule-strong\)/.test(printCss)
 		&& /border:\s*0\.6mm solid #000/.test(printCss),
 		'the dotted, single, double and frame rules of the workbook are all there');
+	check(/--pages-row:\s*28px/.test(printCss) && /--pages-row:\s*5\.4mm/.test(printCss)
+		&& /--pages-rule-weight:\s*0\.3mm/.test(printCss),
+		'drawn a row at a time, 28px on the screen and 5.4mm on the paper');
 	// down the block: dotted beside the round, solid beside the fields and the
 	// referee, dotted between the two scores, and nothing between a number and
 	// the name it belongs to
-	check(/border-right:\s*0\.3mm dotted #000/.test(printCss)
+	check(/border-right:\s*var\(--pages-rule-weight\) dotted var\(--pages-rule\)/.test(printCss)
 		&& /border-left:\s*0\.3mm solid #000/.test(printCss)
 		&& /border-left:\s*0\.3mm dotted #000/.test(printCss)
 		&& !/pages-home-team[^{]*{[^}]*border-right/s.test(printCss),
 		'and the upright rules leave a team number joined to its name');
 	// the round cell is merged down its block, so the rules between the fields are
-	// painted across it rather than stopping at its column
+	// painted across it, the whole of it: the name is written over the rule rather
+	// than carrying a ground of its own that would break it into stubs
 	check(/pages-round::after[^{]*{[^}]*repeating-linear-gradient/s.test(printCss)
-		&& /pages-round-said[^{]*{[^}]*background:\s*#fff/s.test(printCss),
-		'every horizontal rule crosses the round column, broken only by the name');
+		&& !/pages-round-said[^{]*{[^}]*background/s.test(printCss),
+		'every horizontal rule crosses the round column unbroken');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 
