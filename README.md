@@ -73,7 +73,7 @@ throws away the program on the page along with every change made to it by hand,
 so it asks first.
 
 A championship is kept in the browser between visits, and the page offers it back
-where the configuration is, before any search is run: open the page the next
+over the head of the configuration, before any search is run: open the page the next
 morning and the whole of yesterday is waiting there to be opened, plan and scores
 and all. It is only offered when what is stored is the championship of the
 configuration in the box, and saying no throws nothing away.

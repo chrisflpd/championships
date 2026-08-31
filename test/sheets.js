@@ -40,6 +40,61 @@ const noise = [];
 vc.on('jsdomError', e => noise.push('jsdomError: ' + e.message));
 vc.on('error', (...a) => noise.push('console.error: ' + a.join(' ')));
 
+/**
+ * a second visit: the page opened again with what the first one left in the
+ * browser, and nothing else done to it.
+ *
+ * @param {number} port
+ * @param {object} kept - what is in the browser as the page opens
+ * @param {string} before - the slots of the plan the first visit left
+ * @param {function} check
+ * @param {function} click - the click of the first visit, which is another window
+ * @returns {Promise<void>}
+ */
+async function second(port, kept, before, check) {
+	const dom = await JSDOM.fromURL(`http://127.0.0.1:${port}/index.html`, {
+		runScripts: 'dangerously',
+		resources: 'usable',
+		pretendToBeVisual: true,
+		virtualConsole: vc,
+		beforeParse(window) {
+			//what the first visit left, there before a line of the page has run
+			Object.keys(kept).forEach(key => window.localStorage.setItem(key, kept[key]));
+		},
+	});
+	const { window } = dom;
+	const doc = window.document;
+	await new Promise(res => {
+		if (doc.readyState === 'complete') return res();
+		window.addEventListener('load', res);
+	});
+	await new Promise(res => window.setTimeout(res, 300));
+
+	const offer = doc.querySelector('.saved-offer');
+	check(offer !== null, 'a second visit is offered the championship the first one left, on opening');
+	if (offer === null) {
+		window.close();
+		return;
+	}
+	check(/αποθηκευμένο πρωτάθλημα/.test(offer.textContent),
+		`saying what is there: ${offer.querySelector('span').textContent}`);
+	// folded or not, the offer has to be readable: it is the first thing there is
+	// to do with the page
+	const panel = doc.querySelector('.panel-config');
+	check(panel !== null && !panel.querySelector('.panel-body').contains(offer),
+		'and stands where a folded configuration cannot hide it');
+	check(doc.querySelector('.day-list') === null, 'with nothing drawn until it is asked for');
+
+	[...offer.querySelectorAll('button')].find(b => b.textContent === 'Άνοιγμα')
+		.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+	check(doc.querySelector('.saved-offer') === null && doc.querySelector('.day-list') !== null,
+		'opening it draws the program, with no search run for it');
+	check(Object.keys(window.eval('workbook').slots).sort().join('|') === before,
+		'and every match is where the first visit left it');
+	check(doc.querySelectorAll('.sheet-tab').length === 4, 'under the four tabs, as ever');
+	window.close();
+}
+
 async function run(CONFIG, fail) {
 	const port = server.address().port;
 	const dom = await JSDOM.fromURL(`http://127.0.0.1:${port}/index.html`, {
@@ -199,6 +254,12 @@ async function run(CONFIG, fail) {
 	check(/pages-round::after[^{]*{[^}]*repeating-linear-gradient/s.test(printCss)
 		&& !/pages-round-said[^{]*{[^}]*background/s.test(printCss),
 		'every horizontal rule crosses the round column unbroken');
+	// a percentage of a cell that spans rows is resolved in no way worth relying
+	// on, and what came out of it was a band of hatching rather than a rule, so
+	// every measure of that strip is given outright
+	check(!/pages-round::after[^{]*{[^}]*(inset|top|bottom|height)[^;]*100%/s.test(printCss)
+		&& /pages-round::after[^{]*{[^}]*height:\s*calc\(var\(--pages-row\)/s.test(printCss),
+		'and is placed in measures given outright, never a share of the merged cell');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 
@@ -424,24 +485,21 @@ async function run(CONFIG, fail) {
 	check(doc.getElementById('excel').disabled === false, 'the workbook is still there to be built');
 
 	console.log('\n=== the championship a previous visit left ===');
-	// what is on the page now is what a second visit should find waiting for it
+	// the whole of it, driven the way the camp meets it: what this visit leaves in
+	// the browser is carried into a second one, and the second one is a page
+	// opened from scratch — not these functions called by hand
 	const before = Object.keys(window.eval('workbook').slots).sort().join('|');
-	// the page as it opens: nothing drawn, only the configuration in the box
-	window.eval('sheets_clear')();
-	doc.getElementById('program').replaceChildren();
-	const waiting = window.eval('saved_stored')();
-	check(waiting !== null, 'the stored championship is known to be this configuration\u2019s');
-	window.eval('saved_ask')(waiting);
-	const offer = doc.querySelector('.saved-offer');
-	check(offer !== null && doc.getElementById('config-body').contains(offer),
-		'and is offered in the configuration itself, before any search is run');
-	check(offer !== null && /αποθηκευμένο πρωτάθλημα/.test(offer.textContent),
-		`saying what is there: ${offer === null ? '' : offer.querySelector('span').textContent}`);
-	click([...offer.querySelectorAll('button')].find(b => b.textContent === 'Άνοιγμα'));
-	check(doc.querySelector('.saved-offer') === null && doc.querySelector('.day-list') !== null,
-		'opening it draws the program again, with no search run for it');
-	check(Object.keys(window.eval('workbook').slots).sort().join('|') === before,
-		'and every match is where it was left');
+	const left_behind = {};
+	for (let i = 0; i < window.localStorage.length; i++) {
+		const key = window.localStorage.key(i);
+		left_behind[key] = window.localStorage.getItem(key);
+	}
+	check(left_behind.workbook !== undefined && left_behind.config !== undefined,
+		'the visit leaves the championship and its configuration in the browser');
+	// the panel is folded away by the time a program is drawn, and the camp may
+	// have folded it itself, so the second visit opens with it folded
+	left_behind.panel = 'collapsed';
+	await second(port, left_behind, before, check);
 
 	console.log('\n=== submitting again asks before it throws the program away ===');
 	// the asking hangs off the button, since it is the camp being about to lose a

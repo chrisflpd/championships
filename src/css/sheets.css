@@ -109,10 +109,15 @@
 	flex: 1 1 16em;
 }
 
-/* the same line, offering the whole championship before a search is ever run */
+/* the same line, offering the whole championship before a search is ever run. it
+   stands over the head of the configuration, where folding the configuration
+   away cannot take it with it. */
 .saved-offer {
-	margin-bottom: 14px;
-	margin-top: 2px;
+	border: 0;
+	border-bottom: 1px solid var(--border);
+	border-radius: var(--radius) var(--radius) 0 0;
+	margin: 0;
+	padding: 10px 16px;
 }
 
 
@@ -466,19 +471,24 @@
 .pages-round::after {
 	background: repeating-linear-gradient(to bottom,
 		var(--pages-rule) 0 var(--pages-rule-weight),
-		transparent var(--pages-rule-weight) calc(100% / (var(--pages-fields) - 1)));
+		transparent var(--pages-rule-weight) var(--pages-row));
 	content: '';
-	/* measured off the cell itself rather than off what a row is meant to be, so
-	   that the rules land on the boundaries however the rows are laid out. the
-	   cell holds one field per row, and the count comes with it. */
-	inset: calc(100% / var(--pages-fields)) 0 0;
+	/* a row at a time, from the second row down, for as many rows as the cell
+	   stands beside. every measure here is given outright: a share of the cell
+	   would read better, but a percentage — of the height or of the offsets —
+	   is resolved against a cell that spans rows in no way worth relying on, and
+	   what comes out is a band of hatching rather than a rule. */
+	height: calc(var(--pages-row) * (var(--pages-fields) - 1));
+	left: 0;
+	position: absolute;
+	right: 0;
+	top: var(--pages-row);
 	-webkit-mask-image: repeating-linear-gradient(to right,
 		#000 0 var(--pages-rule-weight),
 		transparent var(--pages-rule-weight) calc(var(--pages-rule-weight) * 2));
 	mask-image: repeating-linear-gradient(to right,
 		#000 0 var(--pages-rule-weight),
 		transparent var(--pages-rule-weight) calc(var(--pages-rule-weight) * 2));
-	position: absolute;
 }
 
 .pages-field {

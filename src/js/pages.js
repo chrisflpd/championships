@@ -202,8 +202,8 @@ function pages_day(day, retell) {
 					: 'pages-round-end');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
-				//the rules drawn down the cell are spaced off its own height, so it
-				//carries how many fields it stands beside
+				//the rules drawn down the merged cell are spaced a row at a time, so
+				//it carries how many rows it stands beside
 				name.style.setProperty('--pages-fields', workbook.cols.length);
 				//the name is a thing of its own inside the cell, so that the rules
 				//drawn across the cell can pass behind it and be broken by it rather

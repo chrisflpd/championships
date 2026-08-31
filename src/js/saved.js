@@ -80,8 +80,11 @@ function saved_size(stored) {
  * @returns {void}
  */
 function saved_ask(stored) {
-	const body = document.getElementById('config-body');
-	if (body === null)
+	//over the head of the configuration and not inside it: the configuration folds
+	//away, and it is folded on exactly the visit this is for — the one that opens
+	//with a championship already made. an offer that folds with it is no offer.
+	const panel = document.querySelector('.panel-config');
+	if (panel === null)
 		return;
 	saved_close();
 
@@ -113,7 +116,7 @@ function saved_ask(stored) {
 	drop.addEventListener('click', saved_close);
 	bar.appendChild(drop);
 
-	body.insertBefore(bar, body.firstChild);
+	panel.insertBefore(bar, panel.firstChild);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
