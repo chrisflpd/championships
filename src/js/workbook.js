@@ -549,6 +549,297 @@ function wb_complaints(key) {
 }
 
 
+/* --------------------------------------------- what is worth a second look */
+
+/*
+ * the rules above are the ones a plan cannot be played without. these are the
+ * ones the search keeps and the camp may set aside: the same pair twice in a
+ * morning, the baseball spread a zone at a time, the finals in their order. a
+ * plan that breaks one of them can be played perfectly well — it is simply not
+ * the plan the search would have found — so they are said more quietly.
+ *
+ * they are worked out against the plan as it stands rather than as it is being
+ * built, so a few of them read as "this one comes before that one" where the
+ * search read them as "not yet".
+ */
+
+//where every round of the calendar stands, so that two matches can be told
+//which of them comes first
+let wb_place_cache = null;
+
+function wb_places() {
+	if (wb_place_cache !== null)
+		return wb_place_cache;
+	wb_place_cache = { at: {}, where: {} };
+	let at = 0;
+	workbook.calendar.forEach((day, d) => day.dzones.forEach((dzone, dz) => dzone.rounds.forEach((round, r) => {
+		const id = [day.iso, dzone.zone.rank, round.rank].join('|');
+		wb_place_cache.at[id] = at++;
+		wb_place_cache.where[id] = { day: day, dzone: dzone, round: round, d: d, dz: dz, r: r };
+	})));
+	return wb_place_cache;
+}
+
+//the day, the zone and the round a slot belongs to
+function wb_round_id(key) {
+	return key.split('|').slice(0, 3).join('|');
+}
+
+function wb_where(key) {
+	const found = wb_places().where[wb_round_id(key)];
+	return found === undefined ? null : found;
+}
+
+function wb_at_place(key) {
+	const found = wb_places().at[wb_round_id(key)];
+	return found === undefined ? -1 : found;
+}
+
+//every match of the plan with where it stands, in the order they are played
+let wb_plan_cache = null;
+
+function wb_plan() {
+	if (wb_plan_cache !== null)
+		return wb_plan_cache;
+	const places = wb_places().at;
+	wb_plan_cache = [];
+	for (const key in workbook.slots) {
+		wb_plan_cache.push({
+			key: key,
+			game: workbook.slots[key],
+			at: places[wb_round_id(key)] === undefined ? -1 : places[wb_round_id(key)],
+			court: key.split('|')[3],
+		});
+	}
+	wb_plan_cache.sort((one, other) => one.at - other.at);
+	return wb_plan_cache;
+}
+
+//the two sides of a game, by id, leaving out a knockout that is still waiting
+function wb_pair(game) {
+	return [game.home, game.away].filter(id => id !== null);
+}
+
+function wb_same_pair(one, other) {
+	const mine = wb_pair(one), theirs = wb_pair(other);
+	return mine.length === 2 && theirs.length === 2
+		&& mine.includes(theirs[0]) && mine.includes(theirs[1]);
+}
+
+//a group where every team plays every other more than once is played in phases,
+//and the phases are played one after the other
+function wb_group_phases(group) {
+	if (group === undefined || group.matches)
+		return false;
+	if (group.teams.length < 2)
+		return false;
+	const phases = group.team_matches / (group.teams.length - 1);
+	return group.team_matches % (group.teams.length - 1) === 0 && phases !== 1;
+}
+
+function wb_knockout_fed(kn) {
+	return [kn.home, kn.away].some(union => union && union.type === 'knockout');
+}
+
+//the match that brings a team to baseball for the first time: the one the zones
+//are spread over
+function wb_baseball_intro(game, at, baseball) {
+	if (game.sport.name !== BASEBALL_SPORT || game.kn !== null)
+		return false;
+	return wb_pair(game).some(id =>
+		!baseball.some(one => one.at < at && wb_pair(one.game).includes(id)));
+}
+
+/**
+ * what is worth a second look about a slot: the rules the search keeps, read
+ * against the plan as it stands.
+ *
+ * @param {string} key
+ * @returns {string[]}
+ */
+function wb_cautions(key) {
+	const game = wb_at(key);
+	if (game === null)
+		return [];
+	const said = [];
+	const parts = key.split('|');
+	const iso = parts[0], zone_rank = Number(parts[1]), court = parts[3];
+	const here = wb_pair(game);
+	const where = wb_where(key);
+	if (where === null)
+		return [];
+	const at = wb_at_place(key);
+	const plan = wb_plan();
+	const name = id => wb_team_name(id);
+	const both = () => `Η ${name(here[0])} και η ${name(here[1])}`;
+
+	const in_round = plan.filter(one => wb_round_id(one.key) === wb_round_id(key));
+	const in_zone = plan.filter(one => one.key.indexOf(iso + '|' + zone_rank + '|') === 0);
+	const in_day = plan.filter(one => one.key.indexOf(iso + '|') === 0);
+	const beside = in_zone.filter(one => {
+		const there = wb_where(one.key);
+		return there !== null && Math.abs(there.r - where.r) === 1;
+	});
+
+	/* the round */
+
+	//a round holds as many matches as the teams allow: the scheduler takes one
+	//only while the used slots leave two teams free
+	const most = Math.floor((config.teams.length - 1) / 2);
+	if (in_round.length > most)
+		said.push(`Ο γύρος έχει ${in_round.length} αγώνες, ενώ οι ${config.teams.length} ομάδες επιτρέπουν έως ${most}`);
+
+	/* the zone */
+
+	if (here.length === 2 && in_zone.some(one => one.key !== key && wb_same_pair(game, one.game)))
+		said.push(`${both()} συναντιούνται ξανά στην ίδια ζώνη`);
+
+	//a zone that is full and holds a handful of group matches plays everybody. a
+	//zone is the rounds the configuration gave it — the band the page draws holds
+	//the ones it did not, and the search was never offered those.
+	const given_rounds = where.dzone.rounds.filter(round => round.given).length;
+	if (given_rounds >= 2 && in_zone.length === config.courts.length * given_rounds
+		&& in_zone.filter(one => one.game.kn === null).length >= 5) {
+		const played = {};
+		in_zone.forEach(one => wb_pair(one.game).forEach(id => {
+			played[id] = true;
+		}));
+		const idle = config.teams.filter(team => !(team.id in played));
+		if (idle.length)
+			said.push(`Η ζώνη είναι γεμάτη, αλλά δεν παίζει σε αυτήν η ${idle.map(team => team.name).join(', η ')}`);
+	}
+
+	/* the day */
+
+	if (here.length === 2 && in_day.some(one => one.key !== key
+		&& one.game.sport.name === game.sport.name && wb_same_pair(game, one.game)))
+		said.push(`${both()} παίζουν ${game.sport.name} ξανά την ίδια ημέρα`);
+
+	/* the rounds beside */
+
+	if (here.length === 2 && beside.some(one => wb_same_pair(game, one.game)))
+		said.push(`${both()} παίζουν και στον διπλανό γύρο`);
+
+	beside.forEach(one => {
+		if (one.game.sport.name !== game.sport.name)
+			return;
+		wb_pair(one.game).forEach(id => {
+			if (here.includes(id)) {
+				const line = `Η ${name(id)} παίζει ${game.sport.name} και στον διπλανό γύρο`;
+				if (!said.includes(line))
+					said.push(line);
+			}
+		});
+	});
+
+	/* the arrival */
+
+	if (where.d === 0 && where.dz === 0 && config.teams.length > 0 && here.includes(config.teams[0].id))
+		said.push(`Η ομάδα αγάπης (${config.teams[0].name}) δεν παίζει στη δεύτερη πρωινή ζώνη της πρώτης ημέρας`);
+
+	/* baseball */
+
+	const baseball = plan.filter(one => one.game.sport.name === BASEBALL_SPORT && one.game.kn === null);
+	if (wb_baseball_intro(game, at, baseball)) {
+		if (where.r !== 0)
+			said.push('Ο πρώτος αγώνας μπέιζμπολ μιας ομάδας παίζεται στον πρώτο γύρο της ζώνης');
+		if (given_rounds < 2)
+			said.push('Ο πρώτος αγώνας μπέιζμπολ μιας ομάδας χρειάζεται ζώνη με δύο γύρους');
+		if (in_zone.some(one => one.key !== key && one.game.sport.name === BASEBALL_SPORT && one.game.kn === null))
+			said.push('Η ζώνη έχει ήδη αγώνα μπέιζμπολ, και οι ζώνες παίρνουν από έναν');
+		//the zones take one each in turn, so none of the earlier ones is passed over
+		const passed = [];
+		workbook.calendar.forEach(day => day.dzones.forEach(dzone => {
+			if (dzone.rounds.filter(round => round.given).length < 2)
+				return;
+			const prefix = day.iso + '|' + dzone.zone.rank + '|';
+			if (wb_at_place(prefix + dzone.rounds[0].rank + '|') >= at)
+				return;
+			if (!plan.some(one => one.key.indexOf(prefix) === 0
+				&& one.game.sport.name === BASEBALL_SPORT && one.game.kn === null))
+				passed.push(dzone);
+		}));
+		if (passed.length)
+			said.push(`${passed.length === 1 ? 'Προηγούμενη ζώνη δύο γύρων μένει' : `${passed.length} προηγούμενες ζώνες δύο γύρων μένουν`} χωρίς μπέιζμπολ, ενώ οι ζώνες παίρνουν από έναν με τη σειρά`);
+	}
+
+	//the diamond is laid out over another sport's field, so that field is left
+	//free in the round after a match that brings a team to the sport. it is the
+	//field the baseball was played on that is asked for, whatever it is called.
+	if (where.r > 0) {
+		const before_key = wb_key(iso, zone_rank, where.dzone.rounds[where.r - 1].rank, court);
+		const before = wb_at(before_key);
+		if (before !== null && wb_baseball_intro(before, wb_at_place(before_key), baseball))
+			said.push(`Το ${court} μένει ελεύθερο στον γύρο μετά από πρώτο αγώνα μπέιζμπολ μιας ομάδας`);
+	}
+
+	/* the order things are played in */
+
+	if (game.kn === null && wb_group_phases(config.groups[game.id])) {
+		const mine = game.occ || 0;
+		if (plan.some(one => one.game.kn === null && one.game.id === game.id
+			&& (one.game.occ || 0) < mine && one.at > at))
+			said.push(`Ο όμιλος ${game.id} παίζεται σε φάσεις, και αυτός ο αγώνας προηγείται αγώνων προηγούμενης φάσης`);
+	}
+
+	if (game.kn !== null) {
+		const kn = config.knockouts[game.kn];
+		if (plan.some(one => one.game.kn === null && one.game.sport.name === game.sport.name && one.at > at))
+			said.push(`Το νοκ άουτ ${game.kn} προηγείται αγώνων ομίλου στο ${game.sport.name}`);
+
+		if (kn !== undefined && !wb_knockout_fed(kn) && plan.some(one => one.at < at
+			&& one.game.kn !== null && config.knockouts[one.game.kn] !== undefined
+			&& config.knockouts[one.game.kn].sport.name === game.sport.name
+			&& wb_knockout_fed(config.knockouts[one.game.kn])))
+			said.push(`Το ${game.kn} παίρνει ομάδες από ομίλους, οπότε παίζεται πριν από τα νοκ άουτ που παίρνουν από άλλα νοκ άουτ`);
+
+		if (kn !== undefined) {
+			[kn.home, kn.away].forEach(union => {
+				if (!union || union.type !== 'knockout')
+					return;
+				const feeder = plan.filter(one => one.game.kn === union.knockout.id)[0];
+				if (feeder === undefined || feeder.at >= at)
+					said.push(`Το ${game.kn} παίζεται πριν από το ${union.knockout.id}, από το οποίο παίρνει ομάδα`);
+			});
+		}
+
+		//the match for the losers is played before the one for the winners
+		if (kn !== undefined && [kn.home, kn.away].some(union => union && union.type === 'knockout' && union.is_winner)) {
+			Object.values(config.knockouts).forEach(other => {
+				if (other.id === kn.id)
+					return;
+				const shares = [other.home, other.away].some(union => union && union.type === 'knockout' && !union.is_winner
+					&& [kn.home, kn.away].some(mine => mine && mine.type === 'knockout' && mine.knockout.id === union.knockout.id));
+				if (!shares)
+					return;
+				const found = plan.filter(one => one.game.kn === other.id)[0];
+				if (found !== undefined && found.at > at)
+					said.push(`Ο μικρός τελικός ${other.id} παίζεται πριν από τον τελικό ${kn.id}`);
+			});
+		}
+
+		//the baseball final is the first final played
+		if (wb_knockout_stage(game.kn) === 'f') {
+			const bb_final = Object.values(config.knockouts).filter(one =>
+				one.sport.name === BASEBALL_SPORT && wb_knockout_stage(one.id) === 'f')[0];
+			if (bb_final !== undefined) {
+				const first = `Ο τελικός του ${BASEBALL_SPORT} παίζεται πρώτος από όλους τους τελικούς`;
+				if (game.sport.name !== BASEBALL_SPORT) {
+					const found = plan.filter(one => one.game.kn === bb_final.id)[0];
+					if (found === undefined || found.at >= at)
+						said.push(first);
+				} else if (plan.some(one => one.at < at && one.game.kn !== null
+					&& wb_knockout_stage(one.game.kn) === 'f')) {
+					said.push(first);
+				}
+			}
+		}
+	}
+
+	return said;
+}
+
+
 /* ----------------------------------------------------------------- the points */
 
 /**
@@ -758,4 +1049,6 @@ function wb_sides(game) {
 //so it says when it starts and the held ones are dropped
 function wb_recount() {
 	wb_standings_cache = null;
+	wb_place_cache = null;
+	wb_plan_cache = null;
 }

@@ -520,9 +520,17 @@ async function run(CONFIG, fail) {
 		check(panel !== null && [...panel.querySelectorAll('.plan-warning-list li')]
 			.every(li => li.textContent[0] === li.textContent[0].toLocaleUpperCase('el')),
 			'and every rule under a bullet starts as a sentence does');
+		// the panel reads out both of what a slot is told: what cannot stand under
+		// Παραβίαση κανόνα, and what is worth a second look under Συνιστάται προσοχή
+		const lines = key => (marked.dataset[key] || '').split('\n').filter(one => one.length);
 		check(panel !== null && panel.querySelectorAll('.plan-warning-list li').length
-			=== marked.dataset.wrong.split('\n').length,
-			'with one line per rule');
+			=== lines('wrong').length + lines('caution').length,
+			`with one line per rule (${lines('wrong').length} broken, ${lines('caution').length} worth a look)`);
+		check(panel !== null && /Παραβίαση κανόνα/.test(panel.querySelector('.plan-warning-wrong').textContent),
+			'the ones that cannot stand under their own red heading');
+		check(panel === null || lines('caution').length === 0
+			|| /Συνιστάται προσοχή/.test(panel.querySelector('.plan-warning-caution').textContent),
+			'and the rest under Συνιστάται προσοχή');
 		// and the editor of that slot says the same where the change is made
 		window.eval('plan_editor')(marked);
 		const editor = doc.querySelector('.plan-editor-wrong');

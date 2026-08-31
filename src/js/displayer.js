@@ -261,7 +261,7 @@ function plan_draw(sheet) {
 						//is kept off the title and given a panel of its own, since a
 						//rule that has been broken is worth reading rather than
 						//squinting at in the tooltip of the browser.
-						plan_mark(col_td, wb_complaints(key));
+						plan_mark(col_td, wb_complaints(key), wb_cautions(key));
 					} else {
 						col_td.classList.add('cell-empty');
 						col_td.textContent = '·';
@@ -303,22 +303,42 @@ function plan_refresh_knockouts() {
  */
 
 /**
- * marks a cell with what is wrong with it, and hangs the reasons off it.
+ * marks a cell with what is wrong with it and with what is worth a second look,
+ * and hangs both off it.
+ *
+ * the two are not the same thing. a slot that breaks one of the first cannot be
+ * played at all; one that breaks only the second can be played perfectly well
+ * and is simply not what the search would have found. so a cell carries the one
+ * colour of the worse of the two, and the panel reads out both.
  *
  * @param {Element} cell
- * @param {string[]} said
+ * @param {string[]} said - what cannot stand
+ * @param {string[]} careful - what is worth a second look
  * @returns {void}
  */
-function plan_mark(cell, said) {
+function plan_mark(cell, said, careful) {
+	const mind = careful || [];
 	cell.classList.toggle('cell-wrong', said.length > 0);
-	if (said.length === 0) {
+	cell.classList.toggle('cell-caution', said.length === 0 && mind.length > 0);
+	if (said.length)
+		cell.dataset.wrong = said.join('\n');
+	else
 		delete cell.dataset.wrong;
+	if (mind.length)
+		cell.dataset.caution = mind.join('\n');
+	else
+		delete cell.dataset.caution;
+	if (said.length === 0 && mind.length === 0) {
 		cell.removeAttribute('aria-describedby');
 		return;
 	}
-	cell.dataset.wrong = said.join('\n');
-	//said aloud as well, since the panel is only drawn for the eye
-	cell.setAttribute('aria-label', `${cell.textContent}. ${said.length === 1 ? 'Πρόβλημα' : 'Προβλήματα'}: ${said.join('. ')}`);
+	//said aloud as well, since the panels are only drawn for the eye
+	const aloud = [];
+	if (said.length)
+		aloud.push(`Παραβίαση κανόνα: ${said.join('. ')}`);
+	if (mind.length)
+		aloud.push(`Συνιστάται προσοχή: ${mind.join('. ')}`);
+	cell.setAttribute('aria-label', `${cell.textContent}. ${aloud.join('. ')}`);
 }
 
 function plan_warning_close() {
@@ -333,40 +353,63 @@ function plan_warning_close() {
  * @param {Element} cell
  * @returns {void}
  */
+function plan_warning_read(cell, which) {
+	return (cell.dataset[which] || '').split('\n').filter(one => one.length);
+}
+
+/**
+ * one heading and its bullets.
+ *
+ * @param {Element} box
+ * @param {string} kind - 'wrong' or 'caution'
+ * @param {string} title
+ * @param {string[]} lines
+ * @returns {void}
+ */
+function plan_warning_part(box, kind, title, lines) {
+	if (lines.length === 0)
+		return;
+	const head = document.createElement('div');
+	head.classList.add('plan-warning-head', 'plan-warning-' + kind);
+	const sign = document.createElement('span');
+	sign.classList.add('plan-warning-sign');
+	sign.setAttribute('aria-hidden', 'true');
+	sign.textContent = '⚠';
+	head.appendChild(sign);
+	const said = document.createElement('span');
+	said.textContent = title;
+	head.appendChild(said);
+	box.appendChild(head);
+
+	const list = document.createElement('ul');
+	list.classList.add('plan-warning-list', 'plan-warning-' + kind);
+	lines.forEach(one => {
+		const item = document.createElement('li');
+		item.textContent = one;
+		list.appendChild(item);
+	});
+	box.appendChild(list);
+}
+
 function plan_warning_open(cell) {
 	plan_warning_close();
-	const said = (cell.dataset.wrong || '').split('\n').filter(one => one.length);
-	if (said.length === 0)
+	const said = plan_warning_read(cell, 'wrong');
+	const careful = plan_warning_read(cell, 'caution');
+	if (said.length === 0 && careful.length === 0)
 		return;
 
 	const box = document.createElement('div');
 	box.classList.add('plan-warning');
 	box.setAttribute('role', 'tooltip');
 
-	const head = document.createElement('div');
-	head.classList.add('plan-warning-head');
-	const sign = document.createElement('span');
-	sign.classList.add('plan-warning-sign');
-	sign.setAttribute('aria-hidden', 'true');
-	sign.textContent = '⚠';
-	head.appendChild(sign);
-	const title = document.createElement('span');
-	title.textContent = 'Παραβίαση κανόνα';
-	head.appendChild(title);
-	box.appendChild(head);
-
-	const list = document.createElement('ul');
-	list.classList.add('plan-warning-list');
-	said.forEach(one => {
-		const item = document.createElement('li');
-		item.textContent = one;
-		list.appendChild(item);
-	});
-	box.appendChild(list);
+	plan_warning_part(box, 'wrong', 'Παραβίαση κανόνα', said);
+	plan_warning_part(box, 'caution', 'Συνιστάται προσοχή', careful);
 
 	const note = document.createElement('p');
 	note.classList.add('plan-warning-note');
-	note.textContent = 'Ο αγώνας παραμένει εκεί που τον βάλατε — το πρόγραμμα δεν σας εμποδίζει, μόνο σας το επισημαίνει.';
+	note.textContent = said.length
+		? 'Ο αγώνας παραμένει εκεί που τον βάλατε — το πρόγραμμα δεν σας εμποδίζει, μόνο σας το επισημαίνει.'
+		: 'Ο αγώνας μπορεί να παιχτεί κανονικά. Η αναζήτηση όμως τηρεί αυτούς τους κανόνες, οπότε αξίζει μια δεύτερη ματιά.';
 	box.appendChild(note);
 
 	document.body.appendChild(box);
@@ -385,13 +428,13 @@ function plan_warning_open(cell) {
 //the panel follows the pointer and the keyboard alike, so that a plan can be put
 //right without a mouse
 document.addEventListener('mouseover', event => {
-	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong, td.cell-caution') : null;
 	if (cell !== null)
 		plan_warning_open(cell);
 });
 
 document.addEventListener('mouseout', event => {
-	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong, td.cell-caution') : null;
 	if (cell === null)
 		return;
 	//a move inside the cell is not a move out of it
@@ -401,7 +444,7 @@ document.addEventListener('mouseout', event => {
 });
 
 document.addEventListener('focusin', event => {
-	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong, td.cell-caution') : null;
 	if (cell !== null)
 		plan_warning_open(cell);
 	else
@@ -420,7 +463,7 @@ document.addEventListener('scroll', plan_warning_close, true);
  * @returns {void}
  */
 function plan_told(key) {
-	const cell = document.querySelector(`#sheet-plan td.cell-wrong[data-key="${key}"]`);
+	const cell = document.querySelector(`#sheet-plan td.cell-wrong[data-key="${key}"], #sheet-plan td.cell-caution[data-key="${key}"]`);
 	if (cell !== null)
 		plan_warning_open(cell);
 }
@@ -643,24 +686,28 @@ function plan_editor(cell) {
 	what.addEventListener('change', follow);
 	follow();
 
-	//what is already wrong with this slot, read in the place the change is made
-	const said = wb_complaints(key);
-	if (said.length) {
+	//what is already wrong with this slot, and what is worth a second look about
+	//it, read in the place the change is made
+	const tell = (kind, title, lines) => {
+		if (lines.length === 0)
+			return;
 		const wrong = document.createElement('div');
-		wrong.classList.add('plan-editor-wrong');
+		wrong.classList.add('plan-editor-said', 'plan-editor-' + kind);
 		const wrong_head = document.createElement('div');
-		wrong_head.classList.add('plan-editor-wrong-head');
-		wrong_head.textContent = '⚠ Παραβίαση κανόνα';
+		wrong_head.classList.add('plan-editor-said-head');
+		wrong_head.textContent = '⚠ ' + title;
 		wrong.appendChild(wrong_head);
 		const wrong_list = document.createElement('ul');
-		said.forEach(one => {
+		lines.forEach(one => {
 			const item = document.createElement('li');
 			item.textContent = one;
 			wrong_list.appendChild(item);
 		});
 		wrong.appendChild(wrong_list);
 		box.appendChild(wrong);
-	}
+	};
+	tell('wrong', 'Παραβίαση κανόνα', wb_complaints(key));
+	tell('caution', 'Συνιστάται προσοχή', wb_cautions(key));
 
 	const bar = document.createElement('div');
 	bar.classList.add('plan-editor-bar');

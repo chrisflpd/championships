@@ -3,13 +3,14 @@
   "private": true,
   "description": "checks for the scheduler, the page and the workbook it exports",
   "scripts": {
-    "test": "node page.js && node sheets.js && node robust.js && node export-scores.js",
+    "test": "node page.js && node sheets.js && node robust.js && node export-scores.js && node rules.js",
     "page": "node page.js",
     "robust": "node robust.js",
     "snap": "node export.js save && node schedule.js save",
     "snap:check": "node export.js check && node schedule.js check",
     "sheets": "node sheets.js",
-    "export-scores": "node export-scores.js"
+    "export-scores": "node export-scores.js",
+    "rules": "node rules.js"
   },
   "devDependencies": {
     "@xmldom/xmldom": "^0.9.10",

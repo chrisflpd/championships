@@ -27,10 +27,27 @@ search is held to what the configuration gave; the export writes whatever the
 plan ends up holding.
 
 Nothing is refused for breaking a rule — a plan being put right by hand passes
-through states that do not hold — but a slot on the wrong field for its sport, or
-holding a team that already plays that round, is marked, and hovering it or
-opening it reads out the rules it breaks under a red Παραβίαση κανόνα, one
-sentence to a bullet. A change that breaks one says so as
+through states that do not hold — but a slot that breaks one is marked, and
+hovering it or opening it reads out what it breaks, one sentence to a bullet,
+under one of two headings.
+
+**Παραβίαση κανόνα**, in red, is a plan that cannot be played at all: a match on a
+field its sport is not played on, a team drawn against itself, a team in two
+places in the one round.
+
+**Συνιστάται προσοχή**, in amber, is a plan that can be played perfectly well but
+is not the one the search would have found — the rules the camp keeps rather than
+the ones the game does. The same pair meeting twice in a morning or twice in a day
+at the one sport; a team at the same sport in two rounds running; a round holding
+more matches than the teams leave room for; a full zone that leaves somebody out;
+the team of the camp's own on the morning everybody arrives; the baseball, which
+is spread a zone at a time, out of turn or with its field taken in the round after
+it; a group's phases out of order; a knockout before the groups that feed it, or
+before another knockout it waits on; the match for the losers after the one for
+the winners; a final before the baseball final, which is played first of all.
+
+The checks read the plan as it stands, so a plan the search itself found says
+nothing at all — which is what `npm run rules` holds it to. A change that breaks one says so as
 soon as it is made rather than waiting to be hovered over. A field two sports
 share is one field: the match stands under the column of its own sport, and the
 other column is hatched to show the field taken.

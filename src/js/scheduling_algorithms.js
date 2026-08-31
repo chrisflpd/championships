@@ -46,6 +46,26 @@ function deepCopyObj(obj) {//for deep copy without recursion (because js had eno
 }
 
 
+//the baseball final is the first final played: every other final waits for it,
+//and it waits for none of them. the diamond takes the longest to set up and to
+//take down, so it goes first and the pitch is free for the rest of the day.
+function finalOutOfOrder(days, m, d, dz, r) {
+	if (!isFinalMatch(m)) return false;
+	if (m.sport.name !== BASEBALL_SPORT) {
+		let hasBaseballFinal = Object.values(config.knockouts).some(k =>
+			k.sport.name === BASEBALL_SPORT && isFinalMatch({ id: k.id, sport: k.sport }));
+		if (!hasBaseballFinal) return false;
+		let baseballFinalSlot = findMatchSlotInDays(days, match =>
+			match.sport.name === BASEBALL_SPORT && isFinalMatch(match));
+		if (!baseballFinalSlot) return true;
+		return !isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r);
+	}
+	let otherFinalSlot = findMatchSlotInDays(days, match =>
+		match.sport.name !== BASEBALL_SPORT && isFinalMatch(match));
+	if (!otherFinalSlot) return false;
+	return !isSlotAfter(otherFinalSlot.d, otherFinalSlot.dz, otherFinalSlot.r, d, dz, r);
+}
+
 function isFinalMatch(m) {
 	if (!config.knockouts || !config.knockouts[m.id]) return false;
 	for (let k of Object.values(config.knockouts)) {
@@ -178,13 +198,13 @@ function adjacentRoundForbids(days, d, dz, r, adj, slot, m, team1, team2, bbRank
 					return true;
 			}
 		}
-		//the baseball field is left free around a match that brings a team to the
-		//sport for the first time, not around every one
-		if (isBaseballIntroMatch(bbRanks, beside.match, d, dz, adj)
-			|| (isBaseballIntroMatch(bbRanks, m, d, dz, r) && beside.court.includes(BASEBALL_COURT))) {
-			if (slot.court.includes(BASEBALL_COURT))
-				return true;
-		}
+		//the diamond is laid out on the football pitch, so the field is left free in
+		//the round after a match that brings a team to the sport — nothing is asked
+		//of the round before it, and nothing at all of the matches that follow the
+		//team's first
+		if (adj < r && isBaseballIntroMatch(bbRanks, beside.match, d, dz, adj)
+			&& beside.court === slot.court)
+			return true;
 	}
 	return false;
 }
@@ -334,7 +354,7 @@ function ScheduleMatchesDefault(matches,days){
 			for (let dz = 0; dz< days[d].dzones.length; dz++){//for every zone of the day
 				for (let r = 0; r < days[d].dzones[dz].rounds.length; r++){//for every round of that zone of that day
 					let courtsToIterate = Object.keys(crts);
-					if (!(d === 0 && dz === 0) && r === 0) {
+					if (r === 0) {
 						if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 							let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 							if (bbSport) {
@@ -408,9 +428,6 @@ function ScheduleMatchesDefault(matches,days){
 								}
 
 								if (isBaseballGroupMatch(matches[m])) {
-									if (d === 0 && dz === 0) {
-										scheduled = true;
-									}
 									// the zone by zone spreading of the baseball group stage only
 									// holds for a match that brings a team to the sport for the
 									// first time. once both teams have played it, the match is
@@ -428,7 +445,7 @@ function ScheduleMatchesDefault(matches,days){
 										for (let pd = 0; pd <= d; pd++) {
 											let maxPdz = (pd === d) ? dz - 1 : days[pd].dzones.length - 1;
 											for (let pdz = 0; pdz <= maxPdz; pdz++) {
-												if (!(pd === 0 && pdz === 0) && days[pd].dzones[pdz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
+												if (days[pd].dzones[pdz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[pd].dzones[pdz])) {
 													too_early = true;
 													break;
 												}
@@ -437,7 +454,7 @@ function ScheduleMatchesDefault(matches,days){
 										}
 									}
 								} else {
-									if (!(d === 0 && dz === 0) && r === 0) {
+									if (r === 0) {
 										if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 											let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 											if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
@@ -636,27 +653,10 @@ function ScheduleMatchesDefault(matches,days){
 												break;
 											}
 										}
-										if (isFinalMatch(matches[m])) {
-											if (matches[m].sport.name === FOOTBALL_SPORT) {
-												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === BASEBALL_SPORT);
-												if (hasBaseballFinal) {
-													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === BASEBALL_SPORT && isFinalMatch(match));
-													if (!baseballFinalSlot) {
-														too_early = true;
-													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
-														too_early = true;
-													}
-												}
-											} else if (matches[m].sport.name === BASEBALL_SPORT) {
-												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === FOOTBALL_SPORT && isFinalMatch(match));
-												if (footballFinalSlot) {
-													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
-														too_late = true;
-													}
-												}
-											}
+										if (finalOutOfOrder(days, matches[m], d, dz, r)) {
+											too_early = true;
 										}
-										if (!(d === 0 && dz === 0) && r === 0) {
+										if (r === 0) {
 											if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 												let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
@@ -784,28 +784,11 @@ function ScheduleMatchesDefault(matches,days){
 												break;
 											}
 										}
-										if (isFinalMatch(matches[m])) {
-											if (matches[m].sport.name === FOOTBALL_SPORT) {
-												let hasBaseballFinal = Object.values(config.knockouts).some(k => k.sport.name === BASEBALL_SPORT);
-												if (hasBaseballFinal) {
-													let baseballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === BASEBALL_SPORT && isFinalMatch(match));
-													if (!baseballFinalSlot) {
-														too_early = true;
-													} else if (!isSlotAfter(d, dz, r, baseballFinalSlot.d, baseballFinalSlot.dz, baseballFinalSlot.r)) {
-														too_early = true;
-													}
-												}
-											} else if (matches[m].sport.name === BASEBALL_SPORT) {
-												let footballFinalSlot = findMatchSlotInDays(days, match => match.sport.name === FOOTBALL_SPORT && isFinalMatch(match));
-												if (footballFinalSlot) {
-													if (!isSlotAfter(footballFinalSlot.d, footballFinalSlot.dz, footballFinalSlot.r, d, dz, r)) {
-														too_early = true;
-													}
-												}
-											}
+										if (finalOutOfOrder(days, matches[m], d, dz, r)) {
+											too_early = true;
 										}
-										if (!(d === 0 && dz === 0) && r === 0) {
-											if (bbIntroLeft && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
+										if (r === 0) {
+											if (bbIntroLeft && days[d].dzones[dz].rounds.length >= 2 && !hasBaseballGroupMatchInZone(days[d].dzones[dz])) {
 												let bbSport = config.sports.find(sp => sp.name === BASEBALL_SPORT);
 												if (bbSport && bbSport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court)) {
 													too_early = true;

@@ -62,6 +62,20 @@ program has never heard of. It checks that anything too big for the template is
 refused outright rather than exported with matches missing, and that anything
 that does fit exports every single one of them.
 
+**`npm run rules`** — the two things a slot can be told about itself. It lays a
+plan out by hand, slot by slot, on a calendar small enough to name every one of
+them, and reads back what each rule says: a match on the wrong field, a team
+against itself or twice in a round under **Παραβίαση κανόνα**, and the camp's own
+rules — the pair met twice in a zone, the round overfull, the baseball out of
+turn, the knockout before its groups — under **Συνιστάται προσοχή**.
+
+The check worth having is the first one: it schedules the real configurations and
+holds the plans the search found to the rules the search keeps, so **anything said
+about them is the reading being stricter than the scheduling**. It has already
+caught one: the page draws every day with the four rounds the camp has, and a zone
+of the calendar therefore looks two rounds long even where the configuration gave
+it none, which had the baseball rules complaining about mornings nobody plays in.
+
 **`npm run snap` / `npm run snap:check`** — the workbook and the schedule, before
 and after a change.
 

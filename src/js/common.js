@@ -126,11 +126,11 @@ const config = {};
 /*
  * the sports the baseball rules turn on, named here rather than in each of the
  * conditions that ask for them. a camp that calls them something else has one
- * place to say so.
+ * place to say so. the field the diamond is laid out on is not named: it is
+ * whichever field the baseball is played on, which the configuration says.
  */
 const FOOTBALL_SPORT = 'Ποδόσφαιρο';
 const BASEBALL_SPORT = 'Μπέιζμπολ';
-const BASEBALL_COURT = 'Π Ποδόσφαιρο'; //the field kept clear around a first baseball match
 
 
 /**

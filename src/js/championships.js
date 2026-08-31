@@ -336,9 +336,11 @@ function search_impossible() {
 	});
 	const bbCount = Object.keys(bbTeams).length;
 	if (bbCount > 0) {
+		//a zone of two rounds is what such a match needs, which is what keeps the
+		//arrival morning out of the count without saying so
 		let zones = 0;
-		config.days.forEach((day, d) => day.dzones.forEach((dzone, dz) => {
-			if (dzone.rounds.length >= 2 && !(d === 0 && dz === 0))
+		config.days.forEach(day => day.dzones.forEach(dzone => {
+			if (dzone.rounds.length >= 2)
 				zones++;
 		}));
 		const needed = Math.ceil(bbCount / 2);
