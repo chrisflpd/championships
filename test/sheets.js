@@ -186,6 +186,11 @@ async function run(CONFIG, fail) {
 		&& /border-left:\s*0\.3mm dotted #000/.test(printCss)
 		&& !/pages-home-team[^{]*{[^}]*border-right/s.test(printCss),
 		'and the upright rules leave a team number joined to its name');
+	// the round cell is merged down its block, so the rules between the fields are
+	// painted across it rather than stopping at its column
+	check(/pages-round::after[^{]*{[^}]*repeating-linear-gradient/s.test(printCss)
+		&& /pages-round-said[^{]*{[^}]*background:\s*#fff/s.test(printCss),
+		'every horizontal rule crosses the round column, broken only by the name');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 
@@ -208,6 +213,34 @@ async function run(CONFIG, fail) {
 	const keys = rows.map(r => r.dataset.key).sort();
 	check(keys.join('|') === placed.map(p => p.key).sort().join('|'), 'and they are the very slots the plan holds');
 	check(rows.every(r => r.querySelectorAll('.pages-input').length === 3), 'each offering two scores and a referee');
+
+	console.log('\n=== the score boxes take digits and are walked like a sheet ===');
+	const scores = [...doc.querySelectorAll('#sheet-pages .pages-input[data-which="sh"], #sheet-pages .pages-input[data-which="sa"]')];
+	check(scores.every(box => box.type === 'text' && box.getAttribute('inputmode') === 'numeric'),
+		`all ${scores.length} score boxes are plain boxes with a number keypad and no arrows`);
+	// anything that is not a digit is dropped, however it got in
+	const dirty = scores[0];
+	dirty.value = '1e-2x3';
+	dirty.dispatchEvent(new window.Event('input', { bubbles: true }));
+	check(dirty.value === '123', `only the digits are kept: 1e-2x3 became ${dirty.value}`);
+	dirty.value = '';
+	dirty.dispatchEvent(new window.Event('input', { bubbles: true }));
+	// tab to the right, shift and tab to the left, return down to the next match
+	const press = (el, key, shift) => el.dispatchEvent(new window.KeyboardEvent('keydown',
+		{ key: key, shiftKey: shift === true, bubbles: true, cancelable: true }));
+	const first = doc.querySelector('#sheet-pages .pages-input[data-which="sh"]');
+	first.focus();
+	press(first, 'Tab');
+	check(doc.activeElement === first.closest('tr').querySelector('.pages-input[data-which="sa"]'),
+		'tab moves to the score on the right');
+	press(doc.activeElement, 'Tab', true);
+	check(doc.activeElement === first, 'and shift and tab back to the one on the left');
+	press(first, 'Enter');
+	check(doc.activeElement === scores.filter(b => b.dataset.which === 'sh')[1],
+		'return drops to the left score of the next match');
+	// the referee is left alone: it is not walked through with the scores
+	const ref = first.closest('tr').querySelector('.pages-input[data-which="ref"]');
+	check(scores.indexOf(ref) === -1, 'and the referee is not one of the boxes they are walked through');
 
 	console.log('\n=== a score typed in ===');
 	// a group match, since a knockout has nobody in it until one is played
@@ -360,6 +393,12 @@ async function run(CONFIG, fail) {
 		const panel = doc.querySelector('.plan-warning');
 		check(panel !== null && /παίζει ήδη/.test(panel.textContent),
 			'and hovering it opens a panel that says which rule is broken');
+		check(panel !== null && /Παραβίαση κανόνα/.test(panel.querySelector('.plan-warning-head').textContent),
+			'headed Παραβίαση κανόνα');
+		// each rule is a sentence of its own, so each one opens with a capital
+		check(panel !== null && [...panel.querySelectorAll('.plan-warning-list li')]
+			.every(li => li.textContent[0] === li.textContent[0].toLocaleUpperCase('el')),
+			'and every rule under a bullet starts as a sentence does');
 		check(panel !== null && panel.querySelectorAll('.plan-warning-list li').length
 			=== marked.dataset.wrong.split('\n').length,
 			'with one line per rule');

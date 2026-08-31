@@ -205,9 +205,15 @@ function pages_day(day, retell) {
 					: 'pages-round-end');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
+				//the name is a thing of its own inside the cell, so that the rules
+				//drawn across the cell can pass behind it and be broken by it rather
+				//than being struck through the letters
+				const said = document.createElement('span');
+				said.classList.add('pages-round-said');
 				//named by where it stands in the day and not by the rank it is keyed
 				//with, so that the morning the camp arrives on still reads Πρωί Β'
-				name.textContent = pages_round_name(dzone.zone, round_index);
+				said.textContent = pages_round_name(dzone.zone, round_index);
+				name.appendChild(said);
 				row.appendChild(name);
 			}
 
@@ -254,9 +260,13 @@ function pages_day(day, retell) {
 				const cell = document.createElement('td');
 				cell.classList.add('pages-score', which === 'sh' ? 'pages-home-score' : 'pages-away-score');
 				const box = document.createElement('input');
-				box.type = 'number';
-				box.min = '0';
-				box.step = '1';
+				//a score is a count of goals, so it takes digits and nothing else. a
+				//number box would take a sign, a point and an exponent besides, and
+				//would put a pair of arrows in a cell that is 6mm wide, so it is a
+				//plain box that only lets digits through.
+				box.type = 'text';
+				box.inputMode = 'numeric';
+				box.autocomplete = 'off';
 				box.classList.add('pages-input');
 				box.dataset.which = which;
 				box.value = value === null ? '' : String(value);
@@ -299,6 +309,13 @@ function pages_wire(card) {
 		const box = event.target;
 		if (!box.classList || !box.classList.contains('pages-input'))
 			return;
+		//whatever finds its way into a score box — typed, pasted or dictated — comes
+		//down to its digits
+		if (box.dataset.which !== 'ref') {
+			const digits = box.value.replace(/\D+/g, '');
+			if (digits !== box.value)
+				box.value = digits;
+		}
 		const row = box.closest('tr[data-key]');
 		if (row === null)
 			return;
@@ -321,6 +338,59 @@ function pages_wire(card) {
 		points_refresh();
 	});
 }
+
+/*
+ * moving between the score boxes
+ *
+ * the scores are entered off a stack of paper, one match after the next, and the
+ * hand never leaves the keyboard while that is going on. so the boxes are walked
+ * the way a sheet is walked: tab to the one on the right, shift and tab to the
+ * one on the left, and return down to the next match. the referee is typed far
+ * less often and is left to the pointer.
+ */
+
+//every score box of the pages, in the order they are read in: the two of a match
+//one after the other, match after match and day after day
+function pages_score_boxes() {
+	return [...document.querySelectorAll(
+		'#sheet-pages .pages-input[data-which="sh"], #sheet-pages .pages-input[data-which="sa"]')];
+}
+
+function pages_beside(box, step) {
+	const boxes = pages_score_boxes();
+	const at = boxes.indexOf(box);
+	return at === -1 ? null : (boxes[at + step] || null);
+}
+
+//return drops to the left score of the next match, as it drops a row in a sheet
+function pages_below(box) {
+	const homes = [...document.querySelectorAll('#sheet-pages .pages-input[data-which="sh"]')];
+	const row = box.closest('tr');
+	const mine = row === null ? null : row.querySelector('.pages-input[data-which="sh"]');
+	const at = homes.indexOf(mine);
+	return at === -1 ? null : (homes[at + 1] || null);
+}
+
+document.addEventListener('keydown', event => {
+	const box = event.target.closest ? event.target.closest('#sheet-pages .pages-input') : null;
+	if (box === null || box.dataset.which === 'ref')
+		return;
+	let to = null;
+	if (event.key === 'Tab')
+		to = pages_beside(box, event.shiftKey ? -1 : 1);
+	else if (event.key === 'Enter')
+		to = pages_below(box);
+	else
+		return;
+	//at the end of the last day there is nowhere of ours to go, so the page is
+	//left to do whatever it would have done
+	if (to === null)
+		return;
+	event.preventDefault();
+	to.focus();
+	//what is there is replaced by what is typed next, rather than added to
+	to.select();
+});
 
 function pages_refresh_knockouts() {
 	document.querySelectorAll('#sheet-pages tr[data-key]').forEach(row => {

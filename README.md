@@ -27,22 +27,31 @@ plan ends up holding.
 Nothing is refused for breaking a rule — a plan being put right by hand passes
 through states that do not hold — but a slot on the wrong field for its sport, or
 holding a team that already plays that round, is marked, and hovering it or
-opening it reads out the rules it breaks. A change that breaks one says so as
+opening it reads out the rules it breaks under a red Παραβίαση κανόνα, one
+sentence to a bullet. A change that breaks one says so as
 soon as it is made rather than waiting to be hovered over. A field two sports
 share is one field: the match stands under the column of its own sport, and the
 other column is hatched to show the field taken.
 
 **Φύλλα αγώνων** is what was printed every morning and handed out: a block per
 day with the round, the field, the two teams by number and by name, and the boxes
-for the two scores and the referee. Print one day, or tick several and print them
-two to a side of A4, which is how they fitted in the workbook.
+for the two scores and the referee. The round is named on its side, as it is on
+the paper, since its column is the narrow one Excel gave it. Print one day, or
+tick several and print them two to a side of A4, which is how they fitted in the
+workbook.
+
+A score box takes digits and nothing else, and the boxes are walked the way a
+sheet is walked while a stack of results is being typed in: tab to the score on
+the right, shift and tab to the one on the left, and return down to the next
+match.
 
 What comes out of the printer is the block the workbook itself printed, measured
 off a page exported from the real thing: the date across the top over a double
 rule, the round named down the side of its own five field rows, the fields in
 italic, and the rules that tell the parts apart — dotted between the fields of a
 round, single between the rounds of a zone, double between the zones, and the
-frame of the day around the lot. The screen keeps the column names and the print
+frame of the day around the lot. Every one of them runs the whole width of the
+block, the round column included, broken only where the name of the round stands. The screen keeps the column names and the print
 takes them off, as the workbook had none.
 
 **Βαθμολογία** is the points. Each group gets a table of the template's columns —

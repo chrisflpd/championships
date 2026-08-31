@@ -377,14 +377,26 @@
 	text-transform: uppercase;
 }
 
-/* the round names the rows beside it, as the template merged it down the block */
+/* the round names the rows beside it, as the template merged it down the block.
+   its column is a narrow one — the proportions are Excel's — so the name is set
+   on its side, the way it is on the paper, rather than pushing the column wider
+   than it is meant to be. */
 .pages-round {
 	border-right: 1px solid var(--border);
 	color: var(--muted);
 	font-size: 13px;
 	font-weight: 600;
+	padding-left: 0;
+	padding-right: 0;
+	position: relative;
+	text-align: center;
 	vertical-align: middle;
 	white-space: nowrap;
+}
+
+.pages-round-said {
+	transform: rotate(180deg);
+	writing-mode: vertical-rl;
 }
 
 .pages-round-first > * {
@@ -782,9 +794,36 @@
 		font-size: 11.9pt;
 		font-weight: 400;
 		padding: 0;
+		position: relative;
 		text-align: center;
-		transform: rotate(180deg);
-		writing-mode: vertical-rl;
+	}
+
+	/* the cell is merged down the whole round, so the rules between the fields —
+	   which are borders of the cells beside it and stop at their own column — are
+	   drawn across it here instead, one every row from the second down. that is
+	   what makes every horizontal line run the whole width of the block. */
+	body.is-printing .pages-table .pages-round::after {
+		background: repeating-linear-gradient(to bottom,
+			#000 0 0.3mm,
+			transparent 0.3mm 5.4mm);
+		content: '';
+		left: 0;
+		-webkit-mask-image: repeating-linear-gradient(to right, #000 0 0.3mm, transparent 0.3mm 0.6mm);
+		mask-image: repeating-linear-gradient(to right, #000 0 0.3mm, transparent 0.3mm 0.6mm);
+		position: absolute;
+		right: 0;
+		top: 5.4mm;
+		bottom: 0;
+	}
+
+	/* the name is drawn over them and carries the paper with it, so a rule is
+	   broken by the letters rather than struck through them */
+	body.is-printing .pages-table .pages-round-said {
+		background: #fff;
+		display: inline-block;
+		padding: 1.1mm 0;
+		position: relative;
+		z-index: 1;
 	}
 
 	/* the merged round cell closes its own block */
@@ -858,7 +897,6 @@
 	/* a score is written on the paper by hand, so the box has to be a line to
 	   write on rather than a filled in field */
 	body.is-printing .pages-input {
-		appearance: textfield;
 		background: none !important;
 		border: 0;
 		border-radius: 0;
@@ -870,12 +908,6 @@
 		padding: 0 0.7mm;
 		text-align: right;
 		width: 100%;
-	}
-
-	body.is-printing .pages-input::-webkit-inner-spin-button,
-	body.is-printing .pages-input::-webkit-outer-spin-button {
-		appearance: none;
-		margin: 0;
 	}
 
 	body.is-printing .pages-ref .pages-input {

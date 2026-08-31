@@ -525,13 +525,15 @@ function wb_complaints(key) {
 	const game = wb_at(key);
 	if (game === null)
 		return [];
+	//each one is read as a sentence of its own under a bullet, so each one is
+	//written as one
 	const said = [];
 	const parts = key.split('|');
 	const court = parts[3];
 	if (!game.sport.courts.includes(court))
-		said.push(`το ${court} δεν είναι γήπεδο για ${game.sport.name}`);
+		said.push(`Το ${court} δεν είναι γήπεδο για ${game.sport.name}`);
 	if (game.kn === null && game.home === game.away)
-		said.push('η ομάδα παίζει με τον εαυτό της');
+		said.push('Η ομάδα παίζει με τον εαυτό της');
 	const round_prefix = parts.slice(0, 3).join('|') + '|';
 	const here = [game.home, game.away].filter(id => id !== null);
 	for (const other_key in workbook.slots) {
@@ -540,7 +542,7 @@ function wb_complaints(key) {
 		const other = workbook.slots[other_key];
 		[other.home, other.away].forEach(id => {
 			if (id !== null && here.includes(id))
-				said.push(`η ${wb_team_name(id)} παίζει ήδη στον ίδιο γύρο`);
+				said.push(`Η ${wb_team_name(id)} παίζει ήδη στον ίδιο γύρο`);
 		});
 	}
 	return said;

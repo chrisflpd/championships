@@ -351,9 +351,7 @@ function plan_warning_open(cell) {
 	sign.textContent = '⚠';
 	head.appendChild(sign);
 	const title = document.createElement('span');
-	title.textContent = said.length === 1
-		? 'Ο κανόνας που παραβιάζεται'
-		: `Οι ${said.length} κανόνες που παραβιάζονται`;
+	title.textContent = 'Παραβίαση κανόνα';
 	head.appendChild(title);
 	box.appendChild(head);
 
@@ -652,9 +650,7 @@ function plan_editor(cell) {
 		wrong.classList.add('plan-editor-wrong');
 		const wrong_head = document.createElement('div');
 		wrong_head.classList.add('plan-editor-wrong-head');
-		wrong_head.textContent = said.length === 1
-			? '⚠ Ο κανόνας που παραβιάζεται'
-			: `⚠ Οι ${said.length} κανόνες που παραβιάζονται`;
+		wrong_head.textContent = '⚠ Παραβίαση κανόνα';
 		wrong.appendChild(wrong_head);
 		const wrong_list = document.createElement('ul');
 		said.forEach(one => {
