@@ -27,6 +27,18 @@ function pages_date(date) {
 	});
 }
 
+//the workbook was printed with Excel's long English date even though the rest
+//of the sheet was in Greek. keep the friendly Greek date on the screen and the
+//template's date on the paper.
+function pages_print_date(date) {
+	return date.toLocaleDateString('en-US', {
+		weekday: 'long',
+		day: '2-digit',
+		month: 'long',
+		year: 'numeric',
+	});
+}
+
 /**
  * @param {Element} sheet
  * @returns {void}
@@ -95,8 +107,15 @@ function pages_day(day, retell) {
 
 	const when = document.createElement('h3');
 	when.classList.add('pages-date');
-	when.textContent = pages_date(day.date);
 	head.appendChild(when);
+	const screen_date = document.createElement('span');
+	screen_date.classList.add('pages-date-screen');
+	screen_date.textContent = pages_date(day.date);
+	when.appendChild(screen_date);
+	const print_date = document.createElement('span');
+	print_date.classList.add('pages-date-print');
+	print_date.textContent = pages_print_date(day.date);
+	when.appendChild(print_date);
 
 	const print_one = document.createElement('button');
 	print_one.type = 'button';
@@ -109,6 +128,18 @@ function pages_day(day, retell) {
 	const table = document.createElement('table');
 	table.classList.add('pages-table');
 	card.appendChild(table);
+
+	//the widths are the ones of columns C:K in the workbook. percentages keep
+	//the same proportions on screen and when the table is fitted to A4.
+	const colgroup = document.createElement('colgroup');
+	const excel_widths = [4.332, 17, 4.332, 16.332, 4.332, 16.332, 6.219, 6.219, 21.887];
+	const excel_total = excel_widths.reduce((sum, width) => sum + width, 0);
+	excel_widths.forEach(width => {
+		const col = document.createElement('col');
+		col.style.width = `${100 * width / excel_total}%`;
+		colgroup.appendChild(col);
+	});
+	table.appendChild(colgroup);
 
 	const thead = document.createElement('thead');
 	table.appendChild(thead);
@@ -130,14 +161,17 @@ function pages_day(day, retell) {
 	const body = document.createElement('tbody');
 	table.appendChild(body);
 
-	day.dzones.forEach(dzone => dzone.rounds.forEach(round => {
+	day.dzones.forEach(dzone => dzone.rounds.forEach((round, round_index) => {
 		workbook.cols.forEach((col, c) => {
 			const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
 			const game = wb_at(key);
 			const mine = game !== null && wb_shows(game, col, c);
 			const row = document.createElement('tr');
-			if (c === 0)
+			if (c === 0) {
 				row.classList.add('pages-round-first');
+				if (round_index === 0)
+					row.classList.add('pages-zone-first');
+			}
 			body.appendChild(row);
 
 			if (c === 0) {
@@ -264,11 +298,13 @@ function pages_wire(card) {
 function pages_print(cards) {
 	if (cards.length === 0)
 		return;
-	document.querySelectorAll('.is-print, .print-break').forEach(one => {
-		one.classList.remove('is-print', 'print-break');
+	document.querySelectorAll('.is-print, .print-break, .print-pair-first, .print-pair-last').forEach(one => {
+		one.classList.remove('is-print', 'print-break', 'print-pair-first', 'print-pair-last');
 	});
 	cards.forEach((card, i) => {
 		card.classList.add('is-print');
+		card.classList.toggle('print-pair-first', i % 2 === 0);
+		card.classList.toggle('print-pair-last', i % 2 === 1 || i === cards.length - 1);
 		//a page holds two, so the second of every pair is the last one on its sheet
 		if (i % 2 === 1 && i !== cards.length - 1)
 			card.classList.add('print-break');
@@ -276,8 +312,8 @@ function pages_print(cards) {
 	document.body.classList.add('is-printing');
 	const clean = () => {
 		document.body.classList.remove('is-printing');
-		document.querySelectorAll('.is-print, .print-break').forEach(one => {
-			one.classList.remove('is-print', 'print-break');
+		document.querySelectorAll('.is-print, .print-break, .print-pair-first, .print-pair-last').forEach(one => {
+			one.classList.remove('is-print', 'print-break', 'print-pair-first', 'print-pair-last');
 		});
 		window.removeEventListener('afterprint', clean);
 	};

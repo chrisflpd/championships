@@ -7,26 +7,38 @@
  */
 
 .sheet-tabs {
-	border-bottom: 1px solid var(--border);
+	align-items: flex-end;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-bottom-color: var(--border-strong);
+	border-radius: 12px 12px 0 0;
 	display: flex;
-	gap: 2px;
-	margin-bottom: 14px;
+	gap: 4px;
+	margin-bottom: 16px;
+	overflow-x: auto;
+	padding: 6px 7px 0;
 }
 
 .sheet-tab {
-	background: none;
-	border: 0;
-	border-bottom: 2px solid transparent;
+	background: transparent;
+	border: 1px solid transparent;
+	border-bottom: 3px solid transparent;
+	border-radius: 10px 10px 0 0;
 	color: var(--muted);
 	cursor: pointer;
 	font: inherit;
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 600;
 	margin-bottom: -1px;
-	padding: 8px 14px;
+	min-width: 9.5em;
+	padding: 10px 18px 9px;
+	position: relative;
+	transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+	white-space: nowrap;
 }
 
 .sheet-tab:hover {
+	background: color-mix(in srgb, var(--surface) 55%, transparent);
 	color: var(--text);
 }
 
@@ -37,8 +49,15 @@
 }
 
 .sheet-tab.is-open {
+	background: var(--surface);
+	border-color: var(--border);
 	border-bottom-color: var(--accent);
+	box-shadow: 0 -1px 4px rgba(16, 20, 30, .06);
 	color: var(--accent);
+}
+
+.sheet {
+	font-size: 14px;
 }
 
 
@@ -122,7 +141,7 @@
 	box-shadow: var(--shadow);
 	display: flex;
 	flex-direction: column;
-	font-size: 12.5px;
+	font-size: 14px;
 	gap: 8px;
 	padding: 12px;
 	position: absolute;
@@ -184,7 +203,7 @@
 
 .pages-hint {
 	color: var(--muted);
-	font-size: 12.5px;
+	font-size: 14px;
 }
 
 .pages-list {
@@ -212,7 +231,7 @@
 
 .pages-date {
 	flex: 1;
-	font-size: 13.5px;
+	font-size: 15px;
 	font-weight: 650;
 	margin: 0;
 	text-transform: capitalize;
@@ -220,8 +239,13 @@
 
 .pages-table {
 	border-collapse: collapse;
-	font-size: 12.5px;
+	font-size: 14px;
+	table-layout: fixed;
 	width: 100%;
+}
+
+.pages-date-print {
+	display: none;
 }
 
 .pages-table th,
@@ -234,7 +258,7 @@
 .pages-table thead th {
 	border-top: 0;
 	color: var(--muted);
-	font-size: 10.5px;
+	font-size: 12px;
 	font-weight: 550;
 	letter-spacing: .02em;
 	padding-bottom: 5px;
@@ -245,7 +269,7 @@
 .pages-round {
 	border-right: 1px solid var(--border);
 	color: var(--muted);
-	font-size: 11.5px;
+	font-size: 13px;
 	font-weight: 600;
 	vertical-align: middle;
 	white-space: nowrap;
@@ -328,7 +352,7 @@
 .points-sport-name {
 	border-bottom: 2px solid var(--sport-color, var(--border-strong));
 	color: var(--sport-color, var(--text));
-	font-size: 12.5px;
+	font-size: 14px;
 	font-weight: 650;
 	letter-spacing: .03em;
 	margin: 0 0 10px;
@@ -370,14 +394,14 @@
 
 .points-group-name {
 	color: var(--muted);
-	font-size: 11.5px;
+	font-size: 13px;
 	font-weight: 600;
 	margin: 0 0 6px;
 }
 
 .points-table {
 	border-collapse: collapse;
-	font-size: 12.5px;
+	font-size: 14px;
 }
 
 .points-table th,
@@ -390,7 +414,7 @@
 .points-table thead th {
 	border-bottom: 1px solid var(--border);
 	color: var(--muted);
-	font-size: 10px;
+	font-size: 11.5px;
 	font-weight: 550;
 	letter-spacing: .03em;
 }
@@ -459,13 +483,13 @@
 
 .points-legend dt {
 	color: var(--muted);
-	font-size: 11px;
+	font-size: 12.5px;
 	font-weight: 650;
 	text-align: right;
 }
 
 .points-legend dd {
-	font-size: 11.5px;
+	font-size: 13px;
 	margin: 0;
 }
 
@@ -493,10 +517,27 @@
 	}
 
 	body.is-printing .pages-day.is-print {
+		background: #fff;
+		border: .35mm solid #000;
+		border-radius: 0;
 		box-shadow: none;
 		break-inside: avoid;
+		color: #000;
 		display: block;
+		font-family: "Trebuchet MS", Arial, sans-serif;
+		height: 100mm;
+		margin: 0 auto;
+		overflow: hidden;
 		page-break-inside: avoid;
+		width: 180mm;
+	}
+
+	body.is-printing .pages-day.print-pair-first {
+		margin-top: 15mm;
+	}
+
+	body.is-printing .pages-day.print-pair-first:not(.print-pair-last) {
+		margin-bottom: 6mm;
 	}
 
 	/* two days to a side of A4, which is how they fitted in the workbook */
@@ -506,29 +547,143 @@
 	}
 
 	body.is-printing .pages-list {
-		gap: 10px;
+		display: block;
+		gap: 0;
 	}
 
 	body.is-printing .pages-head {
-		background: none;
+		background: #fff;
+		border-bottom: .7mm double #000;
+		display: block;
+		height: 7mm;
+		padding: 0;
+	}
+
+	body.is-printing .pages-date {
+		align-items: center;
+		display: flex;
+		font-size: 12pt;
+		font-weight: 400;
+		height: 100%;
+		justify-content: center;
+		line-height: 1;
+		text-align: center;
+		text-transform: none;
+	}
+
+	body.is-printing .pages-date-screen {
+		display: none;
+	}
+
+	body.is-printing .pages-date-print {
+		display: inline;
+	}
+
+	body.is-printing .pages-table {
+		border-collapse: collapse;
+		font-size: 10.5pt;
+		height: calc(100% - 7mm);
+		line-height: 1;
+		table-layout: fixed;
+	}
+
+	body.is-printing .pages-table thead {
+		display: none;
+	}
+
+	body.is-printing .pages-table tbody tr {
+		height: 4.65mm;
+	}
+
+	body.is-printing .pages-table tbody th,
+	body.is-printing .pages-table tbody td {
+		background: #fff !important;
+		border: 0;
+		border-bottom: .15mm dotted #555;
+		border-left: .2mm dashed #000;
+		color: #000;
+		padding: 0 .7mm;
+		vertical-align: middle;
+	}
+
+	body.is-printing .pages-table tbody tr:last-child > * {
+		border-bottom: 0;
+	}
+
+	body.is-printing .pages-table .pages-round {
+		border-left: 0;
+		border-right: .2mm solid #000;
+		font-size: 10pt;
+		font-weight: 400;
+		padding: 0;
+		text-align: center;
+		transform: rotate(180deg);
+		writing-mode: vertical-rl;
+	}
+
+	body.is-printing .pages-table .pages-field {
+		font-style: italic;
+		font-weight: 400;
+		white-space: nowrap;
+	}
+
+	body.is-printing .pages-table .pages-round-first > * {
+		border-top: .25mm solid #000;
+	}
+
+	body.is-printing .pages-table .pages-zone-first > * {
+		border-top: .7mm double #000;
+	}
+
+	body.is-printing .pages-table .pages-id {
+		font-variant-numeric: tabular-nums;
+		text-align: left;
+	}
+
+	body.is-printing .pages-table .pages-team {
+		font-weight: 400;
+		white-space: nowrap;
+	}
+
+	body.is-printing .pages-table .pages-none {
+		color: transparent;
+	}
+
+	body.is-printing .pages-score,
+	body.is-printing .pages-ref {
+		padding: 0 !important;
 	}
 
 	/* a score is written on the paper by hand, so the box has to be a line to
 	   write on rather than a filled in field */
 	body.is-printing .pages-input {
+		appearance: textfield;
 		background: none !important;
 		border: 0;
-		border-bottom: 1px solid #000;
 		border-radius: 0;
+		box-shadow: none;
 		color: #000;
+		font: inherit;
+		height: 100%;
+		margin: 0;
+		padding: 0 .7mm;
+		text-align: right;
+		width: 100%;
 	}
 
-	body.is-printing .pages-played .pages-input {
-		border-bottom-color: #000;
+	body.is-printing .pages-input::-webkit-inner-spin-button,
+	body.is-printing .pages-input::-webkit-outer-spin-button {
+		appearance: none;
+		margin: 0;
+	}
+
+	body.is-printing .pages-ref .pages-input {
+		text-align: left;
+		width: 100%;
 	}
 
 	@page {
-		margin: 10mm;
+		margin: 19.05mm 6.35mm;
 		size: A4 portrait;
 	}
 }

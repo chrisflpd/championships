@@ -107,6 +107,25 @@ async function run(CONFIG, fail) {
 	});
 	check(rowBad === 0, `every day sheet has a row per field of every round (${fields} fields)`);
 	check(roundBad === 0, 'and every round names itself once beside its own rows');
+	check(cards.every(card => card.querySelectorAll('colgroup col').length === 9),
+		'every printed day keeps the nine column proportions of Excel C:K');
+	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
+		&& card.querySelector('.pages-date-print') !== null),
+		'every day carries its Greek screen date and its Excel-style print date');
+	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
+		'the printed date uses Excel long-date wording');
+
+	//the print marker makes explicit pairs: first+second on one A4, third on the
+	//next one. the real print dialog is replaced here so the DOM can be read.
+	window.print = () => {};
+	window.eval('pages_print')(cards.slice(0, 3));
+	check(cards[0].classList.contains('print-pair-first')
+		&& cards[1].classList.contains('print-pair-last')
+		&& cards[1].classList.contains('print-break')
+		&& cards[2].classList.contains('print-pair-first')
+		&& cards[2].classList.contains('print-pair-last'),
+		'three picked days are marked as a two-day A4 pair followed by one day');
+	window.dispatchEvent(new window.Event('afterprint'));
 
 	// every match of the plan has a row of its own on the pages, and nothing else does
 	const placed = window.eval('wb_placed()');
