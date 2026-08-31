@@ -441,7 +441,9 @@
 	border-bottom: 0;
 }
 
-/* the round names the rows beside it, as the template merged it down the block.
+/* the round names its block from a cell merged down the whole of it, as the
+   template merged it, and nothing is drawn through it: that is what makes the
+   block read as one round rather than as five rows that happen to sit together.
    its column is a narrow one — the proportions are Excel's — so the name is set
    on its side, the way it is on the paper, rather than pushing the column wider
    than it is meant to be. */
@@ -452,7 +454,6 @@
 	font-weight: 600;
 	padding-left: 0;
 	padding-right: 0;
-	position: relative;
 	text-align: center;
 	vertical-align: middle;
 	white-space: nowrap;
@@ -461,34 +462,6 @@
 .pages-round-said {
 	transform: rotate(180deg);
 	writing-mode: vertical-rl;
-}
-
-/* the cell is merged down the whole round, so the rules between its fields —
-   which are borders of the cells beside it and stop at their own column — are
-   drawn across it here instead, one every row from the second down. that is what
-   makes every horizontal rule run the whole width, and it runs the whole of it:
-   the name is written over the rule rather than breaking it. */
-.pages-round::after {
-	background: repeating-linear-gradient(to bottom,
-		var(--pages-rule) 0 var(--pages-rule-weight),
-		transparent var(--pages-rule-weight) var(--pages-row));
-	content: '';
-	/* a row at a time, from the second row down, for as many rows as the cell
-	   stands beside. every measure here is given outright: a share of the cell
-	   would read better, but a percentage — of the height or of the offsets —
-	   is resolved against a cell that spans rows in no way worth relying on, and
-	   what comes out is a band of hatching rather than a rule. */
-	height: calc(var(--pages-row) * (var(--pages-fields) - 1));
-	left: 0;
-	position: absolute;
-	right: 0;
-	top: var(--pages-row);
-	-webkit-mask-image: repeating-linear-gradient(to right,
-		#000 0 var(--pages-rule-weight),
-		transparent var(--pages-rule-weight) calc(var(--pages-rule-weight) * 2));
-	mask-image: repeating-linear-gradient(to right,
-		#000 0 var(--pages-rule-weight),
-		transparent var(--pages-rule-weight) calc(var(--pages-rule-weight) * 2));
 }
 
 .pages-field {

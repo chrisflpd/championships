@@ -52,9 +52,14 @@ off a page exported from the real thing: the date across the top over a double
 rule, the round named down the side of its own five field rows, the fields in
 italic, and the rules that tell the parts apart — dotted between the fields of a
 round, single between the rounds of a zone, double between the zones, and the
-frame of the day around the lot. Every one of them runs the whole width of the
-block, the round column included: the name of the round is written over the rule
-rather than breaking it.
+frame of the day around the lot. The round names its block from one cell merged
+down the whole of it, with nothing drawn through it, which is what makes a block
+read as one round rather than as five rows that happen to sit together.
+
+There is no row naming the sports on a printed day, so a field two sports share
+is named by the sport it is being played for: the baseball diamond laid out on
+the football pitch reads Μπέιζμπολ on the baseball line and Π Ποδόσφαιρο on the
+football one.
 
 The screen is ruled the same way, so that the tab reads as the sheet it prints.
 The rules are declared once and drawn in whichever measures the side asks for —

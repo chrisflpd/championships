@@ -196,6 +196,18 @@ async function run(CONFIG, fail) {
 	});
 	check(rowBad === 0, `every day sheet has a row per field of every round (${fields} fields)`);
 	check(roundBad === 0, 'and every round names itself once beside its own rows');
+	// there is no row naming the sports here, so a field two sports share is named
+	// by the sport it is being played for rather than twice by the field
+	const cols = window.eval('workbook').cols;
+	const wantFields = cols.map((col, i) =>
+		cols.findIndex(other => other.court === col.court) === i ? col.court : col.sport.name);
+	check(cards.every(card => {
+		const names = [...card.querySelectorAll('.pages-field')].map(cell => cell.textContent);
+		return names.length > 0 && names.length % wantFields.length === 0
+			&& names.every((name, i) => name === wantFields[i % wantFields.length]);
+	}), `every round names its fields ${wantFields.join(', ')}`);
+	check(new Set(wantFields).size === wantFields.length,
+		'and no two of them read the same');
 	if (4 % cfg.zones.length === 0)
 		check(cards.every(card => card.querySelectorAll('tbody tr').length === 4 * fields),
 			'the Excel sheet keeps four ruled round blocks per printed day');
@@ -248,18 +260,12 @@ async function run(CONFIG, fail) {
 		&& /border-left:\s*0\.3mm dotted #000/.test(printCss)
 		&& !/pages-home-team[^{]*{[^}]*border-right/s.test(printCss),
 		'and the upright rules leave a team number joined to its name');
-	// the round cell is merged down its block, so the rules between the fields are
-	// painted across it, the whole of it: the name is written over the rule rather
-	// than carrying a ground of its own that would break it into stubs
-	check(/pages-round::after[^{]*{[^}]*repeating-linear-gradient/s.test(printCss)
-		&& !/pages-round-said[^{]*{[^}]*background/s.test(printCss),
-		'every horizontal rule crosses the round column unbroken');
-	// a percentage of a cell that spans rows is resolved in no way worth relying
-	// on, and what came out of it was a band of hatching rather than a rule, so
-	// every measure of that strip is given outright
-	check(!/pages-round::after[^{]*{[^}]*(inset|top|bottom|height)[^;]*100%/s.test(printCss)
-		&& /pages-round::after[^{]*{[^}]*height:\s*calc\(var\(--pages-row\)/s.test(printCss),
-		'and is placed in measures given outright, never a share of the merged cell');
+	// the round names its block from one merged cell with nothing drawn through it,
+	// which is what makes the block read as one round. drawing the rules of the
+	// rows across it was tried and is not worth it: what a browser makes of a
+	// strip laid over a cell that spans rows is not a rule.
+	check(!/pages-round::after/.test(printCss),
+		'nothing is drawn through the merged round cell');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 

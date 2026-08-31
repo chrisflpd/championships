@@ -18,6 +18,27 @@ function pages_round_name(zone, rank) {
 	return zone.name === null ? `Γύρος ${rank + 1}` : `${zone.name} ${ordinal}`;
 }
 
+/**
+ * what a row of a day calls its field.
+ *
+ * the plan names a sport over every one of its fields, so a field two sports
+ * share can be named by the field there. here there is no such row: the block
+ * is the round, and every line of it is one field of it. so the field is named
+ * by its own name, and where two sports share it — the baseball diamond is laid
+ * out on the football pitch — the second of them is named by the sport instead,
+ * which is what the workbook printed and what whoever is holding the sheet
+ * needs to read.
+ *
+ * @param {object} col - a column of the workbook
+ * @param {number} index - where it stands among them
+ * @returns {string}
+ */
+function pages_field_name(col, index) {
+	return workbook.cols.findIndex(other => other.court === col.court) === index
+		? col.court
+		: col.sport.name;
+}
+
 function pages_date(date) {
 	return date.toLocaleDateString('el', {
 		weekday: 'long',
@@ -202,9 +223,6 @@ function pages_day(day, retell) {
 					: 'pages-round-end');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
-				//the rules drawn down the merged cell are spaced a row at a time, so
-				//it carries how many rows it stands beside
-				name.style.setProperty('--pages-fields', workbook.cols.length);
 				//the name is a thing of its own inside the cell, so that the rules
 				//drawn across the cell can pass behind it and be broken by it rather
 				//than being struck through the letters
@@ -219,7 +237,11 @@ function pages_day(day, retell) {
 
 			const field = document.createElement('td');
 			field.classList.add('pages-field');
-			field.textContent = col.court;
+			field.textContent = pages_field_name(col, c);
+			//the field it is really played on, for a sport that is named here by
+			//its own name
+			if (field.textContent !== col.court)
+				field.title = `${col.sport.name} · ${col.court}`;
 			row.appendChild(field);
 
 			if (!mine) {
