@@ -95,6 +95,42 @@ async function second(port, kept, before, check) {
 	window.close();
 }
 
+/**
+ * the championship handed to somebody else: a link made in one browser, opened
+ * in another that has never seen the configuration.
+ *
+ * @param {number} port
+ * @param {string} link
+ * @param {string} before - the slots of the plan the link was made from
+ * @param {function} check
+ * @returns {Promise<void>}
+ */
+async function shared(port, link, before, check) {
+	const dom = await JSDOM.fromURL(link.replace(/^[^#]*/, `http://127.0.0.1:${port}/index.html`), {
+		runScripts: 'dangerously',
+		resources: 'usable',
+		pretendToBeVisual: true,
+		virtualConsole: vc,
+	});
+	const { window } = dom;
+	const doc = window.document;
+	await new Promise(res => {
+		if (doc.readyState === 'complete') return res();
+		window.addEventListener('load', res);
+	});
+	await new Promise(res => window.setTimeout(res, 400));
+
+	check(doc.querySelector('.day-list') !== null, 'a link opens the championship it carries, with no search run for it');
+	check(Object.keys(window.eval('workbook').slots).sort().join('|') === before,
+		'every match of it where the maker of the link left it');
+	check(doc.forms[0]['config'].value.length > 0, 'and the configuration it was made from in the box');
+	// looking at somebody else's leaves your own where it was
+	check(window.localStorage.getItem('workbook') === null,
+		'and nothing of it written over a championship of your own');
+	check(doc.querySelector('.saved-offer') === null, 'with nothing else offered over the top of it');
+	window.close();
+}
+
 async function run(CONFIG, fail) {
 	const port = server.address().port;
 	const dom = await JSDOM.fromURL(`http://127.0.0.1:${port}/index.html`, {
@@ -544,6 +580,17 @@ async function run(CONFIG, fail) {
 	console.log('\n=== what is handed out carries it ===');
 	check(doc.getElementById('excel').disabled === false, 'the workbook is still there to be built');
 
+	console.log('\n=== the championship handed to somebody else ===');
+	const link = window.eval('share_link')(doc.forms[0]['config'].value);
+	check(link.indexOf('#p=') !== -1, `a link carries the whole of it in itself (${link.length} characters)`);
+	// the button says so, and puts it where it can be copied
+	click(doc.getElementById('share'));
+	const line = doc.querySelector('.share-line');
+	check(line !== null && line.querySelector('.share-link').value.indexOf('#p=') !== -1,
+		'and the button lays it out to be copied');
+	await shared(port, link, Object.keys(window.eval('workbook').slots).sort().join('|'), check);
+	share_close_line(doc);
+
 	console.log('\n=== the championship a previous visit left ===');
 	// the whole of it, driven the way the camp meets it: what this visit leaves in
 	// the browser is carried into a second one, and the second one is a page
@@ -586,6 +633,12 @@ async function run(CONFIG, fail) {
 	if (noise.length)
 		console.log('\nNOISE:\n' + noise.slice(0, 20).join('\n'));
 	window.close();
+}
+
+//the line the share button lays out is a thing of this page, not of the next
+function share_close_line(doc) {
+	const open = doc.querySelector('.share-line');
+	if (open !== null) open.remove();
 }
 
 (async () => {

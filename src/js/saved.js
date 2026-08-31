@@ -120,6 +120,10 @@ function saved_ask(stored) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+	//a championship that arrived by link has the page already, and offering the
+	//stored one over the top of it would be offering to throw it away
+	if (typeof share_carried === 'function' && share_carried() !== null)
+		return;
 	//after the parser, which is what puts the stored configuration in the box
 	const stored = saved_stored();
 	if (stored !== null)

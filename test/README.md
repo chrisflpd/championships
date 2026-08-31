@@ -44,6 +44,10 @@ editor of the slot. It also reads the print stylesheet back against the block
 measured off a page printed out of the real workbook, and submits a second time to
 see the program defended by a dialogue before it is thrown away.
 
+It also makes a share link out of the championship and opens it in a second page
+that has never seen the configuration, which is the only way to find out whether
+a link really carries the whole thing.
+
 Runs over `examples/input26g.txt` and `configs/unnamed-zone.txt` by default, or
 the ones you name.
 

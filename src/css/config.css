@@ -82,3 +82,40 @@ textarea[name="config"]::placeholder {
 		flex: 1;
 	}
 }
+
+
+/* the link that hands the championship to somebody else */
+
+.share-line {
+	align-items: center;
+	background: var(--surface-2);
+	border-top: 1px solid var(--border);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 10px 16px;
+}
+
+.share-said {
+	color: var(--muted);
+	flex: 1 1 18em;
+	font-size: 12.5px;
+}
+
+.share-link {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	flex: 2 1 22em;
+	font: inherit;
+	font-size: 12.5px;
+	min-width: 0;
+	padding: 6px 8px;
+}
+
+.share-link:focus {
+	border-color: var(--accent);
+	box-shadow: var(--ring);
+	outline: none;
+}

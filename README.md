@@ -94,6 +94,26 @@ Submitting the configuration again starts the search from the beginning and
 throws away the program on the page along with every change made to it by hand,
 so it asks first.
 
+## handing it to somebody else
+
+**Κοινή χρήση** puts the whole championship — the configuration, the plan as it
+stands and every score entered — into a link, and copies it. Whoever opens the
+link has it: the tabs are drawn from the link itself, with no search run for it
+and nothing needed at the other end but a browser.
+
+It is a copy and not a window. What the link carries is the championship as it
+stood when the link was made; changes made afterwards live in the maker's browser
+and nowhere else, and a fresh link has to be handed over for them. A link that
+keeps up with the changes would need somewhere for the changes to be kept, and
+this page has no server behind it — it is files on a static host, and the address
+bar is the only thing it can hand anybody.
+
+Opening somebody else's link leaves your own championship where it is: what
+arrives by link is drawn but not stored, and only a change of your own puts it in
+your browser's place.
+
+## what is kept
+
 A championship is kept in the browser between visits, and the page offers it back
 over the head of the configuration, before any search is run: open the page the next
 morning and the whole of yesterday is waiting there to be opened, plan and scores
