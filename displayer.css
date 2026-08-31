@@ -203,8 +203,16 @@
 	font-weight: 600;
 }
 
-.round-blank > * {
+/* a round the configuration did not ask for. it is time the camp has all the
+   same, so it is drawn quietly rather than shut off: a match can be put in it
+   by hand like in any other. */
+.round-extra > * {
 	background: var(--surface-2);
+}
+
+.round-extra .round-rank {
+	color: var(--faint);
+	font-style: italic;
 }
 
 

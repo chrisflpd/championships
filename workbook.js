@@ -26,6 +26,95 @@ const workbook = {
 };
 
 
+/* ------------------------------------------------------------- the round band */
+
+/*
+ * the configuration says which rounds the search may use, and the camp has
+ * always had four a day whatever it said: the two of the morning and the two of
+ * the afternoon. a day the configuration passes over, and a round it leaves out
+ * of a day it gives, are times the camp holds and chose not to play in — not
+ * times that do not exist. all four are therefore drawn and can be filled by
+ * hand; only the search is held to what the configuration gave.
+ */
+
+//the rounds the template gives a day. read rather than repeated, and read
+//through a guard, since the export declares it and may not be loaded yet.
+function wb_day_rounds() {
+	try {
+		return PLAN_ROUNDS;
+	} catch (error) {
+		return 4;
+	}
+}
+
+/**
+ * how many rounds a zone is given room for on every day: the most it ever holds
+ * in the configuration, and never fewer than its share of the day.
+ *
+ * @param {day[]} program
+ * @returns {object.<number, number>} - rows by the rank of the zone
+ */
+function wb_capacity(program) {
+	const capacity = {};
+	config.zones.forEach(zone => {
+		capacity[zone.rank] = 1;
+	});
+	program.forEach(day => day.dzones.forEach(dzone => {
+		capacity[dzone.zone.rank] = Math.max(capacity[dzone.zone.rank] || 1, dzone.rounds.length);
+	}));
+	//the day is shared out equally between the zones, so a zone takes its share
+	//of it whether or not the configuration asked for that many
+	const day_rounds = wb_day_rounds();
+	if (config.zones.length > 0 && day_rounds % config.zones.length === 0) {
+		const band = day_rounds / config.zones.length;
+		config.zones.forEach(zone => {
+			capacity[zone.rank] = Math.max(capacity[zone.rank], band);
+		});
+	}
+	return capacity;
+}
+
+/**
+ * the rounds of one zone of one day: the ones the configuration gives, and the
+ * rest of the band beside them.
+ *
+ * @param {round[]} given - the rounds the configuration gives, in order
+ * @param {number} capacity - how many the zone has room for
+ * @param {boolean} arrival - the first zone of the first day
+ * @returns {object[]} - {rank, given, row}, in the order they are read in
+ */
+function wb_rounds(given, capacity, arrival) {
+	//on the arrival morning the rounds that are held are the last of the band,
+	//the ones before them taken by the arrival itself, which is where the
+	//template puts them as well
+	const offset = arrival && given.length < capacity ? capacity - given.length : 0;
+	const rounds = [];
+	//a round the configuration did not give still needs a rank of its own to be
+	//keyed by, and the given ones have taken the first of them
+	let spare = given.length;
+	for (let row = 0; row < capacity; row++) {
+		const at = row - offset;
+		rounds.push(at >= 0 && at < given.length
+			? { rank: given[at].rank, given: true, row: row }
+			: { rank: spare++, given: false, row: row });
+	}
+	return rounds;
+}
+
+/**
+ * whether anything at all is played in a round, which is what tells a round the
+ * camp has filled in by hand from one it has left alone.
+ *
+ * @param {object} day - a day of the calendar
+ * @param {object} dzone
+ * @param {object} round
+ * @returns {boolean}
+ */
+function wb_round_used(day, dzone, round) {
+	return workbook.cols.some(col => wb_at(wb_key(day.iso, dzone.zone.rank, round.rank, col.court)) !== null);
+}
+
+
 /* ---------------------------------------------------------------- the pieces */
 
 //the dates are read out of an iso day, so they are midnight utc and the day they
@@ -205,13 +294,14 @@ function wb_build(program) {
 		});
 	});
 
-	workbook.calendar = calendar_days(program).map(day => ({
+	const capacity = wb_capacity(program);
+	workbook.calendar = calendar_days(program).map((day, d) => ({
 		date: day.date,
 		iso: wb_iso(day.date),
 		blank: day.blank === true,
-		dzones: day.dzones.map(dzone => ({
+		dzones: day.dzones.map((dzone, dz) => ({
 			zone: dzone.zone,
-			rounds: dzone.rounds.map(round => ({ rank: round.rank })),
+			rounds: wb_rounds(dzone.rounds, capacity[dzone.zone.rank] || 1, d === 0 && dz === 0),
 		})),
 	}));
 

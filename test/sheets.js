@@ -120,9 +120,17 @@ async function run(CONFIG, fail) {
 	check(cards.length === wantDays.length, `${cards.length} day sheets for ${wantDays.length} days with rounds`);
 	const fields = cfg.sports.reduce((n, s) => n + s.courts.length, 0);
 	let rowBad = 0, roundBad = 0;
+	// a zone is given the most rounds it ever holds, and never fewer than its
+	// share of the four the template gives a day
+	const rowsOf = {};
+	cfg.zones.forEach(z => { rowsOf[z.rank] = 1; });
+	window.eval('window.currentProgram').forEach(d => d.dzones.forEach(dz => {
+		rowsOf[dz.zone.rank] = Math.max(rowsOf[dz.zone.rank] || 1, dz.rounds.length);
+	}));
+	if (4 % cfg.zones.length === 0)
+		cfg.zones.forEach(z => { rowsOf[z.rank] = Math.max(rowsOf[z.rank], 4 / cfg.zones.length); });
 	cards.forEach((card, i) => {
-		const capacity = 4 % cfg.zones.length === 0 ? 4 / cfg.zones.length : 0;
-		const rounds = wantDays[i].dzones.reduce((n, dz) => n + Math.max(dz.rounds.length, capacity), 0);
+		const rounds = wantDays[i].dzones.reduce((n, dz) => n + rowsOf[dz.zone.rank], 0);
 		if (card.querySelectorAll('tbody tr').length !== rounds * fields) rowBad++;
 		// one round label per round, each standing beside all the fields of it
 		const labels = [...card.querySelectorAll('.pages-round')];
@@ -136,6 +144,20 @@ async function run(CONFIG, fail) {
 			'the Excel sheet keeps four ruled round blocks per printed day');
 	check(cards.every(card => card.querySelectorAll('.pages-day-last').length === 1),
 		'the final round meets the medium day frame without an extra double rule');
+	// the merged round cell carries the bottom edge of its own block, since the
+	// rules of the rows beside it stop at their own columns: one of the three
+	// endings per round, and exactly one day ending per sheet
+	check(cards.every(card => {
+		const ends = [...card.querySelectorAll('.pages-round')];
+		return ends.every(one => one.classList.contains('pages-round-end')
+				|| one.classList.contains('pages-round-zone-end')
+				|| one.classList.contains('pages-round-day-end'))
+			&& card.querySelectorAll('.pages-round-day-end').length === 1
+			&& card.querySelectorAll('.pages-round-zone-end').length === cfg.zones.length - 1;
+	}), 'every round block closes itself: single between rounds, double between zones, the frame at the end');
+	// the printed sheet names no columns, as the workbook did not
+	check(cards.every(card => card.querySelector('thead') !== null),
+		'the column names are there on screen and taken off by the print stylesheet');
 	check(cards.every(card => card.querySelectorAll('colgroup col').length === 9),
 		'every printed day keeps the nine column proportions of Excel C:K');
 	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
@@ -144,13 +166,26 @@ async function run(CONFIG, fail) {
 	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
 		'the printed date uses Excel long-date wording');
 	const printCss = fs.readFileSync(path.join(ROOT, 'sheets.css'), 'utf8');
-	check(/width:\s*197\.3mm/.test(printCss) && /height:\s*133\.35mm/.test(printCss)
-		&& /font-size:\s*14pt/.test(printCss),
-		'the paper uses the Excel print width, day height and 14pt type');
-	check(/border-bottom:\s*\.09mm solid #000/.test(printCss)
-		&& /border-left:\s*\.26mm dashed #000/.test(printCss)
-		&& /border-bottom:\s*\.7mm double #000/.test(printCss),
-		'the hairline, dashed and double Excel rules are preserved');
+	// the block, the row and the type, measured off a page printed out of the real
+	// workbook: 493.8 x 321.2 pt of 15.3 pt rows in 11.9 pt type
+	check(/width:\s*174\.19mm/.test(printCss) && /height:\s*113\.4mm/.test(printCss)
+		&& /height:\s*5\.4mm/.test(printCss) && /font-size:\s*11\.9pt/.test(printCss),
+		'the paper uses the measured Excel block, row height and type size');
+	// dotted between the fields of a round, solid between the rounds, double
+	// between the zones, and the medium frame around the day
+	check(/border-bottom:\s*0\.3mm dotted #000/.test(printCss)
+		&& /border-bottom:\s*0\.3mm solid #000/.test(printCss)
+		&& /border-bottom:\s*0\.9mm double #000/.test(printCss)
+		&& /border:\s*0\.6mm solid #000/.test(printCss),
+		'the dotted, single, double and frame rules of the workbook are all there');
+	// down the block: dotted beside the round, solid beside the fields and the
+	// referee, dotted between the two scores, and nothing between a number and
+	// the name it belongs to
+	check(/border-right:\s*0\.3mm dotted #000/.test(printCss)
+		&& /border-left:\s*0\.3mm solid #000/.test(printCss)
+		&& /border-left:\s*0\.3mm dotted #000/.test(printCss)
+		&& !/pages-home-team[^{]*{[^}]*border-right/s.test(printCss),
+		'and the upright rules leave a team number joined to its name');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 
@@ -319,13 +354,49 @@ async function run(CONFIG, fail) {
 		window.eval('sheets_draw')();
 		const marked = doc.querySelector(`#sheet-plan td[data-key="${together[1].dataset.key}"]`);
 		check(marked.classList.contains('cell-wrong'), 'a team playing twice in one round is marked');
-		check(/παίζει ήδη/.test(marked.title), 'and the cell says what is wrong with it');
+		check(/παίζει ήδη/.test(marked.dataset.wrong), 'and the cell carries what is wrong with it');
+		// hovering it opens the panel that reads the broken rules out in full
+		marked.dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+		const panel = doc.querySelector('.plan-warning');
+		check(panel !== null && /παίζει ήδη/.test(panel.textContent),
+			'and hovering it opens a panel that says which rule is broken');
+		check(panel !== null && panel.querySelectorAll('.plan-warning-list li').length
+			=== marked.dataset.wrong.split('\n').length,
+			'with one line per rule');
+		// and the editor of that slot says the same where the change is made
+		window.eval('plan_editor')(marked);
+		const editor = doc.querySelector('.plan-editor-wrong');
+		check(editor !== null && /παίζει ήδη/.test(editor.textContent),
+			'and the editor of the slot says it too');
+		window.eval('plan_close')();
 	} else {
 		check(true, 'only one match in that round, skipped');
 	}
 
 	console.log('\n=== what is handed out carries it ===');
 	check(doc.getElementById('excel').disabled === false, 'the workbook is still there to be built');
+
+	console.log('\n=== submitting again asks before it throws the program away ===');
+	// the asking hangs off the button, since it is the camp being about to lose a
+	// morning of work that is worth stopping
+	const submit = doc.forms[0].querySelector('button[type="submit"]');
+	click(submit);
+	const ask = doc.querySelector('.ui-ask');
+	check(ask !== null, 'a dialogue stands in the way of a second submit');
+	check(ask !== null && /χαθεί/.test(ask.textContent), 'saying the program will be lost');
+	check(doc.querySelector('.day-list') !== null, 'and the program is still on the page while it is up');
+	// saying no leaves everything as it was
+	[...ask.querySelectorAll('button')].find(b => b.textContent === 'Ακύρωση').dispatchEvent(
+		new window.MouseEvent('click', { bubbles: true }));
+	check(doc.querySelector('.ui-ask') === null && doc.querySelector('.day-list') !== null,
+		'saying no puts the dialogue away and keeps the program');
+	// and saying yes starts the search over, which takes the program off the page
+	click(submit);
+	[...doc.querySelector('.ui-ask').querySelectorAll('button')]
+		.find(b => b.textContent === 'Νέα αναζήτηση')
+		.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+	check(doc.querySelector('.ui-ask') === null && doc.querySelector('.day-list') === null,
+		'and saying yes starts over');
 
 	if (noise.length)
 		console.log('\nNOISE:\n' + noise.slice(0, 20).join('\n'));

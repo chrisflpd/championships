@@ -63,7 +63,125 @@ function ui_collapse(panel, button, collapsed, remember) {
 		ui_store(PANEL_KEY, collapsed ? 'collapsed' : 'open');
 }
 
+/*
+ * submitting the configuration again throws away the program on the page: the
+ * search starts over, and the plan the camp has been putting right by hand goes
+ * with it. that is a whole morning of work, so it is asked about first.
+ *
+ * the asking hangs off the button rather than off the submit, because it is the
+ * camp being about to lose something that is worth stopping — the page
+ * submitting on its own behalf has nothing to lose.
+ */
+
+//set while the submit the camp has already said yes to is going through
+let ui_asked = false;
+
+function ui_program_drawn() {
+	return document.querySelector('#program .day-list') !== null;
+}
+
+function ui_confirm_close() {
+	const open = document.querySelector('.ui-ask');
+	if (open !== null)
+		open.remove();
+	const veil = document.querySelector('.ui-veil');
+	if (veil !== null)
+		veil.remove();
+}
+
+/**
+ * asks before something is thrown away.
+ *
+ * @param {object} said - {title, body, ok, cancel}
+ * @param {function} then - called when the camp says yes
+ * @returns {void}
+ */
+function ui_confirm(said, then) {
+	ui_confirm_close();
+
+	const veil = document.createElement('div');
+	veil.classList.add('ui-veil');
+	document.body.appendChild(veil);
+
+	const box = document.createElement('div');
+	box.classList.add('ui-ask');
+	box.setAttribute('role', 'alertdialog');
+	box.setAttribute('aria-modal', 'true');
+	box.setAttribute('aria-labelledby', 'ui-ask-title');
+
+	const title = document.createElement('h2');
+	title.classList.add('ui-ask-title');
+	title.id = 'ui-ask-title';
+	title.textContent = said.title;
+	box.appendChild(title);
+
+	said.body.forEach(line => {
+		const p = document.createElement('p');
+		p.classList.add('ui-ask-body');
+		p.textContent = line;
+		box.appendChild(p);
+	});
+
+	const bar = document.createElement('div');
+	bar.classList.add('ui-ask-bar');
+	box.appendChild(bar);
+
+	const no = document.createElement('button');
+	no.type = 'button';
+	no.classList.add('button', 'button-quiet');
+	no.textContent = said.cancel;
+	no.addEventListener('click', ui_confirm_close);
+	bar.appendChild(no);
+
+	const yes = document.createElement('button');
+	yes.type = 'button';
+	yes.classList.add('button', 'button-danger');
+	yes.textContent = said.ok;
+	yes.addEventListener('click', () => {
+		ui_confirm_close();
+		then();
+	});
+	bar.appendChild(yes);
+
+	document.body.appendChild(box);
+	//the safe one is the one under the hand, and under the return key
+	no.focus();
+	veil.addEventListener('click', ui_confirm_close);
+	box.addEventListener('keydown', event => {
+		if (event.key === 'Escape')
+			ui_confirm_close();
+	});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+
+	const form = document.forms[0];
+	if (form !== undefined) {
+		//caught on the way down at the document, which is the only place that is
+		//certainly reached before the listener the parser puts on the form itself:
+		//two listeners on the one element run in the order they were added, whatever
+		//phase they asked for
+		document.addEventListener('submit', event => {
+			if (ui_asked || !ui_program_drawn())
+				return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			ui_confirm({
+				title: 'Θα χαθεί το πρόγραμμα που υπάρχει',
+				body: [
+					'Μια νέα υποβολή ξεκινά αναζήτηση από την αρχή. Το πρόγραμμα που βλέπετε, μαζί με όσες αλλαγές έχετε κάνει με το χέρι πάνω του, θα αντικατασταθεί από αυτό που θα βρεθεί.',
+					'Τα σκορ και οι διαιτητές που έχετε καταχωρίσει κρατιούνται, γιατί ανήκουν στον αγώνα και όχι στη θέση του. Αν θέλετε να κρατήσετε και το ίδιο το πρόγραμμα, δημιουργήστε πρώτα το αρχείο Excel.',
+				],
+				ok: 'Νέα αναζήτηση',
+				cancel: 'Ακύρωση',
+			}, () => {
+				//the same submit again, this time let through
+				ui_asked = true;
+				form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+				ui_asked = false;
+			});
+		}, true);
+	}
 
 	const theme_button = document.getElementById('theme');
 	if (theme_button !== null) {

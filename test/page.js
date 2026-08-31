@@ -183,12 +183,30 @@ async function run(CONFIG, fail) {
 	const wantDays = [];
 	for (let t = prog[0].date.getTime(); t <= prog[prog.length - 1].date.getTime(); t += DAY_MS)
 		wantDays.push(byDate[t] ? { day: byDate[t], blank: false } : { day: { date: new Date(t) }, blank: true });
-	// and how many rows a zone that holds nothing should be given
+	// and how many rows a zone is given on every day: the most it ever holds, and
+	// never fewer than its share of the four rounds the template gives a day,
+	// since those are times the camp has whether or not the configuration used them
 	const rowsOf = {};
 	cfg.zones.forEach(z => { rowsOf[z.rank] = 1; });
 	prog.forEach(d => d.dzones.forEach(dz => {
 		rowsOf[dz.zone.rank] = Math.max(rowsOf[dz.zone.rank] || 1, dz.rounds.length);
 	}));
+	if (4 % cfg.zones.length === 0)
+		cfg.zones.forEach(z => { rowsOf[z.rank] = Math.max(rowsOf[z.rank], 4 / cfg.zones.length); });
+	// the rounds a zone of a day should be drawing, in the order they are read in:
+	// the ones the configuration gives and the rest of the band beside them. on the
+	// arrival morning the ones that are held are the last of the band.
+	const roundsOf = (dz, arrival) => {
+		const capacity = rowsOf[dz.zone.rank];
+		const given = dz.rounds;
+		const offset = arrival && given.length < capacity ? capacity - given.length : 0;
+		const out = [];
+		for (let row = 0; row < capacity; row++) {
+			const at = row - offset;
+			out.push(at >= 0 && at < given.length ? given[at] : null);
+		}
+		return out;
+	};
 
 	const gaps = wantDays.filter(d => d.blank).length;
 	check(days.length === wantDays.length,
@@ -238,12 +256,19 @@ async function run(CONFIG, fail) {
 		if (bodies.length !== zones.length) zoneBad++;
 		bodies.forEach((body, z) => {
 			const rows = [...body.querySelectorAll('tr')];
-			const want = zones[z].rounds.length || rowsOf[zones[z].zone.rank];
-			if (rows.length !== want) zoneBad++;
-			// a row standing in for a round the day does not hold is marked and unnumbered
-			const blanks = rows.filter(r => r.classList.contains('round-blank'));
-			if (blanks.length !== (zones[z].rounds.length ? 0 : rows.length)) zoneBad++;
-			if (blanks.some(r => r.querySelector('.round-rank').textContent !== '')) zoneBad++;
+			const wanted = roundsOf(zones[z], i === 0 && z === 0);
+			if (rows.length !== wanted.length) zoneBad++;
+			// a round the configuration did not ask for is marked as one, but it is a
+			// round like any other: numbered, and every cell of it a place a match
+			// can be put
+			rows.forEach((r, ri) => {
+				if (r.classList.contains('round-extra') !== (wanted[ri] === null)) zoneBad++;
+				if (!/^Γ\d+$/.test(r.querySelector('.round-rank').textContent)) zoneBad++;
+				// every cell is a place a match can be put, bar the second column of a
+				// field two sports share, which is the same field already taken
+				if ([...r.querySelectorAll('td.cell')].some(td =>
+					td.dataset.key === undefined && !td.classList.contains('cell-taken'))) zoneBad++;
+			});
 			const label = body.querySelector('.zone-name');
 			if (named) {
 				if (label === null || label.rowSpan !== rows.length) zoneBad++;
@@ -290,9 +315,13 @@ async function run(CONFIG, fail) {
 	const empties = [...list.querySelectorAll('.cell-empty')];
 	check(empties.length > 0 && empties.every(c => c.textContent === '·'), `${empties.length} empty cells are muted dots`);
 	const ranks = [...list.querySelectorAll('.round-rank')];
-	const numbered = ranks.filter(r => r.textContent !== '');
-	check(numbered.length > 0 && numbered.every(r => /^Γ\d+$/.test(r.textContent)),
-		`${numbered.length} real rounds numbered, ${ranks.length - numbered.length} stand-in rows left blank`);
+	check(ranks.length > 0 && ranks.every(r => /^Γ\d+$/.test(r.textContent)),
+		`all ${ranks.length} rounds are numbered`);
+	// every round of every day can be dragged into and opened, the ones the
+	// configuration left out included
+	const extra = [...list.querySelectorAll('tr.round-extra')];
+	check(extra.length === 0 || extra.every(r => [...r.querySelectorAll('td.cell')].every(td => td.dataset.key !== undefined)),
+		`${extra.length} rounds the configuration did not ask for are there to be used`);
 
 	// the numbers themselves, read straight off the program — every card, whether
 	// the configuration gave the day or the page filled it in
@@ -301,8 +330,8 @@ async function run(CONFIG, fail) {
 		const rows = [...days[di].querySelectorAll('tbody.zone > tr')];
 		let ri = 0;
 		const zones = want.blank ? cfg.zones.map(z => ({ zone: z, rounds: [] })) : want.day.dzones;
-		zones.forEach(dz => {
-			const rounds = dz.rounds.length ? dz.rounds : new Array(rowsOf[dz.zone.rank]).fill(null);
+		zones.forEach((dz, zi) => {
+			const rounds = roundsOf(dz, di === 0 && zi === 0);
 			rounds.forEach(round => {
 				const tds = [...rows[ri++].querySelectorAll('td.cell')];
 				cols.forEach((col, ci) => {
@@ -320,7 +349,7 @@ async function run(CONFIG, fail) {
 		});
 		if (ri !== rows.length) wrong++;
 	});
-	check(wrong === 0, `all ${checked} real cells hold what the scheduler placed, and all ${blankChecked} stand-in cells are empty`);
+	check(wrong === 0, `all ${checked} cells of the rounds the configuration gave hold what the scheduler placed, and all ${blankChecked} cells of the rounds it did not are empty`);
 
 	check(list.classList.contains('no-zone-names') === false, 'the old no-zone-names class is gone');
 	check(named
@@ -330,8 +359,16 @@ async function run(CONFIG, fail) {
 
 	console.log('\n=== resubmit clears, stop stops ===');
 	// again with nothing awaited, so that the state between the two is the one
-	// being read and not whatever the next search has already got to
+	// being read and not whatever the next search has already got to. a submit
+	// with a program on the page is stopped and asked about first, so the asking
+	// is answered the way the camp answers it.
 	doc.forms[0].dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+	const ask = doc.querySelector('.ui-ask');
+	check(ask !== null && doc.querySelector('.day-list') !== null,
+		'a submit over a program is asked about before anything is lost');
+	if (ask !== null)
+		[...ask.querySelectorAll('button')].find(b => b.textContent === 'Νέα αναζήτηση')
+			.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 	check(doc.querySelector('.day-list') === null, 'the old program is taken off the page');
 	check(doc.getElementById('excel').disabled === true, 'and so is its download');
 	click(doc.getElementById('stop'));

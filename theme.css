@@ -267,6 +267,63 @@ h2 {
 	color: var(--text);
 }
 
+/* the one that throws something away */
+.button-danger {
+	background: var(--danger);
+	border-color: var(--danger);
+	color: #fff;
+}
+
+.button-danger:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--danger) 85%, #000);
+	border-color: color-mix(in srgb, var(--danger) 85%, #000);
+}
+
+
+/* asking before something is lost */
+
+.ui-veil {
+	background: rgba(15, 18, 24, .45);
+	inset: 0;
+	position: fixed;
+	z-index: 50;
+}
+
+.ui-ask {
+	background: var(--surface);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	left: 50%;
+	max-width: calc(100vw - 32px);
+	padding: 18px 20px;
+	position: fixed;
+	top: 22vh;
+	transform: translateX(-50%);
+	width: 460px;
+	z-index: 51;
+}
+
+.ui-ask-title {
+	color: var(--danger);
+	font-size: 17px;
+	margin: 0 0 10px;
+}
+
+.ui-ask-body {
+	color: var(--text);
+	font-size: 14px;
+	line-height: 1.5;
+	margin: 0 0 10px;
+}
+
+.ui-ask-bar {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 16px;
+}
+
 /*
  * the slider between the light and the dark. the knob sits over the sun on the
  * one side and over the moon on the other, so the side it is not on is the one

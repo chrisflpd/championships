@@ -46,9 +46,11 @@ function pages_print_date(date) {
 function pages_draw(sheet) {
 	sheets_offer(sheet);
 
-	//only the days that hold a round are worth a page; a date the configuration
-	//passes over has nothing to hand out
-	const days = workbook.calendar.filter(day => day.dzones.some(dzone => dzone.rounds.length));
+	//only the days there is something to hand out for: the ones the configuration
+	//gives a round, and any date it passes over that the camp has since put a
+	//match on by hand
+	const days = workbook.calendar.filter(day => day.dzones.some(dzone =>
+		dzone.rounds.some(round => round.given || wb_round_used(day, dzone, round))));
 
 	const bar = document.createElement('div');
 	bar.classList.add('pages-bar');
@@ -162,17 +164,14 @@ function pages_day(day, retell) {
 	table.appendChild(body);
 
 	day.dzones.forEach((dzone, dzone_index) => {
-		//The Excel page always reserves four round blocks per day. When the
-		//configuration divides those evenly between its zones, keep the unused
-		//blocks as blank ruled rows instead of stretching the rounds that exist.
-		const capacity = 4 % config.zones.length === 0 ? 4 / config.zones.length : 0;
-		const rounds = dzone.rounds.slice();
-		while (rounds.length < capacity)
-			rounds.push(null);
+		//the whole band of the zone, so that the printed day keeps the four ruled
+		//round blocks the workbook always gave it, whether or not the configuration
+		//asked for every one of them
+		const rounds = dzone.rounds;
 		rounds.forEach((round, round_index) => {
 		workbook.cols.forEach((col, c) => {
-			const key = round === null ? null : wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
-			const game = key === null ? null : wb_at(key);
+			const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
+			const game = wb_at(key);
 			const mine = game !== null && wb_shows(game, col, c);
 			const row = document.createElement('tr');
 			if (c === 0) {
@@ -195,9 +194,20 @@ function pages_day(day, retell) {
 				//template merged it down the block
 				const name = document.createElement('th');
 				name.classList.add('pages-round');
+				//the merged cell carries its own bottom edge, since the rules of the
+				//rows beside it stop at their own columns: a single one between two
+				//rounds, the double one of the template between two zones, and none
+				//at all where the frame of the day closes it
+				const last_round = round_index === rounds.length - 1;
+				const last_zone = dzone_index === day.dzones.length - 1;
+				name.classList.add(last_round
+					? (last_zone ? 'pages-round-day-end' : 'pages-round-zone-end')
+					: 'pages-round-end');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
-				name.textContent = pages_round_name(dzone.zone, round === null ? round_index : round.rank);
+				//named by where it stands in the day and not by the rank it is keyed
+				//with, so that the morning the camp arrives on still reads Πρωί Β'
+				name.textContent = pages_round_name(dzone.zone, round_index);
 				row.appendChild(name);
 			}
 

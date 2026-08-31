@@ -19,7 +19,9 @@ the browser's XML parser that the workbook export uses.
 uses it: types a configuration, submits, waits for a program, and reads the page
 back. It checks the buttons and the theme switch, and then, for every day card,
 that the sports and the fields are named in the right order, that a zone holds
-the rounds it should, and that **every cell holds exactly what the scheduler
+the whole of its band — the rounds the configuration gave and the ones it left out
+beside them, in the order the day is read in — that every one of them is numbered
+and can be dragged into, and that **every cell holds exactly what the scheduler
 placed there** — which is the check worth having. It also drives the stopping of
 a search, a configuration that cannot be scheduled, and a team that never plays.
 
@@ -35,7 +37,10 @@ score should make them, and that a sport which cannot be drawn has no D column.
 Then it moves a match on the plan and checks the plan, the printed sheet and the
 count all follow it, opens the editor over a slot and changes who plays in it,
 and puts two teams into one round twice over to see the clash marked rather than
-refused.
+refused — and read out, both in the panel that opens over the cell and in the
+editor of the slot. It also reads the print stylesheet back against the block
+measured off a page printed out of the real workbook, and submits a second time to
+see the program defended by a dialogue before it is thrown away.
 
 Runs over `input26g.txt` and `configs/unnamed-zone.txt` by default, or the ones
 you name.
@@ -44,8 +49,9 @@ you name.
 cell. It moves a match and enters a score and a referee, exports, and checks the
 score is on the pages sheet on the row of the right day and the right field, that
 the plan cell above it holds that very pair, that the moved match is written
-where it was moved to and not where it came from, that every match of the plan is
-on the sheet as many times as it is played, and that the workbook is told to work
+where it was moved to and not where it came from, that a match put by hand in a
+round the configuration never gave is written there too, that every match of the
+plan is on the sheet as many times as it is played, and that the workbook is told to work
 its formulas out when it is opened rather than showing the template's numbers.
 
 **`npm run robust`** — configurations the camp has never used: three and four

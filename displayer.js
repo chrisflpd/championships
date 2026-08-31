@@ -32,25 +32,6 @@ function calendar_days(program) {
 }
 
 /**
- * a zone that holds no round is given the room of the most rounds that zone
- * holds on any day, so that a day with nothing in it is the same shape as a day
- * with something, and the calendar keeps its lines across the cards.
- *
- * @param {day[]} program
- * @returns {object.<number, number>} - rows to draw, by the rank of the zone
- */
-function zone_rows(program) {
-	const rows = {};
-	config.zones.forEach(zone => {
-		rows[zone.rank] = 1;
-	});
-	program.forEach(day => day.dzones.forEach(dzone => {
-		rows[dzone.zone.rank] = Math.max(rows[dzone.zone.rank] || 1, dzone.rounds.length);
-	}));
-	return rows;
-}
-
-/**
  * the whole program: the workbook tabs and what is on them. the plan is drawn here,
  * the pages and the points by their own sheets, and all three read the workbook
  * rather than the program, so that a match moved by hand is drawn where it was
@@ -144,8 +125,10 @@ function plan_draw(sheet) {
 	day_grid.classList.add('day-grid');
 	home.appendChild(day_grid);
 
-	const rows_of = zone_rows(program);
-	calendar_days(program).forEach(day => {
+	//the calendar of the workbook and not of the program: it carries the rounds
+	//the configuration left out as well, which are times the camp holds and can
+	//still put a match in
+	workbook.calendar.forEach(day => {
 		const day_div = document.createElement('div');
 		day_div.classList.add('day');
 		if (day.blank)
@@ -218,20 +201,21 @@ function plan_draw(sheet) {
 		});
 
 		//a zone of the day is a body of its own, which is what the line between two
-		//of them is drawn from. a zone holding no round is drawn all the same, with
-		//as many empty rows as that zone takes on the fullest of the days.
+		//of them is drawn from. every zone is drawn with the whole of its band, so
+		//that the cards keep their lines across the calendar and a round the
+		//configuration left out is there to be used.
 		day.dzones.forEach(dzone => {
 			const zone_body = document.createElement('tbody');
 			zone_body.classList.add('zone');
 			table.appendChild(zone_body);
-			const rounds = dzone.rounds.length
-				? dzone.rounds
-				: new Array(rows_of[dzone.zone.rank] || 1).fill(null);
+			const rounds = dzone.rounds;
 			rounds.forEach((round, r) => {
 				const round_row = document.createElement('tr');
 				round_row.classList.add('round');
-				if (round === null)
-					round_row.classList.add('round-blank');
+				//a round the configuration did not ask for is drawn more quietly,
+				//but it is a round like any other and can be filled by hand
+				if (!round.given)
+					round_row.classList.add('round-extra');
 				zone_body.appendChild(round_row);
 				if (named_zones && r === 0) {
 					//the name of the zone stands beside every round it holds
@@ -245,22 +229,16 @@ function plan_draw(sheet) {
 				const round_h = document.createElement('th');
 				round_h.classList.add('round-rank');
 				round_h.scope = 'row';
-				//a row standing in for a round the day does not hold is not numbered
-				round_h.textContent = round === null ? '' : `Γ${r + 1}`;
-				if (round !== null)
-					round_h.title = `${r + 1}ος γύρος`;
+				round_h.textContent = `Γ${r + 1}`;
+				round_h.title = round.given
+					? `${r + 1}ος γύρος`
+					: `${r + 1}ος γύρος · η διαμόρφωση δεν τον ζήτησε, αλλά μπορείτε να βάλετε αγώνα σε αυτόν`;
 				round_row.appendChild(round_h);
 				cols.forEach((col, ci) => {
 					const col_td = document.createElement('td');
 					col_td.classList.add('cell');
 					round_row.appendChild(col_td);
-					//a round the day does not hold is not a place a match can be put
-					if (round === null) {
-						col_td.classList.add('cell-empty');
-						col_td.textContent = '·';
-						return;
-					}
-					const key = wb_key(wb_iso(day.date), dzone.zone.rank, round.rank, col.court);
+					const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
 					const game = wb_at(key);
 					const shows = game === null || wb_shows(game, col, ci);
 					//a field two sports share is one field, so a match on it is drawn
@@ -279,12 +257,11 @@ function plan_draw(sheet) {
 						col_td.title = plan_title(game, col.court);
 						col_td.draggable = true;
 						col_td.textContent = wb_plan_label(game);
-						//what does not hold is said on the cell rather than refused
-						const said = wb_complaints(key);
-						if (said.length) {
-							col_td.classList.add('cell-wrong');
-							col_td.title += '\n⚠ ' + said.join('\n⚠ ');
-						}
+						//what does not hold is said on the cell rather than refused. it
+						//is kept off the title and given a panel of its own, since a
+						//rule that has been broken is worth reading rather than
+						//squinting at in the tooltip of the browser.
+						plan_mark(col_td, wb_complaints(key));
 					} else {
 						col_td.classList.add('cell-empty');
 						col_td.textContent = '·';
@@ -316,6 +293,140 @@ function plan_refresh_knockouts() {
 	});
 }
 
+/*
+ * what does not hold
+ *
+ * nothing is refused, so what is wrong has to be read rather than guessed at.
+ * the cell is marked, and the rules it breaks are written out in a panel of
+ * their own — the tooltip of the browser is small, slow to come and gone the
+ * moment the pointer moves, which is no way to read why a plan will not do.
+ */
+
+/**
+ * marks a cell with what is wrong with it, and hangs the reasons off it.
+ *
+ * @param {Element} cell
+ * @param {string[]} said
+ * @returns {void}
+ */
+function plan_mark(cell, said) {
+	cell.classList.toggle('cell-wrong', said.length > 0);
+	if (said.length === 0) {
+		delete cell.dataset.wrong;
+		cell.removeAttribute('aria-describedby');
+		return;
+	}
+	cell.dataset.wrong = said.join('\n');
+	//said aloud as well, since the panel is only drawn for the eye
+	cell.setAttribute('aria-label', `${cell.textContent}. ${said.length === 1 ? 'Πρόβλημα' : 'Προβλήματα'}: ${said.join('. ')}`);
+}
+
+function plan_warning_close() {
+	const open = document.querySelector('.plan-warning');
+	if (open !== null)
+		open.remove();
+}
+
+/**
+ * the panel itself, beside the cell it belongs to.
+ *
+ * @param {Element} cell
+ * @returns {void}
+ */
+function plan_warning_open(cell) {
+	plan_warning_close();
+	const said = (cell.dataset.wrong || '').split('\n').filter(one => one.length);
+	if (said.length === 0)
+		return;
+
+	const box = document.createElement('div');
+	box.classList.add('plan-warning');
+	box.setAttribute('role', 'tooltip');
+
+	const head = document.createElement('div');
+	head.classList.add('plan-warning-head');
+	const sign = document.createElement('span');
+	sign.classList.add('plan-warning-sign');
+	sign.setAttribute('aria-hidden', 'true');
+	sign.textContent = '⚠';
+	head.appendChild(sign);
+	const title = document.createElement('span');
+	title.textContent = said.length === 1
+		? 'Ο κανόνας που παραβιάζεται'
+		: `Οι ${said.length} κανόνες που παραβιάζονται`;
+	head.appendChild(title);
+	box.appendChild(head);
+
+	const list = document.createElement('ul');
+	list.classList.add('plan-warning-list');
+	said.forEach(one => {
+		const item = document.createElement('li');
+		item.textContent = one;
+		list.appendChild(item);
+	});
+	box.appendChild(list);
+
+	const note = document.createElement('p');
+	note.classList.add('plan-warning-note');
+	note.textContent = 'Ο αγώνας παραμένει εκεί που τον βάλατε — το πρόγραμμα δεν σας εμποδίζει, μόνο σας το επισημαίνει.';
+	box.appendChild(note);
+
+	document.body.appendChild(box);
+	//beside the cell, and inside the window
+	const at = cell.getBoundingClientRect();
+	const width = box.offsetWidth || 320;
+	const height = box.offsetHeight || 120;
+	const room = window.innerHeight || 768;
+	const left = Math.max(8, Math.min(at.left, (window.innerWidth || 1024) - width - 8));
+	//over the cell rather than under it when there is no room below
+	const below = at.bottom + 8 + height < room;
+	box.style.left = `${left + (window.scrollX || 0)}px`;
+	box.style.top = `${(below ? at.bottom + 8 : at.top - height - 8) + (window.scrollY || 0)}px`;
+}
+
+//the panel follows the pointer and the keyboard alike, so that a plan can be put
+//right without a mouse
+document.addEventListener('mouseover', event => {
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	if (cell !== null)
+		plan_warning_open(cell);
+});
+
+document.addEventListener('mouseout', event => {
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	if (cell === null)
+		return;
+	//a move inside the cell is not a move out of it
+	if (event.relatedTarget && cell.contains(event.relatedTarget))
+		return;
+	plan_warning_close();
+});
+
+document.addEventListener('focusin', event => {
+	const cell = event.target.closest ? event.target.closest('td.cell-wrong') : null;
+	if (cell !== null)
+		plan_warning_open(cell);
+	else
+		plan_warning_close();
+});
+
+//nothing keeps its place once the page moves under it. caught on the way down,
+//since a scroll does not bubble.
+document.addEventListener('scroll', plan_warning_close, true);
+
+/**
+ * after a change of the plan, says straight away what the change has broken
+ * rather than waiting to be hovered over.
+ *
+ * @param {string} key - the slot that was changed
+ * @returns {void}
+ */
+function plan_told(key) {
+	const cell = document.querySelector(`#sheet-plan td.cell-wrong[data-key="${key}"]`);
+	if (cell !== null)
+		plan_warning_open(cell);
+}
+
 //what is read on hovering a cell of the plan: the two sides as they stand now,
 //and where the match is played
 function plan_title(game, court) {
@@ -345,6 +456,7 @@ function plan_wire(home) {
 		if (cell === null)
 			return;
 		dragging = cell.dataset.key;
+		plan_warning_close();
 		home.classList.add('is-dragging');
 		if (event.dataTransfer) {
 			event.dataTransfer.effectAllowed = 'move';
@@ -385,8 +497,11 @@ function plan_wire(home) {
 		dragging = null;
 		if (!from || from === cell.dataset.key)
 			return;
-		wb_move(from, cell.dataset.key);
+		const to = cell.dataset.key;
+		wb_move(from, to);
 		sheets_draw();
+		//a match dropped somewhere it does not belong says so at once
+		plan_told(to);
 	});
 
 	home.addEventListener('click', event => {
@@ -422,6 +537,7 @@ function plan_choices(court) {
 }
 
 function plan_close() {
+	plan_warning_close();
 	const open = document.querySelector('.plan-editor');
 	if (open !== null)
 		open.remove();
@@ -529,6 +645,27 @@ function plan_editor(cell) {
 	what.addEventListener('change', follow);
 	follow();
 
+	//what is already wrong with this slot, read in the place the change is made
+	const said = wb_complaints(key);
+	if (said.length) {
+		const wrong = document.createElement('div');
+		wrong.classList.add('plan-editor-wrong');
+		const wrong_head = document.createElement('div');
+		wrong_head.classList.add('plan-editor-wrong-head');
+		wrong_head.textContent = said.length === 1
+			? '⚠ Ο κανόνας που παραβιάζεται'
+			: `⚠ Οι ${said.length} κανόνες που παραβιάζονται`;
+		wrong.appendChild(wrong_head);
+		const wrong_list = document.createElement('ul');
+		said.forEach(one => {
+			const item = document.createElement('li');
+			item.textContent = one;
+			wrong_list.appendChild(item);
+		});
+		wrong.appendChild(wrong_list);
+		box.appendChild(wrong);
+	}
+
 	const bar = document.createElement('div');
 	bar.classList.add('plan-editor-bar');
 	box.appendChild(bar);
@@ -553,6 +690,8 @@ function plan_editor(cell) {
 			wb_put(key, what.value.slice(2), parseInt(home_select.value), parseInt(away_select.value));
 		plan_close();
 		sheets_draw();
+		//what the change has broken, said as soon as it is made
+		plan_told(key);
 	});
 
 	document.body.appendChild(box);
@@ -1024,39 +1163,42 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 		return String(id);
 	}
 
-	// the matches as they stand now, per plan cell, along with the rounds the
-	// configuration gives, which are the ones that may hold a match at all. the
-	// workbook is read and not the program, so a match moved by hand is written
-	// where it was put.
+	// the matches as they stand now, per plan cell, along with the rounds that are
+	// time the camp has, which are the ones drawn as available rather than greyed
+	// out. the workbook is read and not the program, so a match moved by hand — or
+	// put in a round the configuration never asked for — is written where it was
+	// put, and the calendar of the workbook carries every round of every day, the
+	// dates the configuration passes over included.
 	const scheduleData = {};
 	const givenRounds = {};
 	// where every match of the plan ends up on the pages sheet, so that the score
 	// entered against it goes on the same row the printed sheet gave it
 	const pageOf = {};
-	program.forEach(day => {
+	workbook.calendar.forEach(day => {
 		const dIdx = dayIndex(day);
 		if (dIdx >= PLAN_DAYS)
 			return;
-		const iso = wb_iso(day.date);
 		day.dzones.forEach((dzone, dzIdx) => {
-			dzone.rounds.forEach((round, rIdx) => {
-				let roundIdx = dzIdx * zoneBand + rIdx;
-				// on the arrival day the single morning round is the last one of
-				// the morning, the ones before it taken by the arrival itself
-				if (dIdx === 0 && dzIdx === 0 && dzone.rounds.length === 1)
-					roundIdx = zoneBand - 1;
+			dzone.rounds.forEach(round => {
+				// the round stands where the band of its zone puts it, which is what
+				// the workbook has already worked out for the page as well
+				const roundIdx = dzIdx * zoneBand + round.row;
 				if (roundIdx >= PLAN_ROUNDS) {
 					// planBlockers should have caught this; never write past the grid
 					warnings.push(`το πρότυπο έχει ${PLAN_ROUNDS} γύρους ανά ημέρα`);
 					return;
 				}
-				givenRounds[dIdx + ',' + roundIdx] = true;
+				if (round.given)
+					givenRounds[dIdx + ',' + roundIdx] = true;
 				cols.forEach((col, fIdx) => {
 					if (fIdx >= PLAN_FIELDS)
 						return;
-					const game = wb_at(wb_key(iso, dzone.zone.rank, round.rank, col.court));
+					const game = wb_at(wb_key(day.iso, dzone.zone.rank, round.rank, col.court));
 					if (game === null || !wb_shows(game, col, fIdx))
 						return;
+					// a round the configuration left out and the camp has filled in by
+					// hand is time that was used after all, so it is not greyed out
+					givenRounds[dIdx + ',' + roundIdx] = true;
 					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = game.kn !== null
 						? game.kn
 						: [teamChar(game.home), teamChar(game.away)].join('-');

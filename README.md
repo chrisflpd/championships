@@ -3,7 +3,7 @@ An HTML-JS application to plan championships.
 
 ## version
 
-1.3
+1.4
 
 ## the page
 
@@ -14,16 +14,36 @@ the program configuration. Drag any tab to keep them in the order you prefer.
 **Πρόγραμμα** is the plan: a card per day, a row per round, a column per field.
 Every slot can be changed. Drag a match onto a free slot to move it, or onto
 another match to swap the two. Click a slot to say what is played in it and by
-whom, or to empty it. Nothing is refused for breaking a rule — a plan being put
-right by hand passes through states that do not hold — but a slot on the wrong
-field for its sport, or holding a team that already plays that round, is marked
-and says why. A field two sports share is one field: the match stands under the
-column of its own sport, and the other column is hatched to show the field taken.
+whom, or to empty it.
+
+Every day is drawn with the whole of its four rounds and every date from the
+first to the last gets a card, whether or not the configuration asked for them.
+A round the configuration left out, and a date it passes over, are time the camp
+has and chose not to play in rather than time that does not exist, so they are
+drawn more quietly and can be filled in by hand like any other slot. Only the
+search is held to what the configuration gave; the export writes whatever the
+plan ends up holding.
+
+Nothing is refused for breaking a rule — a plan being put right by hand passes
+through states that do not hold — but a slot on the wrong field for its sport, or
+holding a team that already plays that round, is marked, and hovering it or
+opening it reads out the rules it breaks. A change that breaks one says so as
+soon as it is made rather than waiting to be hovered over. A field two sports
+share is one field: the match stands under the column of its own sport, and the
+other column is hatched to show the field taken.
 
 **Φύλλα αγώνων** is what was printed every morning and handed out: a block per
 day with the round, the field, the two teams by number and by name, and the boxes
 for the two scores and the referee. Print one day, or tick several and print them
 two to a side of A4, which is how they fitted in the workbook.
+
+What comes out of the printer is the block the workbook itself printed, measured
+off a page exported from the real thing: the date across the top over a double
+rule, the round named down the side of its own five field rows, the fields in
+italic, and the rules that tell the parts apart — dotted between the fields of a
+round, single between the rounds of a zone, double between the zones, and the
+frame of the day around the lot. The screen keeps the column names and the print
+takes them off, as the workbook had none.
 
 **Βαθμολογία** is the points. Each group gets a table of the template's columns —
 PLD W D L GF GA GD PTS RNK — ranked inside the group, which is what a knockout
@@ -31,6 +51,10 @@ reading `kg1:1` means by it. A sport that cannot be drawn has no D column, and
 what a score is worth is the sport's own, so football counts 3-1-0, basketball
 and baseball 2-1 and volleyball its sets. Under each sport are its knockouts,
 showing who has come through to each of them so far.
+
+Submitting the configuration again starts the search from the beginning and
+throws away the program on the page along with every change made to it by hand,
+so it asks first.
 
 The plan and the scores are kept in the browser between visits. The scores are
 kept against the match, so a fresh search that moves a match somewhere else does

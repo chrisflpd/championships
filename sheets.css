@@ -151,9 +151,92 @@
 /* a slot that does not hold: the wrong field for the sport, or a team already
    playing that round. it is drawn and not refused. */
 .cell-wrong {
+	background: var(--danger-soft);
+	box-shadow: inset 0 0 0 2px var(--danger);
 	color: var(--danger);
+	font-weight: 650;
 	text-decoration: underline wavy var(--danger) 1px;
 	text-underline-offset: 3px;
+}
+
+.cell-match[data-key].cell-wrong:hover {
+	background: color-mix(in srgb, var(--danger) 22%, var(--surface));
+}
+
+
+/* what does not hold, written out where it can be read: the tooltip of the
+   browser is too small and too quick to leave for a rule that has to be acted
+   on. it is opened by the pointer and by the keyboard alike. */
+
+.plan-warning {
+	background: var(--surface);
+	border: 2px solid var(--danger);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	color: var(--text);
+	font-size: 14px;
+	line-height: 1.45;
+	max-width: 360px;
+	min-width: 250px;
+	padding: 12px 14px;
+	position: absolute;
+	z-index: 40;
+}
+
+.plan-warning-head {
+	align-items: baseline;
+	color: var(--danger);
+	display: flex;
+	font-size: 15px;
+	font-weight: 700;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.plan-warning-sign {
+	font-size: 18px;
+	line-height: 1;
+}
+
+.plan-warning-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding-left: 20px;
+}
+
+.plan-warning-list li {
+	font-size: 14.5px;
+}
+
+.plan-warning-note {
+	border-top: 1px solid var(--border);
+	color: var(--muted);
+	font-size: 12.5px;
+	margin: 10px 0 0;
+	padding-top: 8px;
+}
+
+/* the same, read in the editor where the change is being made */
+.plan-editor-wrong {
+	background: color-mix(in srgb, var(--danger) 10%, transparent);
+	border: 1px solid var(--danger);
+	border-radius: var(--radius-sm);
+	padding: 8px 10px;
+}
+
+.plan-editor-wrong-head {
+	color: var(--danger);
+	font-size: 12.5px;
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+
+.plan-editor-wrong ul {
+	font-size: 12.5px;
+	margin: 0;
+	padding-left: 18px;
 }
 
 .plan-editor {
@@ -534,6 +617,31 @@
 /* ---------------------------------------------------------------- the printer */
 
 @media print {
+	/*
+	 * the printed day is the one the camp has always had: the block the workbook
+	 * gave every day, measured off a page it printed out of Excel.
+	 *
+	 *   the block itself      493.8 x 321.2 pt   = 174.19 x 113.4 mm
+	 *   a row                 15.3 pt            = 5.4 mm, twenty one of them
+	 *   the text              11.9 pt
+	 *   the frame             1.7 pt             = 0.6 mm
+	 *   a rule                0.85 pt            = 0.3 mm
+	 *   a double rule         two of those, 0.85 pt apart
+	 *   two days to the page, one row of space between them, centred
+	 *
+	 * which rule goes where is the part that is easy to get wrong, so it is
+	 * written out once here:
+	 *
+	 *   between the fields of a round     dotted, and only past the round column
+	 *   between the rounds of a zone      solid, the whole width
+	 *   between the zones of a day        double, the whole width
+	 *   under the date                    double
+	 *   round | field                     dotted
+	 *   field | number, name | number, name | score, score | referee   solid
+	 *   number | name                     nothing at all
+	 *   the two scores                    dotted
+	 */
+
 	body.is-printing {
 		background: #fff;
 		margin: 0;
@@ -562,6 +670,8 @@
 	body.is-printing .pages-head .pages-pick,
 	body.is-printing .pages-head .pages-print,
 	body.is-printing .sheet-offer,
+	body.is-printing .plan-warning,
+	body.is-printing .plan-editor,
 	body.is-printing .sheet[data-sheet="plan"],
 	body.is-printing .sheet[data-sheet="points"] {
 		display: none !important;
@@ -573,27 +683,29 @@
 
 	body.is-printing .pages-day.is-print {
 		background: #fff;
-		border: .53mm solid #000;
+		border: 0.6mm solid #000;
 		border-radius: 0;
 		box-shadow: none;
+		box-sizing: border-box;
 		break-inside: avoid;
 		color: #000;
 		display: block;
 		font-family: "Trebuchet MS", Arial, sans-serif;
-		box-sizing: border-box;
-		height: 133.35mm;
+		height: 113.4mm;
 		margin: 0 auto;
 		overflow: hidden;
 		page-break-inside: avoid;
-		width: 197.3mm;
+		width: 174.19mm;
 	}
 
+	/* the two blocks of a sheet stand in the middle of it, as Excel centred them */
 	body.is-printing .pages-day.print-pair-first {
-		margin-top: 12mm;
+		margin-top: 32.4mm;
 	}
 
+	/* one row of space between the two, which is the gap the workbook left */
 	body.is-printing .pages-day.print-pair-first:not(.print-pair-last) {
-		margin-bottom: 6.35mm;
+		margin-bottom: 5.4mm;
 	}
 
 	/* two days to a side of A4, which is how they fitted in the workbook */
@@ -606,18 +718,19 @@
 		gap: 0;
 	}
 
+	/* the date is a row of the block, across the whole of it */
 	body.is-printing .pages-head {
 		background: #fff;
-		border-bottom: .7mm double #000;
+		border-bottom: 0.9mm double #000;
 		display: block;
-		height: 6.35mm;
+		height: 5.4mm;
 		padding: 0;
 	}
 
 	body.is-printing .pages-date {
 		align-items: center;
 		display: flex;
-		font-size: 14pt;
+		font-size: 11.9pt;
 		font-weight: 400;
 		height: 100%;
 		justify-content: center;
@@ -636,38 +749,37 @@
 
 	body.is-printing .pages-table {
 		border-collapse: collapse;
-		font-size: 14pt;
-		height: calc(100% - 6.35mm);
+		font-size: 11.9pt;
+		height: calc(100% - 5.4mm);
 		line-height: 1;
 		table-layout: fixed;
 	}
 
+	/* the printed sheet names no columns: the camp knows what they are */
 	body.is-printing .pages-table thead {
 		display: none;
 	}
 
 	body.is-printing .pages-table tbody tr {
-		height: 6.35mm;
+		height: 5.4mm;
 	}
 
+	/* the fields of one round are ruled off from one another, and the rule stops
+	   at the round column rather than crossing it */
 	body.is-printing .pages-table tbody th,
 	body.is-printing .pages-table tbody td {
 		background: #fff !important;
 		border: 0;
-		border-bottom: .09mm solid #000;
+		border-bottom: 0.3mm dotted #000;
 		color: #000;
-		padding: 0 .7mm;
+		padding: 0 0.7mm;
 		vertical-align: middle;
 	}
 
-	body.is-printing .pages-table tbody tr:last-child > * {
-		border-bottom: 0;
-	}
-
 	body.is-printing .pages-table .pages-round {
-		border-left: 0;
-		border-right: .1mm solid #000;
-		font-size: 14pt;
+		border-bottom: 0;
+		border-right: 0.3mm dotted #000;
+		font-size: 11.9pt;
 		font-weight: 400;
 		padding: 0;
 		text-align: center;
@@ -675,54 +787,62 @@
 		writing-mode: vertical-rl;
 	}
 
+	/* the merged round cell closes its own block */
+	body.is-printing .pages-table .pages-round-end {
+		border-bottom: 0.3mm solid #000;
+	}
+
+	body.is-printing .pages-table .pages-round-zone-end {
+		border-bottom: 0.9mm double #000;
+	}
+
+	body.is-printing .pages-table .pages-round-day-end {
+		border-bottom: 0;
+	}
+
 	body.is-printing .pages-table .pages-field {
-		border-left: .1mm solid #000;
 		font-style: italic;
 		font-weight: 400;
-		padding-left: .8mm;
+		padding-left: 0.8mm;
 		white-space: nowrap;
 	}
 
-	body.is-printing .pages-table .pages-home-id {
-		border-left: .26mm dashed #000;
+	/* a team is its number and its name with nothing drawn between the two */
+	body.is-printing .pages-table .pages-home-id,
+	body.is-printing .pages-table .pages-away-id,
+	body.is-printing .pages-table .pages-home-score,
+	body.is-printing .pages-table .pages-ref {
+		border-left: 0.3mm solid #000;
 	}
 
-	body.is-printing .pages-table .pages-home-team,
-	body.is-printing .pages-table .pages-away-team {
-		border-right: .26mm dashed #000;
-	}
-
-	body.is-printing .pages-table .pages-home-score {
-		border-left: .26mm dashed #000;
-		border-right: .1mm solid #000;
-	}
-
+	/* the two scores are told apart more lightly than the rest */
 	body.is-printing .pages-table .pages-away-score {
-		border-left: .1mm solid #000;
-		border-right: .26mm dashed #000;
+		border-left: 0.3mm dotted #000;
 	}
 
+	/* the last round of a zone, the last zone of a day, and the day itself */
 	body.is-printing .pages-table .pages-round-last > * {
-		border-bottom: .26mm solid #000;
+		border-bottom: 0.3mm solid #000;
 	}
 
 	body.is-printing .pages-table .pages-zone-last > * {
-		border-bottom: .7mm double #000;
+		border-bottom: 0.9mm double #000;
 	}
 
-	/* The last zone meets the medium outside frame directly; only internal zone
-	   boundaries use Excel's double rule. */
+	/* the last zone meets the frame of the day, which is rule enough */
 	body.is-printing .pages-table .pages-day-last > * {
 		border-bottom: 0;
 	}
 
 	body.is-printing .pages-table .pages-id {
 		font-variant-numeric: tabular-nums;
-		text-align: right;
+		text-align: left;
 	}
 
 	body.is-printing .pages-table .pages-team {
 		font-weight: 400;
+		overflow: hidden;
+		text-overflow: clip;
 		white-space: nowrap;
 	}
 
@@ -747,7 +867,7 @@
 		font: inherit;
 		height: 100%;
 		margin: 0;
-		padding: 0 .7mm;
+		padding: 0 0.7mm;
 		text-align: right;
 		width: 100%;
 	}

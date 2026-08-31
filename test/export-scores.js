@@ -74,6 +74,25 @@ function sheetCells(doc) {
 		? 'no free slot of the same sport to move into, skipped'
 		: 'a match moved into a free slot of its own sport');
 
+	// a match put by hand in a round the configuration never asked for. those are
+	// times the camp has and left unused, and what is handed out has to carry them
+	// as readily as the ones the search was given.
+	let extra = null;
+	workbook.calendar.forEach(day => day.dzones.forEach(dzone => dzone.rounds.forEach(round => {
+		if (round.given || extra !== null)
+			return;
+		workbook.cols.forEach(col => {
+			const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
+			if (extra === null && wb_at(key) === null && col.sport.name === group[2].game.sport.name)
+				extra = key;
+		});
+	})));
+	if (extra !== null)
+		wb_move(group[2].key, extra);
+	check(extra === null || wb_at(extra) !== null, extra === null
+		? 'the configuration leaves no round unused here, skipped'
+		: 'a match put in a round the configuration did not give');
+
 	caught.bytes = null;
 	caught.alerts.length = 0;
 	await exportToExcel();
@@ -117,6 +136,17 @@ function sheetCells(doc) {
 		// and it is not still written where it came from
 		const gone = wb_at(mover.key);
 		check(gone === null, 'and the slot it left holds nothing');
+	}
+
+	say('\n=== a round the configuration left out carries what was put in it ===');
+	if (extra !== null) {
+		const put = wb_at(extra);
+		const pair = [wb_char(put.home), wb_char(put.away)].join('-');
+		check(Object.keys(plan).some(ref => plan[ref] === pair),
+			`the match put in an unused round reads ${pair} on the plan sheet`);
+		// and the round it went into is no longer painted as time nobody used
+		const styles = await zip.file('xl/styles.xml').async('string');
+		check(/D9D9D9/.test(styles), 'the unused round fill is still in the workbook for the rounds that stayed unused');
 	}
 
 	say('\n=== every match of the plan is written and none twice ===');
