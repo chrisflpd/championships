@@ -215,6 +215,15 @@ async function run(CONFIG, fail) {
 	const upright = ['pages-home-id', 'pages-away-id', 'pages-home-score', 'pages-away-score', 'pages-ref'];
 	check(cards.every(card => upright.every(kind => card.querySelector('.' + kind) !== null)),
 		`every day sheet carries the ${upright.length} columns the upright rules stand between`);
+	// the round name stands in the middle of its merged cell. `.pages-table th` is
+	// the more particular of the two selectors, so naming the cell by its class
+	// alone left the name set to the left by the rule that sets the rest of the
+	// block to the left — which is worth asking the page about rather than the
+	// stylesheet, none of it being written in var()
+	const round_cell = doc.querySelector('#sheet-pages .pages-round');
+	const round_style = window.getComputedStyle(round_cell);
+	check(round_style.textAlign === 'center' && round_style.verticalAlign === 'middle',
+		`the round name is centred in its merged cell (${round_style.textAlign}, ${round_style.verticalAlign})`);
 	if (4 % cfg.zones.length === 0)
 		check(cards.every(card => card.querySelectorAll('tbody tr').length === 4 * fields),
 			'the Excel sheet keeps four ruled round blocks per printed day');
@@ -285,6 +294,11 @@ async function run(CONFIG, fail) {
 		'and the round name stands in the middle of it, both ways');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
+	// the body is a page tall to begin with, and the first printed day carries a
+	// margin that collapses up to it: a page of minimum height pushed down by that
+	// margin is a second sheet of blank paper
+	check(/body\.is-printing\s*{[^}]*min-height:\s*0/s.test(printCss),
+		'and the page is not held open to a second, blank sheet');
 
 	//the print marker makes explicit pairs: first+second on one A4, third on the
 	//next one. the real print dialog is replaced here so the DOM can be read.

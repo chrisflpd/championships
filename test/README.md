@@ -108,6 +108,14 @@ And nothing here prints. The measures of the printed day were taken off a page
 that came out of the real workbook and are checked against the stylesheet; that
 the printer agrees is something only a printer can say.
 
+What a browser can be made to say, when the stylesheet is not enough, is the
+paged layout itself: serve the folder, open it, fetch the stylesheets, swap
+`@media print` for `@media all`, put `is-printing` on the body and mark a day the
+way `pages_print` marks it. Everything is then laid out for real and can be
+measured — the block came to 174.19 by 113.4 mm on rows of 5.4 mm, and two days
+and their margins to 264.6 mm of the 297 an A4 gives. It is worth doing before
+believing anything about the paper.
+
 jsdom also does not give a form the named properties a browser gives it, and
 `parser.js` reads `form['config']`, so the page is served with that one browser
 behaviour put back by a small script. Nothing else about the page is changed.

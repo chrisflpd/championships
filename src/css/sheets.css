@@ -447,7 +447,10 @@
    its column is a narrow one — the proportions are Excel's — so the name is set
    on its side, the way it is on the paper, rather than pushing the column wider
    than it is meant to be. */
-.pages-round {
+/* named with the cell rather than with the class alone: `.pages-table th` is the
+   more particular of the two, and the name was being set to the left of its
+   column by the very rule that sets the rest of the block to the left */
+.pages-table .pages-round {
 	border-right: var(--pages-rule-weight) dotted var(--pages-rule);
 	color: var(--muted);
 	font-size: 13px;
@@ -737,6 +740,10 @@
 	body.is-printing {
 		background: #fff;
 		margin: 0;
+		/* the page is a page tall to begin with, and the first printed day carries
+		   a margin that collapses up to it: a page of minimum height pushed down
+		   by that margin is a second sheet of blank paper */
+		min-height: 0;
 		-webkit-print-color-adjust: exact;
 		print-color-adjust: exact;
 	}
