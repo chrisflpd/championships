@@ -691,8 +691,19 @@ function wb_cautions(key) {
 
 	/* the zone */
 
-	if (here.length === 2 && in_zone.some(one => one.key !== key && wb_same_pair(game, one.game)))
-		said.push(`${both()} συναντιούνται ξανά στην ίδια ζώνη`);
+	//the same pair again in the same zone. the rounds beside a slot are rounds of
+	//its own zone, so a pair that meets again next door has met again in the zone:
+	//it is the one rule, said as closely as it can be.
+	if (here.length === 2) {
+		const again = in_zone.filter(one => one.key !== key && wb_same_pair(game, one.game));
+		if (again.length)
+			said.push(again.some(one => {
+				const there = wb_where(one.key);
+				return there !== null && Math.abs(there.r - where.r) === 1;
+			})
+				? `${both()} συναντιούνται ξανά στον διπλανό γύρο`
+				: `${both()} συναντιούνται ξανά στην ίδια ζώνη`);
+	}
 
 	//a zone that is full and holds a handful of group matches plays everybody. a
 	//zone is the rounds the configuration gave it — the band the page draws holds
@@ -716,9 +727,6 @@ function wb_cautions(key) {
 		said.push(`${both()} παίζουν ${game.sport.name} ξανά την ίδια ημέρα`);
 
 	/* the rounds beside */
-
-	if (here.length === 2 && beside.some(one => wb_same_pair(game, one.game)))
-		said.push(`${both()} παίζουν και στον διπλανό γύρο`);
 
 	beside.forEach(one => {
 		if (one.game.sport.name !== game.sport.name)

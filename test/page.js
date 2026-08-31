@@ -313,8 +313,11 @@ async function run(CONFIG, fail) {
 	});
 	check(cells.length === placed, `${cells.length} match cells for ${placed} placed matches`);
 	check(bad === 0, 'every match cell carries its text, its colour and its tooltip');
-	check(cells.every(c => window.getComputedStyle(c).boxShadow === 'none' || !window.getComputedStyle(c).boxShadow),
-		'and no coloured bar down its left side');
+	// a cell that is told something carries a ring of its own colour, so the old
+	// bar is looked for only on the cells that are told nothing
+	const plain = cells.filter(c => !c.classList.contains('cell-wrong') && !c.classList.contains('cell-caution'));
+	check(plain.every(c => window.getComputedStyle(c).boxShadow === 'none' || !window.getComputedStyle(c).boxShadow),
+		`and no coloured bar down the left side of the ${plain.length} that are told nothing`);
 	const empties = [...list.querySelectorAll('.cell-empty')];
 	check(empties.length > 0 && empties.every(c => c.textContent === '·'), `${empties.length} empty cells are muted dots`);
 	const ranks = [...list.querySelectorAll('.round-rank')];

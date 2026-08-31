@@ -10,8 +10,9 @@ console.log = () => {};
 const fail = [];
 const check = (ok, what) => { say((ok ? '  ok   ' : '  FAIL ') + what); if (!ok) fail.push(what); };
 
-// a calendar of two days of two zones of two rounds, on three fields, so that a
-// slot can be named outright instead of hunted for
+// a calendar of two days of a morning of two rounds and an afternoon of three,
+// on three fields, so that a slot can be named outright instead of hunted for —
+// and so that two matches of a zone can be a round apart or two rounds apart
 const CONFIG = [
 	'[sports]',
 	'Ποδόσφαιρο: Γ1, Γ2',
@@ -23,8 +24,8 @@ const CONFIG = [
 	'Απόγευμα',
 	'',
 	'[days]',
-	'2026-08-10 2 2',
-	'2026-08-11 2 2',
+	'2026-08-10 2 3',
+	'2026-08-11 2 3',
 	'',
 	'[teams]',
 	'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ',
@@ -65,6 +66,11 @@ function says(key, what) {
 	say('=== a plan the search found says nothing about itself ===');
 	// the rules the search keeps, read back off the plan it produced with them.
 	// anything said here is the reading being stricter than the scheduling.
+	//
+	// the search of the page drops the adjacent round rules after five attempts
+	// and says so, and a plan found without them can of course break them — the
+	// page marks those in amber, which is the whole point. schedule() here never
+	// relaxes, so what it finds has to come back silent.
 	for (const name of configs(9).slice(0, 4)) {
 		parse_config(read(name));
 		const program = schedule(60);
@@ -106,13 +112,21 @@ function says(key, what) {
 
 	say('\n=== what is worth a second look ===');
 
-	// the same pair again in the same zone
+	// the same pair again in the same zone, a round apart and two rounds apart. the
+	// rounds beside a slot are rounds of its own zone, so the two are the one rule
+	// and it is said once, as closely as it can be.
+	laid(() => {
+		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
+		wb_put(at(0, 1, 2, 'Γ2'), 'pg', 3, 4);
+	});
+	check(says(at(0, 1, 2, 'Γ2'), 'συναντιούνται ξανά στην ίδια ζώνη'), 'the same pair twice in a zone');
 	laid(() => {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
 		wb_put(at(0, 1, 1, 'Γ2'), 'pg', 3, 4);
 	});
-	check(says(at(0, 1, 1, 'Γ2'), 'συναντιούνται ξανά στην ίδια ζώνη'), 'the same pair twice in a zone');
-	check(says(at(0, 1, 1, 'Γ2'), 'παίζουν και στον διπλανό γύρο'), 'and in the round beside');
+	check(says(at(0, 1, 1, 'Γ2'), 'συναντιούνται ξανά στον διπλανό γύρο'), 'and said as the round beside when it is');
+	check(wb_cautions(at(0, 1, 1, 'Γ2')).filter(one => one.indexOf('συναντιούνται ξανά') !== -1).length === 1,
+		'and said once, not twice over');
 
 	// the same pair, the same sport, the same day, a zone apart
 	laid(() => {

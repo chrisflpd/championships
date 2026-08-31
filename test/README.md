@@ -71,7 +71,10 @@ turn, the knockout before its groups — under **Συνιστάται προσο
 
 The check worth having is the first one: it schedules the real configurations and
 holds the plans the search found to the rules the search keeps, so **anything said
-about them is the reading being stricter than the scheduling**. It has already
+about them is the reading being stricter than the scheduling**. It schedules
+without ever relaxing, since the search of the page drops the adjacent round rules
+after five attempts and says so — a plan found that way breaks them on purpose,
+and the page marking it in amber is the point rather than a fault. It has already
 caught one: the page draws every day with the four rounds the camp has, and a zone
 of the calendar therefore looks two rounds long even where the configuration gave
 it none, which had the baseball rules complaining about mornings nobody plays in.
