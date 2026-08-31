@@ -785,7 +785,11 @@
 		border: 0.6mm solid #000;
 		border-radius: 0;
 		box-shadow: none;
-		box-sizing: border-box;
+		/* the height below is the twenty one rows of the sheet, and the frame is
+		   drawn around them rather than taken out of them: counted the other way
+		   the frame eats a millimetre and a half of the last round, and the line
+		   the camp reads last is the one that comes out clipped */
+		box-sizing: content-box;
 		break-inside: avoid;
 		color: #000;
 		display: block;

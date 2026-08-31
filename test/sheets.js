@@ -299,6 +299,10 @@ async function run(CONFIG, fail) {
 	// margin is a second sheet of blank paper
 	check(/body\.is-printing\s*{[^}]*min-height:\s*0/s.test(printCss),
 		'and the page is not held open to a second, blank sheet');
+	// the height of a printed day is its twenty one rows; counted the other way
+	// round the frame is taken out of them and the last round comes out clipped
+	check(/pages-day\.is-print[^{]*{[^}]*box-sizing:\s*content-box/s.test(printCss),
+		'and the frame of a day is drawn around its rows rather than out of them');
 
 	//the print marker makes explicit pairs: first+second on one A4, third on the
 	//next one. the real print dialog is replaced here so the DOM can be read.
