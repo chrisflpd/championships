@@ -24,6 +24,14 @@ const POINTS_LEGEND = [
 	['RNK', 'Θέση'],
 ];
 
+function points_explain(cell, symbol) {
+	const found = POINTS_LEGEND.find(one => one[0] === symbol);
+	if (found === undefined)
+		return;
+	cell.title = found[1];
+	cell.setAttribute('aria-label', `${symbol}: ${found[1]}`);
+}
+
 /**
  * @param {Element} sheet
  * @returns {void}
@@ -94,6 +102,7 @@ function points_draw(sheet) {
 			const cell = document.createElement('th');
 			cell.scope = 'col';
 			cell.textContent = text;
+			points_explain(cell, text);
 			head_row.appendChild(cell);
 		});
 		const body = document.createElement('tbody');
@@ -114,7 +123,6 @@ function points_draw(sheet) {
 		});
 	}
 
-	sheet.appendChild(points_legend());
 }
 
 /**
@@ -155,6 +163,7 @@ function points_table(title, rows, draws, ranked) {
 		const cell = document.createElement('th');
 		cell.scope = 'col';
 		cell.textContent = text;
+		points_explain(cell, text);
 		head_row.appendChild(cell);
 	});
 
@@ -257,26 +266,6 @@ function points_knockouts(knockouts) {
 		tr.appendChild(score);
 
 		side(away, kn.away, played && result.sa > result.sh);
-	});
-	return box;
-}
-
-function points_legend() {
-	const box = document.createElement('div');
-	box.classList.add('points-legend');
-	const name = document.createElement('h4');
-	name.classList.add('points-group-name');
-	name.textContent = 'Επεξήγηση συμβόλων';
-	box.appendChild(name);
-	const list = document.createElement('dl');
-	box.appendChild(list);
-	POINTS_LEGEND.forEach(one => {
-		const key = document.createElement('dt');
-		key.textContent = one[0];
-		list.appendChild(key);
-		const value = document.createElement('dd');
-		value.textContent = one[1];
-		list.appendChild(value);
 	});
 	return box;
 }

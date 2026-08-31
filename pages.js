@@ -172,6 +172,11 @@ function pages_day(day, retell) {
 				if (round_index === 0)
 					row.classList.add('pages-zone-first');
 			}
+			if (c === workbook.cols.length - 1) {
+				row.classList.add('pages-round-last');
+				if (round_index === dzone.rounds.length - 1)
+					row.classList.add('pages-zone-last');
+			}
 			body.appendChild(row);
 
 			if (c === 0) {
@@ -191,11 +196,15 @@ function pages_day(day, retell) {
 			row.appendChild(field);
 
 			if (!mine) {
-				const empty = document.createElement('td');
-				empty.classList.add('pages-none');
-				empty.colSpan = 7;
-				empty.textContent = '—';
-				row.appendChild(empty);
+				['pages-home-id', 'pages-home-team', 'pages-away-id', 'pages-away-team',
+					'pages-home-score', 'pages-away-score', 'pages-ref'].forEach(kind => {
+					const empty = document.createElement('td');
+					empty.classList.add('pages-none', kind);
+					if (kind.indexOf('score') !== -1)
+						empty.classList.add('pages-score');
+					empty.textContent = '';
+					row.appendChild(empty);
+				});
 				return;
 			}
 
@@ -205,13 +214,13 @@ function pages_day(day, retell) {
 			if (result.sh !== null && result.sa !== null)
 				row.classList.add('pages-played');
 
-			[[sides.home, sides.home_label], [sides.away, sides.away_label]].forEach(side => {
+			[[sides.home, sides.home_label], [sides.away, sides.away_label]].forEach((side, side_index) => {
 				const id = document.createElement('td');
-				id.classList.add('pages-id');
+				id.classList.add('pages-id', side_index === 0 ? 'pages-home-id' : 'pages-away-id');
 				id.textContent = side[0] === null ? '' : String(side[0]);
 				row.appendChild(id);
 				const name = document.createElement('td');
-				name.classList.add('pages-team');
+				name.classList.add('pages-team', side_index === 0 ? 'pages-home-team' : 'pages-away-team');
 				//a knockout that nobody has come through to yet reads as what it is
 				//waiting for rather than as a blank
 				if (side[0] === null)
@@ -222,7 +231,7 @@ function pages_day(day, retell) {
 
 			const score = (value, which) => {
 				const cell = document.createElement('td');
-				cell.classList.add('pages-score');
+				cell.classList.add('pages-score', which === 'sh' ? 'pages-home-score' : 'pages-away-score');
 				const box = document.createElement('input');
 				box.type = 'number';
 				box.min = '0';
@@ -284,7 +293,29 @@ function pages_wire(card) {
 		const ref_box = row.querySelector('.pages-input[data-which="ref"]');
 		wb_set_result(game, read('sh'), read('sa'), ref_box === null ? '' : ref_box.value);
 		row.classList.toggle('pages-played', read('sh') !== null && read('sa') !== null);
+		wb_recount();
+		pages_refresh_knockouts();
+		plan_refresh_knockouts();
 		points_refresh();
+	});
+}
+
+function pages_refresh_knockouts() {
+	document.querySelectorAll('#sheet-pages tr[data-key]').forEach(row => {
+		const game = wb_at(row.dataset.key);
+		if (game === null || game.kn === null)
+			return;
+		const sides = wb_sides(game);
+		[['home', sides.home, sides.home_label], ['away', sides.away, sides.away_label]].forEach(side => {
+			const id = row.querySelector(`.pages-${side[0]}-id`);
+			const name = row.querySelector(`.pages-${side[0]}-team`);
+			if (id !== null)
+				id.textContent = side[1] === null ? '' : String(side[1]);
+			if (name !== null) {
+				name.textContent = side[2];
+				name.classList.toggle('pages-open', side[1] === null);
+			}
+		});
 	});
 }
 
@@ -310,7 +341,10 @@ function pages_print(cards) {
 			card.classList.add('print-break');
 	});
 	document.body.classList.add('is-printing');
+	const old_title = document.title;
+	document.title = '';
 	const clean = () => {
+		document.title = old_title;
 		document.body.classList.remove('is-printing');
 		document.querySelectorAll('.is-print, .print-break, .print-pair-first, .print-pair-last').forEach(one => {
 			one.classList.remove('is-print', 'print-break', 'print-pair-first', 'print-pair-last');

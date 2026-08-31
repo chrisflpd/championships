@@ -81,6 +81,9 @@ async function run(CONFIG, fail) {
 	check(tabs.length === 3, `${tabs.length} tabs`);
 	check(tabs.map(t => t.dataset.sheet).join(',') === 'plan,pages,points', 'plan, pages and points, in that order');
 	check(tabs[0].classList.contains('is-open'), 'the plan opens first');
+	const configPanel = doc.querySelector('.panel-config');
+	check(tabs[0].parentNode.nextElementSibling === configPanel && configPanel.hidden === false,
+		'the configuration is integrated directly under the Program tab');
 	check(doc.getElementById('sheet-plan').hidden === false, 'and its panel is the shown one');
 	check(doc.getElementById('sheet-pages').hidden === true && doc.getElementById('sheet-points').hidden === true,
 		'the other two are put away');
@@ -89,6 +92,9 @@ async function run(CONFIG, fail) {
 		'clicking a tab brings its panel out and puts the other away');
 	check(tabs[1].getAttribute('aria-selected') === 'true' && tabs[0].getAttribute('aria-selected') === 'false',
 		'and says which one is open');
+	check(configPanel.hidden === true, 'and the Program configuration leaves the other tabs');
+	check(window.getComputedStyle(doc.querySelector('.pages-bar')).position === 'sticky',
+		'the selected-days print control stays visible while the sheets scroll');
 
 	console.log('\n=== the pages ===');
 	// the days that hold a round, which are the ones worth handing out
@@ -181,10 +187,41 @@ async function run(CONFIG, fail) {
 		check(first.querySelector('.points-team').textContent === stand[0].team.name, 'the top of the table first');
 		check(first.querySelector('.points-pts').textContent === String(stand[0].pts), 'and its points beside it');
 	}
-	check(doc.querySelector('.points-legend') !== null, 'and the symbols are explained under it');
+	check(doc.querySelector('.points-legend') === null, 'there is no separate symbol explanation block');
+	check([...doc.querySelectorAll('.points-table thead th[title]')].some(th => th.textContent === 'PLD' && th.title === 'Αγώνες'),
+		'hovering a standings symbol explains its meaning');
+
+	console.log('\n=== completed groups fill the knockouts ===');
+	const direct = Object.values(cfg.knockouts).find(kn => kn.home.type === 'group'
+		&& kn.away.type === 'group' && kn.home.group.id === kn.away.group.id);
+	if (direct === undefined) {
+		check(true, 'no direct group-to-knockout match in this configuration, skipped');
+	} else {
+		const targetGroup = direct.home.group;
+		const knockoutGame = window.eval('wb_knockout_game')(direct.id);
+		check(window.eval('wb_group_complete')(targetGroup) === false
+			&& window.eval('wb_sides')(knockoutGame).home === null,
+			'a partial group does not prematurely fill its knockout place');
+		window.eval('wb_placed')().filter(p => p.game.kn === null && p.game.id === targetGroup.id)
+			.forEach(p => window.eval('wb_set_result')(p.game, 1, 0, ''));
+		window.eval('wb_recount')();
+		window.eval('pages_refresh_knockouts')();
+		window.eval('plan_refresh_knockouts')();
+		const sides = window.eval('wb_sides')(knockoutGame);
+		const label = window.eval('wb_plan_label')(knockoutGame);
+		check(window.eval('wb_group_complete')(targetGroup) === true && sides.home !== null && sides.away !== null,
+			'all group results automatically fill both knockout sides');
+		check(/^[0-9A-Z][sfb][0-9A-Z]$/.test(label), `the plan shows the resolved stage label ${label}`);
+		check(Object.keys(cfg.knockouts).some(id => window.eval('wb_knockout_stage')(id) === 'f'),
+			'the final uses the f marker');
+		if (Object.keys(cfg.knockouts).length > 3)
+			check(Object.keys(cfg.knockouts).some(id => window.eval('wb_knockout_stage')(id) === 'b'),
+				'an earlier playoff or barrage uses the b marker');
+	}
 
 	console.log('\n=== changing the plan ===');
 	click(tabs[0]);
+	check(configPanel.hidden === false, 'returning to Program brings its configuration back');
 	const from = doc.querySelector('#sheet-plan td.cell-match');
 	const fromKey = from.dataset.key;
 	const fromText = from.textContent;

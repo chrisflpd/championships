@@ -61,6 +61,8 @@ function zone_rows(program) {
  */
 function displayer(program) {
 	window.currentProgram = program;
+	if (typeof sheets_clear === 'function')
+		sheets_clear();
 
 	//everything on the page belongs to the program that was there before, tabs and
 	//all, so it goes rather than being picked over
@@ -276,9 +278,7 @@ function plan_draw(sheet) {
 						col_td.dataset.sportIndex = sport_index[game.sport.name];
 						col_td.title = plan_title(game, col.court);
 						col_td.draggable = true;
-						col_td.textContent = game.kn !== null
-							? game.kn
-							: [game.home, game.away].join('-');
+						col_td.textContent = wb_plan_label(game);
 						//what does not hold is said on the cell rather than refused
 						const said = wb_complaints(key);
 						if (said.length) {
@@ -301,6 +301,19 @@ function plan_draw(sheet) {
 	});
 
 	plan_wire(home);
+}
+
+//A score can fill the sides of later knockout matches without redrawing the
+//whole editable plan and stealing focus from the score box being typed in.
+function plan_refresh_knockouts() {
+	document.querySelectorAll('#sheet-plan td.cell-match[data-key]').forEach(cell => {
+		const game = wb_at(cell.dataset.key);
+		if (game === null || game.kn === null)
+			return;
+		cell.textContent = wb_plan_label(game);
+		const parts = cell.dataset.key.split('|');
+		cell.title = plan_title(game, parts[3] || '');
+	});
 }
 
 //what is read on hovering a cell of the plan: the two sides as they stand now,

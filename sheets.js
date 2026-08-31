@@ -39,6 +39,7 @@ function sheets_remember(id) {
  * @returns {void}
  */
 function sheets_shell(home) {
+	sheets_clear();
 	const strip = document.createElement('div');
 	strip.classList.add('sheet-tabs');
 	strip.setAttribute('role', 'tablist');
@@ -79,6 +80,21 @@ function sheets_shell(home) {
 		if (tab !== null)
 			tab.focus();
 	});
+
+	//The configuration belongs to the Program tab. It stays in its original
+	//place before a program exists, then sits directly below the tab strip.
+	const config_panel = document.querySelector('.panel-config');
+	if (config_panel !== null && config_panel.parentNode !== null) {
+		strip.classList.add('sheet-tabs-config');
+		config_panel.parentNode.insertBefore(strip, config_panel);
+	}
+}
+
+function sheets_clear() {
+	document.querySelectorAll('.sheet-tabs').forEach(strip => strip.remove());
+	const config_panel = document.querySelector('.panel-config');
+	if (config_panel !== null)
+		config_panel.hidden = false;
 }
 
 function sheets_current() {
@@ -101,6 +117,9 @@ function sheets_show(id, remember) {
 	document.querySelectorAll('.sheet').forEach(panel => {
 		panel.hidden = panel.dataset.sheet !== id;
 	});
+	const config_panel = document.querySelector('.panel-config');
+	if (config_panel !== null)
+		config_panel.hidden = id !== 'plan';
 	if (remember)
 		sheets_remember(id);
 }

@@ -542,6 +542,12 @@ function wb_knockout_game(id) {
 	return found.length ? found[0].game : null;
 }
 
+//A ranking is final only after every scheduled group match has a score.
+function wb_group_complete(group) {
+	const games = wb_placed().filter(placed => placed.game.kn === null && placed.game.id === group.id);
+	return games.length > 0 && games.every(placed => wb_played(placed.game));
+}
+
 /**
  * the team on one side of a knockout, once whatever it is waiting for has
  * happened, and null while it is still waiting.
@@ -557,9 +563,7 @@ function wb_side(union, seen) {
 		return union.team.id;
 	if (union.type === 'group') {
 		const row = wb_standings_of(union.group)[union.rank - 1];
-		//a group nobody has played yet ranks its teams by nothing at all, so the
-		//place is left open rather than filled with whoever happens to be first
-		if (row === undefined || row.pld === 0)
+		if (row === undefined || !wb_group_complete(union.group))
 			return null;
 		return row.team.id;
 	}
@@ -583,6 +587,36 @@ function wb_side(union, seen) {
 		return union.is_winner ? winner : loser;
 	}
 	return null;
+}
+
+function wb_union_uses(union, id) {
+	return union && union.type === 'knockout' && union.knockout.id === id;
+}
+
+//Finals are terminal winner matches; terminal loser matches are barrages. A
+//match directly feeding a final is a semifinal, and any earlier playoff is a
+//barrage/qualifier.
+function wb_knockout_stage(id) {
+	const kn = config.knockouts[id];
+	if (kn === undefined)
+		return 'b';
+	const consumers = Object.values(config.knockouts).filter(other =>
+		wb_union_uses(other.home, id) || wb_union_uses(other.away, id));
+	if (consumers.length === 0) {
+		const loser_match = [kn.home, kn.away].some(union => union && union.type === 'knockout' && !union.is_winner);
+		return loser_match ? 'b' : 'f';
+	}
+	const feeds_final = consumers.some(other => wb_knockout_stage(other.id) === 'f');
+	return feeds_final ? 's' : 'b';
+}
+
+function wb_plan_label(game) {
+	if (game.kn === null)
+		return `${wb_char(game.home)}-${wb_char(game.away)}`;
+	const sides = wb_sides(game);
+	if (sides.home === null || sides.away === null)
+		return game.kn;
+	return `${wb_char(sides.home)}${wb_knockout_stage(game.kn)}${wb_char(sides.away)}`;
 }
 
 //how a place still to be filled is read: the group and the ranking, or the

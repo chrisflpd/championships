@@ -510,6 +510,8 @@ function search_start() {
 	search = null;
 	relax_adjacency = false;
 	schedule_forget_best();
+	if (typeof sheets_clear === 'function')
+		sheets_clear();
 	//the program on the page belongs to the previous configuration, and so does
 	//anything that would be handed out of it: the three tabs go with it
 	const previous = document.getElementById('program');

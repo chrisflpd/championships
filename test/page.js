@@ -308,9 +308,11 @@ async function run(CONFIG, fail) {
 				cols.forEach((col, ci) => {
 					const slot = round && round.slots[col.court];
 					const m = slot && slot.match;
-					const wanted = (m && m.sport.name === col.sport)
-						? (('id' in m.team_home && 'id' in m.team_away) ? m.team_home.id + '-' + m.team_away.id : m.id)
-						: '·';
+					let wanted = '·';
+					if (m && m.sport.name === col.sport) {
+						const game = window.eval('wb_at')(tds[ci].dataset.key);
+						wanted = window.eval('wb_plan_label')(game);
+					}
 					if (round === null) blankChecked++; else checked++;
 					if (tds[ci].textContent !== String(wanted)) wrong++;
 				});
