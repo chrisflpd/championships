@@ -513,7 +513,7 @@ function search_start() {
 	if (typeof sheets_clear === 'function')
 		sheets_clear();
 	//the program on the page belongs to the previous configuration, and so does
-	//anything that would be handed out of it: the three tabs go with it
+	//anything that would be handed out of it: the tabs go with it
 	const previous = document.getElementById('program');
 	if (previous !== null) {
 		if (typeof previous.replaceChildren === 'function')

@@ -161,10 +161,18 @@ function pages_day(day, retell) {
 	const body = document.createElement('tbody');
 	table.appendChild(body);
 
-	day.dzones.forEach(dzone => dzone.rounds.forEach((round, round_index) => {
+	day.dzones.forEach((dzone, dzone_index) => {
+		//The Excel page always reserves four round blocks per day. When the
+		//configuration divides those evenly between its zones, keep the unused
+		//blocks as blank ruled rows instead of stretching the rounds that exist.
+		const capacity = 4 % config.zones.length === 0 ? 4 / config.zones.length : 0;
+		const rounds = dzone.rounds.slice();
+		while (rounds.length < capacity)
+			rounds.push(null);
+		rounds.forEach((round, round_index) => {
 		workbook.cols.forEach((col, c) => {
-			const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
-			const game = wb_at(key);
+			const key = round === null ? null : wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
+			const game = key === null ? null : wb_at(key);
 			const mine = game !== null && wb_shows(game, col, c);
 			const row = document.createElement('tr');
 			if (c === 0) {
@@ -174,8 +182,11 @@ function pages_day(day, retell) {
 			}
 			if (c === workbook.cols.length - 1) {
 				row.classList.add('pages-round-last');
-				if (round_index === dzone.rounds.length - 1)
+				if (round_index === rounds.length - 1) {
 					row.classList.add('pages-zone-last');
+					if (dzone_index === day.dzones.length - 1)
+						row.classList.add('pages-day-last');
+				}
 			}
 			body.appendChild(row);
 
@@ -186,7 +197,7 @@ function pages_day(day, retell) {
 				name.classList.add('pages-round');
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
-				name.textContent = pages_round_name(dzone.zone, round.rank);
+				name.textContent = pages_round_name(dzone.zone, round === null ? round_index : round.rank);
 				row.appendChild(name);
 			}
 
@@ -258,7 +269,8 @@ function pages_day(day, retell) {
 			ref_cell.appendChild(ref);
 			row.appendChild(ref_cell);
 		});
-	}));
+		});
+	});
 
 	pages_wire(card);
 	return card;

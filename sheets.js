@@ -1,5 +1,5 @@
 /*
- * the three tabs.
+ * the four tabs.
  *
  * the workbook the camp used had six sheets and read three of them: the plan it
  * made, the pages it handed out every morning and the points it worked out at
@@ -9,10 +9,12 @@
  */
 
 const SHEET_KEY = 'sheet';
+const SHEET_ORDER_KEY = 'sheet-order';
 const SHEETS = [
 	{ id: 'plan', name: 'Πρόγραμμα', draw: sheet => plan_draw(sheet) },
 	{ id: 'pages', name: 'Φύλλα αγώνων', draw: sheet => pages_draw(sheet) },
 	{ id: 'points', name: 'Βαθμολογία', draw: sheet => points_draw(sheet) },
+	{ id: 'config', name: 'Διαμόρφωση προγράμματος', draw: null },
 ];
 
 //a browser may keep no storage at all, and the page still has to open
@@ -32,8 +34,30 @@ function sheets_remember(id) {
 	}
 }
 
+function sheets_order() {
+	const standard = SHEETS.map(one => one.id);
+	try {
+		const stored = JSON.parse(localStorage.getItem(SHEET_ORDER_KEY));
+		if (Array.isArray(stored) && stored.length === standard.length
+			&& standard.every(id => stored.includes(id)))
+			return stored;
+	} catch (error) {
+		console.log(error);
+	}
+	return standard;
+}
+
+function sheets_remember_order(strip) {
+	try {
+		localStorage.setItem(SHEET_ORDER_KEY, JSON.stringify(
+			[...strip.querySelectorAll('.sheet-tab')].map(tab => tab.dataset.sheet)));
+	} catch (error) {
+		console.log(error);
+	}
+}
+
 /**
- * the strip of tabs and the three panels under it, empty for now.
+ * the strip of tabs and their panels, empty for now.
  *
  * @param {Element} home
  * @returns {void}
@@ -45,7 +69,7 @@ function sheets_shell(home) {
 	strip.setAttribute('role', 'tablist');
 	home.appendChild(strip);
 
-	SHEETS.forEach(one => {
+	sheets_order().map(id => SHEETS.find(one => one.id === id)).forEach(one => {
 		const tab = document.createElement('button');
 		tab.type = 'button';
 		tab.classList.add('sheet-tab');
@@ -53,17 +77,61 @@ function sheets_shell(home) {
 		tab.id = 'tab-' + one.id;
 		tab.setAttribute('role', 'tab');
 		tab.setAttribute('aria-controls', 'sheet-' + one.id);
+		tab.draggable = true;
+		tab.title = 'Σύρετε για αλλαγή σειράς';
 		tab.textContent = one.name;
 		tab.addEventListener('click', () => sheets_show(one.id, true));
 		strip.appendChild(tab);
 
-		const panel = document.createElement('div');
-		panel.classList.add('sheet');
+		const panel = one.id === 'config'
+			? document.querySelector('.panel-config')
+			: document.createElement('div');
+		if (panel === null)
+			return;
+		if (one.id !== 'config')
+			panel.classList.add('sheet');
 		panel.dataset.sheet = one.id;
 		panel.id = 'sheet-' + one.id;
 		panel.setAttribute('role', 'tabpanel');
 		panel.setAttribute('aria-labelledby', tab.id);
-		home.appendChild(panel);
+		if (one.id !== 'config')
+			home.appendChild(panel);
+	});
+
+	let dragging = null;
+	strip.addEventListener('dragstart', event => {
+		const tab = event.target.closest ? event.target.closest('.sheet-tab') : null;
+		if (tab === null)
+			return;
+		dragging = tab;
+		tab.classList.add('is-dragging');
+		tab.setAttribute('aria-grabbed', 'true');
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', tab.dataset.sheet);
+		}
+	});
+	strip.addEventListener('dragover', event => {
+		const over = event.target.closest ? event.target.closest('.sheet-tab') : null;
+		if (dragging === null || over === null || over === dragging)
+			return;
+		event.preventDefault();
+		const rect = over.getBoundingClientRect();
+		strip.insertBefore(dragging, event.clientX < rect.left + rect.width / 2 ? over : over.nextSibling);
+	});
+	strip.addEventListener('drop', event => {
+		if (dragging === null)
+			return;
+		event.preventDefault();
+		sheets_remember_order(strip);
+	});
+	strip.addEventListener('dragend', () => {
+		if (dragging !== null) {
+			dragging.classList.remove('is-dragging');
+			dragging.setAttribute('aria-grabbed', 'false');
+		}
+		dragging = null;
+		sheets_remember_order(strip);
 	});
 
 	//the tabs are walked with the arrow keys, as a tablist is
@@ -72,7 +140,7 @@ function sheets_shell(home) {
 		if (step === 0)
 			return;
 		event.preventDefault();
-		const ids = SHEETS.map(one => one.id);
+		const ids = [...strip.querySelectorAll('.sheet-tab')].map(tab => tab.dataset.sheet);
 		const at = ids.indexOf(sheets_current());
 		const next = ids[(at + step + ids.length) % ids.length];
 		sheets_show(next, true);
@@ -81,8 +149,8 @@ function sheets_shell(home) {
 			tab.focus();
 	});
 
-	//The configuration belongs to the Program tab. It stays in its original
-	//place before a program exists, then sits directly below the tab strip.
+	//The configuration is the fourth tab, while its existing form remains the
+	//same element so none of its wiring is duplicated or lost.
 	const config_panel = document.querySelector('.panel-config');
 	if (config_panel !== null && config_panel.parentNode !== null) {
 		strip.classList.add('sheet-tabs-config');
@@ -93,8 +161,13 @@ function sheets_shell(home) {
 function sheets_clear() {
 	document.querySelectorAll('.sheet-tabs').forEach(strip => strip.remove());
 	const config_panel = document.querySelector('.panel-config');
-	if (config_panel !== null)
+	if (config_panel !== null) {
+		config_panel.removeAttribute('data-sheet');
+		config_panel.removeAttribute('role');
+		config_panel.removeAttribute('aria-labelledby');
+		config_panel.removeAttribute('id');
 		config_panel.hidden = false;
+	}
 }
 
 function sheets_current() {
@@ -114,18 +187,15 @@ function sheets_show(id, remember) {
 		tab.setAttribute('aria-selected', open ? 'true' : 'false');
 		tab.tabIndex = open ? 0 : -1;
 	});
-	document.querySelectorAll('.sheet').forEach(panel => {
+	document.querySelectorAll('.sheet, .panel-config[data-sheet="config"]').forEach(panel => {
 		panel.hidden = panel.dataset.sheet !== id;
 	});
-	const config_panel = document.querySelector('.panel-config');
-	if (config_panel !== null)
-		config_panel.hidden = id !== 'plan';
 	if (remember)
 		sheets_remember(id);
 }
 
 /**
- * draws all three tabs over again. a score changes the standings and a match
+ * draws the three workbook tabs over again. a score changes the standings and a match
  * moved changes the pages, so the cheapest thing that is certainly right is to
  * draw the lot, the three of them together being a few hundred rows.
  *
@@ -139,6 +209,8 @@ function sheets_draw() {
 	//results they are read from do not change while they are being drawn
 	wb_recount();
 	SHEETS.forEach(one => {
+		if (one.draw === null)
+			return;
 		const panel = document.getElementById('sheet-' + one.id);
 		if (panel === null)
 			return;

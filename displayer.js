@@ -51,7 +51,7 @@ function zone_rows(program) {
 }
 
 /**
- * the whole program: the three tabs and what is on them. the plan is drawn here,
+ * the whole program: the workbook tabs and what is on them. the plan is drawn here,
  * the pages and the points by their own sheets, and all three read the workbook
  * rather than the program, so that a match moved by hand is drawn where it was
  * put and not where the search first placed it.

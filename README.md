@@ -7,8 +7,9 @@ An HTML-JS application to plan championships.
 
 ## the page
 
-Once a program has been found, it is shown under three tabs, which are the three
-sheets of `template.xlsx` the camp actually reads.
+Once a program has been found, it is shown under four draggable tabs. The first
+three are the sheets of `template.xlsx` the camp actually reads; the fourth is
+the program configuration. Drag any tab to keep them in the order you prefer.
 
 **Πρόγραμμα** is the plan: a card per day, a row per round, a column per field.
 Every slot can be changed. Drag a match onto a free slot to move it, or onto

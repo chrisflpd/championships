@@ -1,5 +1,5 @@
 /*
- * the three tabs: the strip that switches between them, the pages that are
+ * the tabs: the strip that switches between them, the pages that are
  * handed out and the points that are added up. the plan keeps its own sheet.
  *
  * every colour and measure in here is one theme.css already names, so the dark
@@ -34,7 +34,7 @@
 	border-bottom: 3px solid transparent;
 	border-radius: 10px 10px 0 0;
 	color: var(--muted);
-	cursor: pointer;
+	cursor: grab;
 	font: inherit;
 	font-size: 14px;
 	font-weight: 600;
@@ -44,6 +44,14 @@
 	position: relative;
 	transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
 	white-space: nowrap;
+}
+
+.sheet-tab:active {
+	cursor: grabbing;
+}
+
+.sheet-tab.is-dragging {
+	opacity: .45;
 }
 
 .sheet-tab:hover {
@@ -67,6 +75,11 @@
 
 .sheet {
 	font-size: 14px;
+}
+
+.sheet[data-sheet="plan"],
+.sheet[data-sheet="points"] {
+	overflow-x: auto;
 }
 
 
@@ -203,8 +216,9 @@
 
 .pages-bar {
 	align-items: center;
-	background: color-mix(in srgb, var(--bg) 94%, transparent);
+	background: var(--bg);
 	border-bottom: 1px solid var(--border);
+	box-shadow: 0 5px 8px -8px rgba(0, 0, 0, .45);
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px;
@@ -212,7 +226,7 @@
 	margin-bottom: 12px;
 	padding: 8px 0;
 	position: sticky;
-	top: 52px;
+	top: 53px;
 	z-index: 4;
 }
 
@@ -428,10 +442,38 @@
 	letter-spacing: .03em;
 }
 
-.points-table thead th[title] {
-	cursor: help;
+.points-table thead th[data-tooltip] {
+	cursor: default;
+	position: relative;
 	text-decoration: underline dotted;
 	text-underline-offset: 3px;
+}
+
+.points-table thead th[data-tooltip]::after {
+	background: #202124;
+	border-radius: 6px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, .22);
+	color: #fff;
+	content: attr(data-tooltip);
+	font-size: 13px;
+	font-weight: 500;
+	left: 50%;
+	letter-spacing: 0;
+	opacity: 0;
+	pointer-events: none;
+	position: absolute;
+	top: calc(100% + 7px);
+	transform: translate(-50%, -3px);
+	transition: opacity .12s ease, transform .12s ease;
+	white-space: nowrap;
+	z-index: 20;
+	padding: 5px 8px;
+}
+
+.points-table thead th[data-tooltip]:hover::after,
+.points-table thead th[data-tooltip]:focus-visible::after {
+	opacity: 1;
+	transform: translate(-50%, 0);
 }
 
 .points-id {
@@ -492,6 +534,24 @@
 /* ---------------------------------------------------------------- the printer */
 
 @media print {
+	body.is-printing {
+		background: #fff;
+		margin: 0;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	body.is-printing .app,
+	body.is-printing .program,
+	body.is-printing .sheet[data-sheet="pages"],
+	body.is-printing .pages-list {
+		display: block;
+		margin: 0;
+		max-width: none;
+		overflow: visible;
+		padding: 0;
+		width: 100%;
+	}
 
 	/* what goes on the paper is the days that were picked and nothing else: not
 	   the configuration, not the tabs, not the plan, not the points */
@@ -513,26 +573,27 @@
 
 	body.is-printing .pages-day.is-print {
 		background: #fff;
-		border: .5mm solid #000;
+		border: .53mm solid #000;
 		border-radius: 0;
 		box-shadow: none;
 		break-inside: avoid;
 		color: #000;
 		display: block;
 		font-family: "Trebuchet MS", Arial, sans-serif;
-		height: 100mm;
+		box-sizing: border-box;
+		height: 133.35mm;
 		margin: 0 auto;
 		overflow: hidden;
 		page-break-inside: avoid;
-		width: 180mm;
+		width: 197.3mm;
 	}
 
 	body.is-printing .pages-day.print-pair-first {
-		margin-top: 25mm;
+		margin-top: 12mm;
 	}
 
 	body.is-printing .pages-day.print-pair-first:not(.print-pair-last) {
-		margin-bottom: 6mm;
+		margin-bottom: 6.35mm;
 	}
 
 	/* two days to a side of A4, which is how they fitted in the workbook */
@@ -542,7 +603,6 @@
 	}
 
 	body.is-printing .pages-list {
-		display: block;
 		gap: 0;
 	}
 
@@ -550,14 +610,14 @@
 		background: #fff;
 		border-bottom: .7mm double #000;
 		display: block;
-		height: 7mm;
+		height: 6.35mm;
 		padding: 0;
 	}
 
 	body.is-printing .pages-date {
 		align-items: center;
 		display: flex;
-		font-size: 12pt;
+		font-size: 14pt;
 		font-weight: 400;
 		height: 100%;
 		justify-content: center;
@@ -576,8 +636,8 @@
 
 	body.is-printing .pages-table {
 		border-collapse: collapse;
-		font-size: 10.5pt;
-		height: calc(100% - 7mm);
+		font-size: 14pt;
+		height: calc(100% - 6.35mm);
 		line-height: 1;
 		table-layout: fixed;
 	}
@@ -587,14 +647,14 @@
 	}
 
 	body.is-printing .pages-table tbody tr {
-		height: 4.65mm;
+		height: 6.35mm;
 	}
 
 	body.is-printing .pages-table tbody th,
 	body.is-printing .pages-table tbody td {
 		background: #fff !important;
 		border: 0;
-		border-bottom: .1mm solid #777;
+		border-bottom: .09mm solid #000;
 		color: #000;
 		padding: 0 .7mm;
 		vertical-align: middle;
@@ -607,7 +667,7 @@
 	body.is-printing .pages-table .pages-round {
 		border-left: 0;
 		border-right: .1mm solid #000;
-		font-size: 10pt;
+		font-size: 14pt;
 		font-weight: 400;
 		padding: 0;
 		text-align: center;
@@ -619,39 +679,46 @@
 		border-left: .1mm solid #000;
 		font-style: italic;
 		font-weight: 400;
+		padding-left: .8mm;
 		white-space: nowrap;
 	}
 
 	body.is-printing .pages-table .pages-home-id {
-		border-left: .2mm dashed #000;
+		border-left: .26mm dashed #000;
 	}
 
 	body.is-printing .pages-table .pages-home-team,
 	body.is-printing .pages-table .pages-away-team {
-		border-right: .2mm dashed #000;
+		border-right: .26mm dashed #000;
 	}
 
 	body.is-printing .pages-table .pages-home-score {
-		border-left: .2mm dashed #000;
+		border-left: .26mm dashed #000;
 		border-right: .1mm solid #000;
 	}
 
 	body.is-printing .pages-table .pages-away-score {
 		border-left: .1mm solid #000;
-		border-right: .2mm dashed #000;
+		border-right: .26mm dashed #000;
 	}
 
 	body.is-printing .pages-table .pages-round-last > * {
-		border-bottom: .25mm solid #000;
+		border-bottom: .26mm solid #000;
 	}
 
 	body.is-printing .pages-table .pages-zone-last > * {
 		border-bottom: .7mm double #000;
 	}
 
+	/* The last zone meets the medium outside frame directly; only internal zone
+	   boundaries use Excel's double rule. */
+	body.is-printing .pages-table .pages-day-last > * {
+		border-bottom: 0;
+	}
+
 	body.is-printing .pages-table .pages-id {
 		font-variant-numeric: tabular-nums;
-		text-align: left;
+		text-align: right;
 	}
 
 	body.is-printing .pages-table .pages-team {

@@ -28,7 +28,8 @@ function points_explain(cell, symbol) {
 	const found = POINTS_LEGEND.find(one => one[0] === symbol);
 	if (found === undefined)
 		return;
-	cell.title = found[1];
+	cell.dataset.tooltip = found[1];
+	cell.tabIndex = 0;
 	cell.setAttribute('aria-label', `${symbol}: ${found[1]}`);
 }
 

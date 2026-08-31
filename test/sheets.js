@@ -1,4 +1,4 @@
-// drives the three tabs the way the camp does: opens the page, submits a
+// drives the tabs the way the camp does: opens the page, submits a
 // configuration, changes a match on the plan, types scores on the pages and
 // reads the points back off the standings.
 const fs = require('fs');
@@ -76,25 +76,42 @@ async function run(CONFIG, fail) {
 	const cfg = window.eval('config');
 	const wb = window.eval('workbook');
 
-	console.log('\n=== the three tabs ===');
+	console.log('\n=== the four tabs ===');
 	const tabs = [...doc.querySelectorAll('.sheet-tab')];
-	check(tabs.length === 3, `${tabs.length} tabs`);
-	check(tabs.map(t => t.dataset.sheet).join(',') === 'plan,pages,points', 'plan, pages and points, in that order');
+	check(tabs.length === 4, `${tabs.length} tabs`);
+	check(tabs.map(t => t.dataset.sheet).join(',') === 'plan,pages,points,config',
+		'plan, pages, points and configuration, in that order');
 	check(tabs[0].classList.contains('is-open'), 'the plan opens first');
 	const configPanel = doc.querySelector('.panel-config');
-	check(tabs[0].parentNode.nextElementSibling === configPanel && configPanel.hidden === false,
-		'the configuration is integrated directly under the Program tab');
+	check(tabs[0].parentNode.nextElementSibling === configPanel && configPanel.hidden === true,
+		'the configuration is a separate hidden tab panel');
 	check(doc.getElementById('sheet-plan').hidden === false, 'and its panel is the shown one');
 	check(doc.getElementById('sheet-pages').hidden === true && doc.getElementById('sheet-points').hidden === true,
 		'the other two are put away');
+	click(tabs[3]);
+	check(configPanel.hidden === false && doc.getElementById('sheet-plan').hidden === true,
+		'clicking the fourth tab shows Configuration on its own');
 	click(tabs[1]);
 	check(doc.getElementById('sheet-pages').hidden === false && doc.getElementById('sheet-plan').hidden === true,
 		'clicking a tab brings its panel out and puts the other away');
 	check(tabs[1].getAttribute('aria-selected') === 'true' && tabs[0].getAttribute('aria-selected') === 'false',
 		'and says which one is open');
-	check(configPanel.hidden === true, 'and the Program configuration leaves the other tabs');
+	check(configPanel.hidden === true, 'and Configuration leaves the other tabs');
 	check(window.getComputedStyle(doc.querySelector('.pages-bar')).position === 'sticky',
 		'the selected-days print control stays visible while the sheets scroll');
+	check(window.getComputedStyle(doc.getElementById('program')).overflow === 'visible',
+		'and no overflow ancestor prevents it from sticking to the viewport');
+
+	const dragStart = new window.Event('dragstart', { bubbles: true, cancelable: true });
+	Object.defineProperty(dragStart, 'dataTransfer', { value: { effectAllowed: '', setData() {} } });
+	tabs[0].dispatchEvent(dragStart);
+	tabs[1].dispatchEvent(new window.MouseEvent('dragover', { bubbles: true, cancelable: true, clientX: 999 }));
+	tabs[1].dispatchEvent(new window.Event('drop', { bubbles: true, cancelable: true }));
+	tabs[0].dispatchEvent(new window.Event('dragend', { bubbles: true }));
+	check([...doc.querySelectorAll('.sheet-tab')].map(tab => tab.dataset.sheet).join(',') === 'pages,plan,points,config',
+		'dragging a tab changes its position');
+	check(window.localStorage.getItem('sheet-order') === '["pages","plan","points","config"]',
+		'and the new order is remembered');
 
 	console.log('\n=== the pages ===');
 	// the days that hold a round, which are the ones worth handing out
@@ -104,7 +121,8 @@ async function run(CONFIG, fail) {
 	const fields = cfg.sports.reduce((n, s) => n + s.courts.length, 0);
 	let rowBad = 0, roundBad = 0;
 	cards.forEach((card, i) => {
-		const rounds = wantDays[i].dzones.reduce((n, dz) => n + dz.rounds.length, 0);
+		const capacity = 4 % cfg.zones.length === 0 ? 4 / cfg.zones.length : 0;
+		const rounds = wantDays[i].dzones.reduce((n, dz) => n + Math.max(dz.rounds.length, capacity), 0);
 		if (card.querySelectorAll('tbody tr').length !== rounds * fields) rowBad++;
 		// one round label per round, each standing beside all the fields of it
 		const labels = [...card.querySelectorAll('.pages-round')];
@@ -113,6 +131,11 @@ async function run(CONFIG, fail) {
 	});
 	check(rowBad === 0, `every day sheet has a row per field of every round (${fields} fields)`);
 	check(roundBad === 0, 'and every round names itself once beside its own rows');
+	if (4 % cfg.zones.length === 0)
+		check(cards.every(card => card.querySelectorAll('tbody tr').length === 4 * fields),
+			'the Excel sheet keeps four ruled round blocks per printed day');
+	check(cards.every(card => card.querySelectorAll('.pages-day-last').length === 1),
+		'the final round meets the medium day frame without an extra double rule');
 	check(cards.every(card => card.querySelectorAll('colgroup col').length === 9),
 		'every printed day keeps the nine column proportions of Excel C:K');
 	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
@@ -120,6 +143,16 @@ async function run(CONFIG, fail) {
 		'every day carries its Greek screen date and its Excel-style print date');
 	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
 		'the printed date uses Excel long-date wording');
+	const printCss = fs.readFileSync(path.join(ROOT, 'sheets.css'), 'utf8');
+	check(/width:\s*197\.3mm/.test(printCss) && /height:\s*133\.35mm/.test(printCss)
+		&& /font-size:\s*14pt/.test(printCss),
+		'the paper uses the Excel print width, day height and 14pt type');
+	check(/border-bottom:\s*\.09mm solid #000/.test(printCss)
+		&& /border-left:\s*\.26mm dashed #000/.test(printCss)
+		&& /border-bottom:\s*\.7mm double #000/.test(printCss),
+		'the hairline, dashed and double Excel rules are preserved');
+	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
+		'the A4 page reserves no browser header or footer margin');
 
 	//the print marker makes explicit pairs: first+second on one A4, third on the
 	//next one. the real print dialog is replaced here so the DOM can be read.
@@ -188,8 +221,9 @@ async function run(CONFIG, fail) {
 		check(first.querySelector('.points-pts').textContent === String(stand[0].pts), 'and its points beside it');
 	}
 	check(doc.querySelector('.points-legend') === null, 'there is no separate symbol explanation block');
-	check([...doc.querySelectorAll('.points-table thead th[title]')].some(th => th.textContent === 'PLD' && th.title === 'Αγώνες'),
-		'hovering a standings symbol explains its meaning');
+	check([...doc.querySelectorAll('.points-table thead th[data-tooltip]')]
+		.some(th => th.textContent === 'PLD' && th.dataset.tooltip === 'Αγώνες' && th.title === ''),
+		'hovering a standings symbol shows its own visible explanation');
 
 	console.log('\n=== completed groups fill the knockouts ===');
 	const direct = Object.values(cfg.knockouts).find(kn => kn.home.type === 'group'
@@ -221,7 +255,7 @@ async function run(CONFIG, fail) {
 
 	console.log('\n=== changing the plan ===');
 	click(tabs[0]);
-	check(configPanel.hidden === false, 'returning to Program brings its configuration back');
+	check(configPanel.hidden === true, 'returning to Program keeps Configuration in its own tab');
 	const from = doc.querySelector('#sheet-plan td.cell-match');
 	const fromKey = from.dataset.key;
 	const fromText = from.textContent;

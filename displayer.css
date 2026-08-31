@@ -8,7 +8,7 @@
  */
 
 .program {
-	overflow-x: auto;
+	overflow: visible;
 }
 
 
