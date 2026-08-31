@@ -8,7 +8,7 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const ROOT = path.join(__dirname, '..');
 // every input the repository carries, plus the odd shapes kept beside this file
 const CONFIGS = process.argv.length > 2 ? process.argv.slice(2)
-	: fs.readdirSync(ROOT).filter(f => /^input.*\.txt$/.test(f))
+	: fs.readdirSync(path.join(ROOT, 'examples')).filter(f => /^input.*\.txt$/.test(f)).map(f => 'examples/' + f)
 		.concat(fs.readdirSync(path.join(__dirname, 'configs')).map(f => 'test/configs/' + f));
 
 // jsdom does not give a form the named properties a browser gives it, and
@@ -124,6 +124,9 @@ async function run(CONFIG, fail) {
 	click(collapseBtn);
 	check(!panel.classList.contains('is-collapsed') && collapseBtn.getAttribute('aria-expanded') === 'true', 'comes back up');
 	window.localStorage.removeItem('panel');
+
+	// a browser that has never run this configuration has nothing to be offered
+	check(doc.querySelector('.saved-offer') === null, 'a first visit is offered no saved championship');
 
 	console.log('\n=== submit ===');
 	doc.forms[0]['config'].value = fs.readFileSync(path.join(ROOT, CONFIG), 'utf8');

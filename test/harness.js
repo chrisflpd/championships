@@ -21,51 +21,13 @@ function load(file) {
 	vm.runInThisContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), { filename: file });
 }
 
-load('common.js');
-load('parser.js');
-load('championships.js');
-load('scheduling_algorithms.js');
+load('src/js/common.js');
+load('src/js/parser.js');
+load('src/js/championships.js');
+load('src/js/scheduling_algorithms.js');
 
 // the page draws the program; a test only wants to be handed it
 global.displayer = program => { global.__program = program; };
-
-/**
- * mirrors the submit handler of parser.js, without the page around it
- *
- * @param {string} text - the contents of the configuration box
- */
-function parse_config(text) {
-	config.courts = [];
-	config.sports = [];
-	config.zones = [];
-	config.days = [];
-	config.teams = [];
-	config.groups = {};
-	config.knockouts = {};
-	let config_var = null;
-	text.replaceAll('\r\n', '\n').split('\n').forEach(line => {
-		if (line.length === 0 || line.startsWith('#')) return;
-		const ma = line.match(/^\[(.*)\]$/);
-		if (ma !== null) {
-			config_var = ma[1].toLowerCase();
-			return;
-		}
-		switch (config_var) {
-			case 'sports': return parse_sport_line(line);
-			case 'zones': return parse_zone_line(line);
-			case 'days': return parse_day_line(line);
-			case 'teams': return parse_team_line(line);
-			case 'groups': return parse_group_line(line);
-			case 'knockouts': return parse_knockout_line(line);
-		}
-	});
-	config.days.sort((d1, d2) => d1.date.getTime() - d2.date.getTime());
-	config.days.forEach(day => day.dzones.forEach(dzone => dzone.rounds.forEach(round => {
-		config.courts.forEach(court => {
-			round.slots[court] = { court: court, match: null };
-		});
-	})));
-}
 
 /**
  * the page keeps trying until it finds a program; a test gives up eventually
@@ -95,7 +57,7 @@ function browser_bits() {
 	const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
 	global.DOMParser = DOMParser;
 	global.XMLSerializer = XMLSerializer;
-	vm.runInThisContext(fs.readFileSync(path.join(ROOT, 'jszip.min.js'), 'utf8'), { filename: 'jszip.min.js' });
+	vm.runInThisContext(fs.readFileSync(path.join(ROOT, 'vendor/jszip.min.js'), 'utf8'), { filename: 'jszip.min.js' });
 	global.JSZip = global.JSZip || global.window.JSZip;
 	global.fetch = async url => ({ ok: true, arrayBuffer: async () => fs.readFileSync(path.join(ROOT, url)) });
 	global.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
@@ -103,8 +65,8 @@ function browser_bits() {
 	global.document.body = { appendChild() {}, removeChild() {} };
 	// the export writes the workbook and not the program, so what stands behind
 	// the three tabs comes with it
-	load('workbook.js');
-	load('displayer.js');
+	load('src/js/workbook.js');
+	load('src/js/displayer.js');
 	// jszip cannot build a Blob outside a browser, so it is asked for bytes
 	const generate = JSZip.prototype.generateAsync;
 	const caught = { bytes: null, alerts: [] };
@@ -130,8 +92,9 @@ function read(file) {
 function configs(from) {
 	const given = process.argv.slice(from || 2).filter(a => !a.startsWith('-'));
 	if (given.length) return given;
-	return fs.readdirSync(ROOT).filter(f => /^input.*\.txt$/.test(f))
+	return fs.readdirSync(path.join(ROOT, 'examples')).filter(f => /^input.*\.txt$/.test(f))
+		.map(f => 'examples/' + f)
 		.concat(fs.readdirSync(path.join(__dirname, 'configs')).map(f => 'test/configs/' + f));
 }
 
-module.exports = { parse_config, schedule, browser_bits, read, configs, load, ROOT };
+module.exports = { parse_config: text => global.parse_config(text), schedule, browser_bits, read, configs, load, ROOT };

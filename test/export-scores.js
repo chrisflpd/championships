@@ -4,7 +4,7 @@
 const { parse_config, schedule, browser_bits, read } = require('./harness');
 const caught = browser_bits();
 
-const CONFIG = process.argv[2] || 'input26g.txt';
+const CONFIG = process.argv[2] || 'examples/input26g.txt';
 const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 const say = console.log;

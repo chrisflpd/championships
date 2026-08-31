@@ -1442,7 +1442,7 @@ async function exportToExcel() {
 	}
 
 	try {
-		const response = await fetch('template.xlsx');
+		const response = await fetch('assets/template.xlsx');
 		if (!response.ok)
 			throw new Error("Δεν ήταν δυνατή η φόρτωση του αρχείου template.xlsx.");
 		const zip = await JSZip.loadAsync(await response.arrayBuffer());

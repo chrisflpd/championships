@@ -7,7 +7,7 @@ const http = require('http');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const CONFIGS = process.argv.length > 2 ? process.argv.slice(2) : ['input26g.txt', 'test/configs/unnamed-zone.txt'];
+const CONFIGS = process.argv.length > 2 ? process.argv.slice(2) : ['examples/input26g.txt', 'test/configs/unnamed-zone.txt'];
 
 // the same one browser behaviour page.js puts back, for the same reason
 const SHIM = `<script>
@@ -167,7 +167,7 @@ async function run(CONFIG, fail) {
 		'every day carries its Greek screen date and its Excel-style print date');
 	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
 		'the printed date uses Excel long-date wording');
-	const printCss = fs.readFileSync(path.join(ROOT, 'sheets.css'), 'utf8');
+	const printCss = fs.readFileSync(path.join(ROOT, 'src/css/sheets.css'), 'utf8');
 	// the block, the row and the type, measured off a page printed out of the real
 	// workbook: 493.8 x 321.2 pt of 15.3 pt rows in 11.9 pt type
 	check(/width:\s*174\.19mm/.test(printCss) && /height:\s*113\.4mm/.test(printCss)
@@ -422,6 +422,26 @@ async function run(CONFIG, fail) {
 
 	console.log('\n=== what is handed out carries it ===');
 	check(doc.getElementById('excel').disabled === false, 'the workbook is still there to be built');
+
+	console.log('\n=== the championship a previous visit left ===');
+	// what is on the page now is what a second visit should find waiting for it
+	const before = Object.keys(window.eval('workbook').slots).sort().join('|');
+	// the page as it opens: nothing drawn, only the configuration in the box
+	window.eval('sheets_clear')();
+	doc.getElementById('program').replaceChildren();
+	const waiting = window.eval('saved_stored')();
+	check(waiting !== null, 'the stored championship is known to be this configuration\u2019s');
+	window.eval('saved_ask')(waiting);
+	const offer = doc.querySelector('.saved-offer');
+	check(offer !== null && doc.getElementById('config-body').contains(offer),
+		'and is offered in the configuration itself, before any search is run');
+	check(offer !== null && /αποθηκευμένο πρωτάθλημα/.test(offer.textContent),
+		`saying what is there: ${offer === null ? '' : offer.querySelector('span').textContent}`);
+	click([...offer.querySelectorAll('button')].find(b => b.textContent === 'Άνοιγμα'));
+	check(doc.querySelector('.saved-offer') === null && doc.querySelector('.day-list') !== null,
+		'opening it draws the program again, with no search run for it');
+	check(Object.keys(window.eval('workbook').slots).sort().join('|') === before,
+		'and every match is where it was left');
 
 	console.log('\n=== submitting again asks before it throws the program away ===');
 	// the asking hangs off the button, since it is the camp being about to lose a

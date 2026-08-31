@@ -72,6 +72,12 @@ Submitting the configuration again starts the search from the beginning and
 throws away the program on the page along with every change made to it by hand,
 so it asks first.
 
+A championship is kept in the browser between visits, and the page offers it back
+where the configuration is, before any search is run: open the page the next
+morning and the whole of yesterday is waiting there to be opened, plan and scores
+and all. It is only offered when what is stored is the championship of the
+configuration in the box, and saying no throws nothing away.
+
 The plan and the scores are kept in the browser between visits. The scores are
 kept against the match, so a fresh search that moves a match somewhere else does
 not lose its result; the plan is offered back rather than forced over the program
@@ -82,6 +88,25 @@ numbers from one readable sheet to the next, so they have no tab: `workbook.js`
 does that work. The exported workbook still has all six, and carries the plan as
 it stands along with every score entered.
 
+## the files
+
+The page is served as it is, with no build step of any kind, so what the browser
+loads is what is in the repository:
+
+```
+index.html      the page
+src/js          the program: the reader, the search, the workbook and the tabs
+src/css         how it is drawn
+vendor          jszip, which the export needs and we did not write
+assets          template.xlsx, the workbook the export fills in
+examples        input*.txt, full configurations of championships that were run
+test            the checks, which load the files above and drive them
+```
+
+`index.html` carries a version on every stylesheet and script it links, so that a
+browser holding an old one does not draw a new page with it. Bump it whenever one
+of them changes.
+
 ## checks
 
 `test/` holds checks that load these very files into node and drive them: the page
@@ -89,10 +114,6 @@ in a headless browser, configurations the camp has never used, and the exported
 workbook compared part by part before and after a change. Run them with
 `cd test && npm install && npm test`, and read `test/README.md` before changing
 the export.
-
-Note that `index.html` carries a version on every stylesheet and script it links,
-so that a browser holding an old one does not draw a new page with it. Bump it
-whenever one of them changes.
 
 ## configuration
 

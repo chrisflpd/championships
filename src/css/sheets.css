@@ -109,6 +109,12 @@
 	flex: 1 1 16em;
 }
 
+/* the same line, offering the whole championship before a search is ever run */
+.saved-offer {
+	margin-bottom: 14px;
+	margin-top: 2px;
+}
+
 
 /* ------------------------------------------------------- changing a plan cell */
 

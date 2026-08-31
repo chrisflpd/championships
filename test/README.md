@@ -1,9 +1,11 @@
 # checks
 
 The app runs in a browser with no build step, so these load the very same files
-the page loads — `common.js`, `parser.js`, `championships.js`,
-`scheduling_algorithms.js`, `displayer.js` — into node, and drive them. Nothing
-here is a copy of the app: if a check passes, it passed against the real thing.
+the page loads — `src/js/common.js`, `src/js/parser.js`,
+`src/js/championships.js`, `src/js/scheduling_algorithms.js`,
+`src/js/displayer.js` — into node, and drive them. Nothing here is a copy of the
+app: the configuration reader they use is `parse_config` out of `parser.js`
+itself, so if a check passes, it passed against the real thing.
 
     cd test
     npm install
@@ -25,8 +27,8 @@ and can be dragged into, and that **every cell holds exactly what the scheduler
 placed there** — which is the check worth having. It also drives the stopping of
 a search, a configuration that cannot be scheduled, and a team that never plays.
 
-Runs over every `input*.txt` in the repository plus the configurations in
-`configs/`, or over the ones you name: `node page.js input26g.txt`.
+Runs over every `input*.txt` in `examples/` plus the configurations in
+`configs/`, or over the ones you name: `node page.js examples/input26g.txt`.
 
 **`npm run sheets`** — the workbook and configuration tabs, driven the way the camp drives them. It
 switches between them, counts the rows of every printed day sheet against the
@@ -42,8 +44,8 @@ editor of the slot. It also reads the print stylesheet back against the block
 measured off a page printed out of the real workbook, and submits a second time to
 see the program defended by a dialogue before it is thrown away.
 
-Runs over `input26g.txt` and `configs/unnamed-zone.txt` by default, or the ones
-you name.
+Runs over `examples/input26g.txt` and `configs/unnamed-zone.txt` by default, or
+the ones you name.
 
 **`npm run export-scores`** — the workbook that is handed out, read back cell by
 cell. It moves a match and enters a score and a referee, exports, and checks the

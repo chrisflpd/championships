@@ -306,6 +306,69 @@ function parse_knockout_line(line) {
 }
 
 
+/**
+ * reads a configuration string into the config the rest of the program works
+ * from. it is the one reader there is: the page calls it when the camp submits,
+ * and so does anything else that has a configuration in its hand and wants the
+ * program it describes.
+ *
+ * it throws on the first line it cannot read, leaving whatever it had got to.
+ *
+ * @param {string} text
+ * @returns {void}
+ */
+function parse_config(text) {
+	config.courts = [];
+	config.sports = [];
+	config.zones = [];
+	config.days = [];
+	config.teams = [];
+	config.groups = {};
+	config.knockouts = {};
+
+	//a word in square brackets says what the lines after it are
+	let config_var = null;
+	text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n').forEach(line => {
+		if (line.length === 0 || line.startsWith('#'))
+			return;
+		const line_config_matchobj = line.match(/^\[(.*)\]$/);
+		if (line_config_matchobj !== null) {
+			config_var = line_config_matchobj[1].toLowerCase();
+			return;
+		}
+		switch (config_var) {
+			case 'sports':
+				return parse_sport_line(line);
+			case 'zones':
+				return parse_zone_line(line);
+			case 'days':
+				return parse_day_line(line);
+			case 'teams':
+				return parse_team_line(line);
+			case 'groups':
+				return parse_group_line(line);
+			case 'knockouts':
+				return parse_knockout_line(line);
+		}
+	});
+
+	//the days are read in whatever order they are written in
+	config.days.sort((day1, day2) => day1.date.getTime() - day2.date.getTime());
+
+	//every round of every day holds a slot per court, which is what the search
+	//puts the matches into
+	config.days.forEach(day => day.dzones.forEach(dzone => dzone.rounds.forEach(round => {
+		config.courts.forEach(court => {
+			round.slots[court] = {
+				//round: round,
+				court: court,
+				match: null,
+			};
+		});
+	})));
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
 
 	console.log('ready');
@@ -339,65 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		// edit is not lost to a reload that has only what was last saved by hand
 		keep_config();
 
-		// initialize config
-		config.courts = [];
-		config.sports = [];
-		config.zones = [];
-		config.days = [];
-		config.teams = [];
-		config.groups = {};
-		config.knockouts = {};
-
 		try {
-
-			// parse config
-			let config_var = null;
-			form['config'].value.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n').forEach((line, i) => {
-				if (line.length === 0 || line.startsWith('#'))
-					return;
-				const line_config_matchobj = line.match(/^\[(.*)\]$/);
-				if (line_config_matchobj !== null) {
-					config_var = line_config_matchobj[1].toLowerCase();
-					return;
-				}
-				switch (config_var) {
-					case 'sports':
-						return parse_sport_line(line);
-					case 'zones':
-						return parse_zone_line(line);
-					case 'days':
-						return parse_day_line(line);
-					case 'teams':
-						return parse_team_line(line);
-					case 'groups':
-						return parse_group_line(line);
-					case 'knockouts':
-						return parse_knockout_line(line);
-				}
-			});
-			//console.log(config.days);
-			// sort days
-			config.days.sort((day1, day2) => day1.date.getTime() - day2.date.getTime());
-
-			// create slots
-			config.days.forEach(day => {
-				day.dzones.forEach(dzone => {
-					dzone.rounds.forEach(round => {
-						config.courts.forEach(court => {
-							slot = {
-								//round: round,
-								court: court,
-								match: null,
-							};
-							round.slots[court] = slot;
-						});
-					});
-				});
-			});
+			parse_config(form['config'].value);
 			console.log(config);
-
 			document.dispatchEvent(new Event('championships_config_parsed'));
-
 		} catch (error) {
 			alert(error.toString());
 		}
