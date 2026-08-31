@@ -248,6 +248,13 @@ async function run(CONFIG, fail) {
 	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
 		&& card.querySelector('.pages-date-print') !== null),
 		'every day carries its Greek screen date and its Excel-style print date');
+	// the date is what picks the day, so the target is a line of writing rather
+	// than a box the size of a full stop
+	check(cards.every(card => {
+		const label = card.querySelector('.pages-pick-label');
+		return label !== null && label.contains(card.querySelector('.pages-pick'))
+			&& label.contains(card.querySelector('.pages-date-screen'));
+	}), 'and the whole of it picks the day for printing');
 	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
 		'the printed date uses Excel long-date wording');
 	const printCss = fs.readFileSync(path.join(ROOT, 'src/css/sheets.css'), 'utf8');

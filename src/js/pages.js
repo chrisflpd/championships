@@ -121,24 +121,31 @@ function pages_day(day, retell) {
 	head.classList.add('pages-head');
 	card.appendChild(head);
 
+	const when = document.createElement('h3');
+	when.classList.add('pages-date');
+	head.appendChild(when);
+
+	//the date itself is what picks the day, so that what has to be hit is a line
+	//of writing rather than a box the size of a full stop
+	const label = document.createElement('label');
+	label.classList.add('pages-pick-label');
+	when.appendChild(label);
+
 	const pick = document.createElement('input');
 	pick.type = 'checkbox';
 	pick.classList.add('pages-pick');
 	pick.setAttribute('aria-label', `Επιλογή ${pages_date(day.date)} για εκτύπωση`);
 	pick.addEventListener('change', retell);
-	head.appendChild(pick);
+	label.appendChild(pick);
 
-	const when = document.createElement('h3');
-	when.classList.add('pages-date');
-	head.appendChild(when);
 	const screen_date = document.createElement('span');
 	screen_date.classList.add('pages-date-screen');
 	screen_date.textContent = pages_date(day.date);
-	when.appendChild(screen_date);
+	label.appendChild(screen_date);
 	const print_date = document.createElement('span');
 	print_date.classList.add('pages-date-print');
 	print_date.textContent = pages_print_date(day.date);
-	when.appendChild(print_date);
+	label.appendChild(print_date);
 
 	const print_one = document.createElement('button');
 	print_one.type = 'button';

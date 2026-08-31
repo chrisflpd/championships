@@ -368,6 +368,36 @@
 	text-transform: capitalize;
 }
 
+/* the day is picked by its date: the whole line is the target, and it says so
+   when the pointer is over it */
+.pages-pick-label {
+	align-items: center;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	display: inline-flex;
+	gap: 10px;
+	margin: -6px -8px;
+	padding: 6px 8px;
+}
+
+.pages-pick-label:hover {
+	background: var(--surface-2);
+}
+
+.pages-pick {
+	accent-color: var(--accent);
+	cursor: pointer;
+	flex: none;
+	height: 17px;
+	margin: 0;
+	width: 17px;
+}
+
+.pages-pick:focus-visible {
+	box-shadow: var(--ring);
+	outline: none;
+}
+
 /*
  * the rules that tell the parts of a day apart are the workbook's own, and the
  * screen is ruled the same way as the paper so that what is read here is what
@@ -827,6 +857,12 @@
 		border-bottom: 0.9mm double #000;
 		display: block;
 		height: 5.4mm;
+		padding: 0;
+	}
+
+	body.is-printing .pages-pick-label {
+		display: inline;
+		margin: 0;
 		padding: 0;
 	}
 
