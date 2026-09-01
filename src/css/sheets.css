@@ -40,7 +40,7 @@
 	border-bottom: 3px solid transparent;
 	border-radius: 10px 10px 0 0;
 	color: var(--muted);
-	cursor: grab;
+	cursor: pointer;
 	font: inherit;
 	font-size: 14px;
 	font-weight: 600;
@@ -145,7 +145,7 @@
    is taken */
 .zone-name[data-zone],
 .round-rank[data-round] {
-	cursor: grab;
+	cursor: pointer;
 }
 
 .day-list.is-dragging .zone-name[data-zone],
@@ -153,19 +153,19 @@
 	cursor: grabbing;
 }
 
-tr.is-picking > * {
+.is-picked {
 	background: var(--accent-soft);
 }
 
-tr.is-picking-first > * {
+.is-picked-top {
 	box-shadow: inset 0 2px 0 0 var(--accent);
 }
 
-tr.is-picking-last > * {
+.is-picked-bottom {
 	box-shadow: inset 0 -2px 0 0 var(--accent);
 }
 
-tr.is-picking-first.is-picking-last > * {
+.is-picked-top.is-picked-bottom {
 	box-shadow: inset 0 2px 0 0 var(--accent), inset 0 -2px 0 0 var(--accent);
 }
 
@@ -371,6 +371,7 @@ tr.is-picking-first.is-picking-last > * {
 
 .plan-editor-row select {
 	background: var(--surface);
+	cursor: pointer;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	color: var(--text);

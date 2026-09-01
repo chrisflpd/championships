@@ -580,17 +580,35 @@ function plan_block(handle) {
 	return row === null ? [] : [row];
 }
 
+/**
+ * outlines what a handle would take, cell by cell rather than row by row: the
+ * name of a zone lives in the row of the zone's first round, so a round of it
+ * marked whole would light the zone's name up with it and read as the zone.
+ *
+ * @param {Element} handle
+ * @param {boolean} on
+ * @returns {void}
+ */
 function plan_outline(handle, on) {
-	plan_block(handle).forEach((row, i, all) => {
-		row.classList.toggle('is-picking', on);
-		row.classList.toggle('is-picking-first', on && i === 0);
-		row.classList.toggle('is-picking-last', on && i === all.length - 1);
+	const whole_zone = handle.dataset.zone !== undefined;
+	const rows = plan_block(handle);
+	rows.forEach((row, i) => {
+		[...row.children].forEach(cell => {
+			const named = cell.classList.contains('zone-name');
+			//the name belongs to the zone and to none of its rounds
+			if (named && !whole_zone)
+				return;
+			//and it stands down the whole of the zone, so it closes it at both ends
+			cell.classList.toggle('is-picked', on);
+			cell.classList.toggle('is-picked-top', on && (named || i === 0));
+			cell.classList.toggle('is-picked-bottom', on && (named || i === rows.length - 1));
+		});
 	});
 }
 
 function plan_unoutline(home) {
-	home.querySelectorAll('.is-picking, .is-picking-first, .is-picking-last').forEach(row => {
-		row.classList.remove('is-picking', 'is-picking-first', 'is-picking-last');
+	home.querySelectorAll('.is-picked, .is-picked-top, .is-picked-bottom').forEach(cell => {
+		cell.classList.remove('is-picked', 'is-picked-top', 'is-picked-bottom');
 	});
 }
 
