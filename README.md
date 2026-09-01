@@ -18,6 +18,16 @@ Every slot can be changed. Drag a match onto a free slot to move it, or onto
 another match to swap the two. Click a slot to say what is played in it and by
 whom, or to empty it.
 
+More than a match can be picked up: the number of a round and the name of a zone
+are handles, and dropping one on another puts the whole of the one where the
+other was, field by field. What a handle would take is outlined before it is
+taken.
+
+The marking can be in the way rather than the point — a plan known to break a
+rule and being built around it — so **Απενεργοποίηση κανόνων** and
+**Απενεργοποίηση συστάσεων** turn off the red and the amber respectively, and the
+page remembers which.
+
 Every day is drawn with the whole of its four rounds and every date from the
 first to the last gets a card, whether or not the configuration asked for them.
 A round the configuration left out, and a date it passes over, are time the camp

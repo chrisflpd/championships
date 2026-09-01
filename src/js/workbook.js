@@ -472,6 +472,78 @@ function wb_move(from, to) {
 	wb_save();
 }
 
+/**
+ * exchanges the contents of slots two at a time, all of them at once: a whole
+ * round or a whole zone changing places with another.
+ *
+ * the two of a pair are the same field, so nothing is played anywhere it was not
+ * being played before — only at another hour.
+ *
+ * @param {string[][]} pairs - [from, to] keys
+ * @returns {void}
+ */
+function wb_swap(pairs) {
+	//read first and write after, or a pair written early would be read late
+	const held = {};
+	pairs.forEach(pair => pair.forEach(key => {
+		held[key] = workbook.slots[key];
+	}));
+	pairs.forEach(pair => {
+		[[pair[0], held[pair[1]]], [pair[1], held[pair[0]]]].forEach(one => {
+			if (one[1] === undefined)
+				delete workbook.slots[one[0]];
+			else
+				workbook.slots[one[0]] = one[1];
+		});
+	});
+	wb_save();
+}
+
+//every slot of one round, a field at a time
+function wb_round_keys(iso, zone_rank, round_rank) {
+	return config.courts.map(court => wb_key(iso, zone_rank, round_rank, court));
+}
+
+/**
+ * the pairs that put one round where another is, field by field.
+ *
+ * @param {string} from - iso|zone|round
+ * @param {string} to
+ * @returns {string[][]}
+ */
+function wb_round_pairs(from, to) {
+	const one = from.split('|'), other = to.split('|');
+	return config.courts.map(court => [
+		wb_key(one[0], one[1], one[2], court),
+		wb_key(other[0], other[1], other[2], court),
+	]);
+}
+
+/**
+ * the pairs that put one zone where another is, round by round and field by
+ * field. a zone with more rounds than the other keeps what will not fit.
+ *
+ * @param {string} from - iso|zone
+ * @param {string} to
+ * @returns {string[][]}
+ */
+function wb_zone_pairs(from, to) {
+	const rounds = id => {
+		const parts = id.split('|');
+		const day = workbook.calendar.filter(one => one.iso === parts[0])[0];
+		if (day === undefined)
+			return [];
+		const dzone = day.dzones.filter(one => String(one.zone.rank) === parts[1])[0];
+		return dzone === undefined ? [] : dzone.rounds;
+	};
+	const mine = rounds(from), theirs = rounds(to);
+	const pairs = [];
+	for (let r = 0; r < Math.min(mine.length, theirs.length); r++)
+		wb_round_pairs(from + '|' + mine[r].rank, to + '|' + theirs[r].rank)
+			.forEach(pair => pairs.push(pair));
+	return pairs;
+}
+
 function wb_set_teams(key, home, away) {
 	const game = workbook.slots[key];
 	if (game === undefined)
@@ -691,19 +763,9 @@ function wb_cautions(key) {
 
 	/* the zone */
 
-	//the same pair again in the same zone. the rounds beside a slot are rounds of
-	//its own zone, so a pair that meets again next door has met again in the zone:
-	//it is the one rule, said as closely as it can be.
-	if (here.length === 2) {
-		const again = in_zone.filter(one => one.key !== key && wb_same_pair(game, one.game));
-		if (again.length)
-			said.push(again.some(one => {
-				const there = wb_where(one.key);
-				return there !== null && Math.abs(there.r - where.r) === 1;
-			})
-				? `${both()} συναντιούνται ξανά στον διπλανό γύρο`
-				: `${both()} συναντιούνται ξανά στην ίδια ζώνη`);
-	}
+	//the same pair again in the same zone
+	if (here.length === 2 && in_zone.some(one => one.key !== key && wb_same_pair(game, one.game)))
+		said.push(`${both()} συναντιούνται ξανά στην ίδια ζώνη`);
 
 	//a zone that is full and holds a handful of group matches plays everybody. a
 	//zone is the rounds the configuration gave it — the band the page draws holds
@@ -728,12 +790,14 @@ function wb_cautions(key) {
 
 	/* the rounds beside */
 
+	//a team at the same sport in the round beside. the rounds beside a slot are
+	//rounds of its own zone, so that is where it is said to happen.
 	beside.forEach(one => {
 		if (one.game.sport.name !== game.sport.name)
 			return;
 		wb_pair(one.game).forEach(id => {
 			if (here.includes(id)) {
-				const line = `Η ${name(id)} παίζει ${game.sport.name} και στον διπλανό γύρο`;
+				const line = `Η ${name(id)} παίζει ${game.sport.name} ξανά σε αυτήν τη ζώνη`;
 				if (!said.includes(line))
 					said.push(line);
 			}
@@ -743,18 +807,21 @@ function wb_cautions(key) {
 	/* the arrival */
 
 	if (where.d === 0 && where.dz === 0 && config.teams.length > 0 && here.includes(config.teams[0].id))
-		said.push(`Η ομάδα αγάπης (${config.teams[0].name}) δεν παίζει στη δεύτερη πρωινή ζώνη της πρώτης ημέρας`);
+		said.push(`Η ομάδα αγάπης (${config.teams[0].name}) δεν έπρεπε να παίζει στη δεύτερη πρωινή ζώνη της πρώτης ημέρας`);
 
 	/* baseball */
 
 	const baseball = plan.filter(one => one.game.sport.name === BASEBALL_SPORT && one.game.kn === null);
 	if (wb_baseball_intro(game, at, baseball)) {
+		//every one of these begins the same way, since it is the same thing about
+		//the match that brings them on
+		const brings = 'Ο αγώνας φέρνει ομάδα στο μπέιζμπολ για πρώτη φορά, αλλά';
 		if (where.r !== 0)
-			said.push('Ο πρώτος αγώνας μπέιζμπολ μιας ομάδας παίζεται στον πρώτο γύρο της ζώνης');
+			said.push(`${brings} δεν παίζεται στον πρώτο γύρο της ζώνης`);
 		if (given_rounds < 2)
-			said.push('Ο πρώτος αγώνας μπέιζμπολ μιας ομάδας χρειάζεται ζώνη με δύο γύρους');
+			said.push(`${brings} η ζώνη δεν έχει δύο γύρους`);
 		if (in_zone.some(one => one.key !== key && one.game.sport.name === BASEBALL_SPORT && one.game.kn === null))
-			said.push('Η ζώνη έχει ήδη αγώνα μπέιζμπολ, και οι ζώνες παίρνουν από έναν');
+			said.push(`${brings} η ζώνη έχει ήδη αγώνα μπέιζμπολ`);
 		//the zones take one each in turn, so none of the earlier ones is passed over
 		const passed = [];
 		workbook.calendar.forEach(day => day.dzones.forEach(dzone => {
@@ -768,7 +835,9 @@ function wb_cautions(key) {
 				passed.push(dzone);
 		}));
 		if (passed.length)
-			said.push(`${passed.length === 1 ? 'Προηγούμενη ζώνη δύο γύρων μένει' : `${passed.length} προηγούμενες ζώνες δύο γύρων μένουν`} χωρίς μπέιζμπολ, ενώ οι ζώνες παίρνουν από έναν με τη σειρά`);
+			said.push(`${brings} ${passed.length === 1
+				? 'προηγούμενη ζώνη δύο γύρων έμεινε χωρίς μπέιζμπολ'
+				: `${passed.length} προηγούμενες ζώνες δύο γύρων έμειναν χωρίς μπέιζμπολ`}`);
 	}
 
 	//the diamond is laid out over another sport's field, so that field is left
@@ -778,7 +847,7 @@ function wb_cautions(key) {
 		const before_key = wb_key(iso, zone_rank, where.dzone.rounds[where.r - 1].rank, court);
 		const before = wb_at(before_key);
 		if (before !== null && wb_baseball_intro(before, wb_at_place(before_key), baseball))
-			said.push(`Το ${court} μένει ελεύθερο στον γύρο μετά από πρώτο αγώνα μπέιζμπολ μιας ομάδας`);
+			said.push(`Το ${court} έπρεπε να μείνει ελεύθερο: στον προηγούμενο γύρο έγινε ο πρώτος αγώνας μπέιζμπολ μιας ομάδας`);
 	}
 
 	/* the order things are played in */
@@ -793,13 +862,13 @@ function wb_cautions(key) {
 	if (game.kn !== null) {
 		const kn = config.knockouts[game.kn];
 		if (plan.some(one => one.game.kn === null && one.game.sport.name === game.sport.name && one.at > at))
-			said.push(`Το νοκ άουτ ${game.kn} προηγείται αγώνων ομίλου στο ${game.sport.name}`);
+			said.push(`Το νοκ άουτ ${game.kn} παίζεται πριν τελειώσουν οι όμιλοι του ${game.sport.name}`);
 
 		if (kn !== undefined && !wb_knockout_fed(kn) && plan.some(one => one.at < at
 			&& one.game.kn !== null && config.knockouts[one.game.kn] !== undefined
 			&& config.knockouts[one.game.kn].sport.name === game.sport.name
 			&& wb_knockout_fed(config.knockouts[one.game.kn])))
-			said.push(`Το ${game.kn} παίρνει ομάδες από ομίλους, οπότε παίζεται πριν από τα νοκ άουτ που παίρνουν από άλλα νοκ άουτ`);
+			said.push(`Το ${game.kn} παίρνει ομάδες από ομίλους, αλλά παίζεται μετά από νοκ άουτ που παίρνει ομάδα από άλλο νοκ άουτ`);
 
 		if (kn !== undefined) {
 			[kn.home, kn.away].forEach(union => {
@@ -822,7 +891,7 @@ function wb_cautions(key) {
 					return;
 				const found = plan.filter(one => one.game.kn === other.id)[0];
 				if (found !== undefined && found.at > at)
-					said.push(`Ο μικρός τελικός ${other.id} παίζεται πριν από τον τελικό ${kn.id}`);
+					said.push(`Ο τελικός ${kn.id} παίζεται πριν από τον μικρό τελικό ${other.id}`);
 			});
 		}
 
@@ -831,14 +900,13 @@ function wb_cautions(key) {
 			const bb_final = Object.values(config.knockouts).filter(one =>
 				one.sport.name === BASEBALL_SPORT && wb_knockout_stage(one.id) === 'f')[0];
 			if (bb_final !== undefined) {
-				const first = `Ο τελικός του ${BASEBALL_SPORT} παίζεται πρώτος από όλους τους τελικούς`;
 				if (game.sport.name !== BASEBALL_SPORT) {
 					const found = plan.filter(one => one.game.kn === bb_final.id)[0];
 					if (found === undefined || found.at >= at)
-						said.push(first);
+						said.push(`Ο τελικός ${game.kn} παίζεται πριν από τον τελικό του ${BASEBALL_SPORT}, που παίζεται πρώτος από όλους`);
 				} else if (plan.some(one => one.at < at && one.game.kn !== null
 					&& wb_knockout_stage(one.game.kn) === 'f')) {
-					said.push(first);
+					said.push(`Ο τελικός του ${BASEBALL_SPORT} παίζεται μετά από άλλον τελικό, ενώ παίζεται πρώτος από όλους`);
 				}
 			}
 		}

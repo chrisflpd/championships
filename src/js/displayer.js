@@ -115,6 +115,31 @@ function plan_draw(sheet) {
 		label.textContent = `${sport.name} (${sport.courts.length})`;
 		item.appendChild(label);
 	});
+	//the marking can be in the way rather than the point, so either lot of it can
+	//be turned off from beside the plan it marks. it stands by the legend and not
+	//across the bar: a wide calendar is scrolled sideways, and anything at the far
+	//end of the bar is scrolled off with it.
+	const switches = document.createElement('div');
+	switches.classList.add('program-switches');
+	bar.appendChild(switches);
+	[
+		[PLAN_RULES_KEY, plan_shows_rules(), 'κανόνων'],
+		[PLAN_CAUTIONS_KEY, plan_shows_cautions(), 'συστάσεων'],
+	].forEach(one => {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.classList.add('button', 'button-quiet', 'program-switch');
+		button.dataset.tells = one[0];
+		button.classList.toggle('is-off', !one[1]);
+		button.setAttribute('aria-pressed', one[1] ? 'false' : 'true');
+		button.textContent = `${one[1] ? 'Απενεργοποίηση' : 'Ενεργοποίηση'} ${one[2]}`;
+		button.addEventListener('click', () => {
+			plan_tell(one[0], !one[1]);
+			sheets_draw();
+		});
+		switches.appendChild(button);
+	});
+
 	const placed = wb_placed().length;
 	const counts = document.createElement('div');
 	counts.classList.add('program-counts');
@@ -218,21 +243,30 @@ function plan_draw(sheet) {
 					round_row.classList.add('round-extra');
 				zone_body.appendChild(round_row);
 				if (named_zones && r === 0) {
-					//the name of the zone stands beside every round it holds
+					//the name of the zone stands beside every round it holds, and is
+					//the handle the whole zone is picked up by
 					const zone_h = document.createElement('th');
 					zone_h.classList.add('zone-name');
 					zone_h.rowSpan = rounds.length;
 					zone_h.scope = 'rowgroup';
 					zone_h.textContent = dzone.zone.name;
+					zone_h.dataset.zone = [day.iso, dzone.zone.rank].join('|');
+					zone_h.draggable = true;
+					zone_h.title = `${dzone.zone.name} · σύρετε τη ζώνη ολόκληρη σε άλλη ζώνη`;
 					round_row.appendChild(zone_h);
 				}
 				const round_h = document.createElement('th');
 				round_h.classList.add('round-rank');
 				round_h.scope = 'row';
 				round_h.textContent = `Γ${r + 1}`;
-				round_h.title = round.given
+				//and the number of the round is the handle the whole round is picked
+				//up by
+				round_h.dataset.round = [day.iso, dzone.zone.rank, round.rank].join('|');
+				round_h.draggable = true;
+				round_h.title = (round.given
 					? `${r + 1}ος γύρος`
-					: `${r + 1}ος γύρος · η διαμόρφωση δεν τον ζήτησε, αλλά μπορείτε να βάλετε αγώνα σε αυτόν`;
+					: `${r + 1}ος γύρος · η διαμόρφωση δεν τον ζήτησε, αλλά μπορείτε να βάλετε αγώνα σε αυτόν`)
+					+ '\nΣύρετε τον γύρο ολόκληρο σε άλλον γύρο';
 				round_row.appendChild(round_h);
 				cols.forEach((col, ci) => {
 					const col_td = document.createElement('td');
@@ -261,7 +295,9 @@ function plan_draw(sheet) {
 						//is kept off the title and given a panel of its own, since a
 						//rule that has been broken is worth reading rather than
 						//squinting at in the tooltip of the browser.
-						plan_mark(col_td, wb_complaints(key), wb_cautions(key));
+						plan_mark(col_td,
+							plan_shows_rules() ? wb_complaints(key) : [],
+							plan_shows_cautions() ? wb_cautions(key) : []);
 					} else {
 						col_td.classList.add('cell-empty');
 						col_td.textContent = '·';
@@ -291,6 +327,42 @@ function plan_refresh_knockouts() {
 		const parts = cell.dataset.key.split('|');
 		cell.title = plan_title(game, parts[3] || '');
 	});
+}
+
+/*
+ * the two switches
+ *
+ * a plan being put right by hand is marked up as it goes, and there are times
+ * when the marking is in the way rather than the point — a plan that is known to
+ * break a rule and is being built around it. either lot can be turned off, and
+ * the page remembers which.
+ */
+
+const PLAN_RULES_KEY = 'plan-rules';
+const PLAN_CAUTIONS_KEY = 'plan-cautions';
+
+function plan_told_off(key) {
+	try {
+		return localStorage.getItem(key) === 'off';
+	} catch (error) {
+		return false;
+	}
+}
+
+function plan_tell(key, on) {
+	try {
+		localStorage.setItem(key, on ? 'on' : 'off');
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+function plan_shows_rules() {
+	return !plan_told_off(PLAN_RULES_KEY);
+}
+
+function plan_shows_cautions() {
+	return !plan_told_off(PLAN_CAUTIONS_KEY);
 }
 
 /*
@@ -399,7 +471,9 @@ function plan_warning_open(cell) {
 		return;
 
 	const box = document.createElement('div');
-	box.classList.add('plan-warning');
+	//outlined in the colour of the worse of the two, so that what kind of thing it
+	//is is known before a word of it is read
+	box.classList.add('plan-warning', said.length ? 'plan-warning-is-wrong' : 'plan-warning-is-caution');
 	box.setAttribute('role', 'tooltip');
 
 	plan_warning_part(box, 'wrong', 'Παραβίαση κανόνα', said);
@@ -489,10 +563,81 @@ function plan_title(game, court) {
  * cell and left to the camp.
  */
 
+/*
+ * picking up more than a match
+ *
+ * the number of a round and the name of a zone are handles: taking one and
+ * dropping it on another puts the whole of the one where the other was, field by
+ * field. what is under the hand is outlined, so that what is about to move is
+ * known before it moves.
+ */
+
+//the rows a handle stands for
+function plan_block(handle) {
+	if (handle.dataset.zone !== undefined)
+		return [...handle.closest('tbody.zone').querySelectorAll('tr')];
+	const row = handle.closest('tr');
+	return row === null ? [] : [row];
+}
+
+function plan_outline(handle, on) {
+	plan_block(handle).forEach((row, i, all) => {
+		row.classList.toggle('is-picking', on);
+		row.classList.toggle('is-picking-first', on && i === 0);
+		row.classList.toggle('is-picking-last', on && i === all.length - 1);
+	});
+}
+
+function plan_unoutline(home) {
+	home.querySelectorAll('.is-picking, .is-picking-first, .is-picking-last').forEach(row => {
+		row.classList.remove('is-picking', 'is-picking-first', 'is-picking-last');
+	});
+}
+
+//what a handle is holding, and what it may be dropped on: a round on a round, a
+//zone on a zone
+function plan_handle_of(target, kind) {
+	return target.closest ? target.closest(`th[data-${kind}]`) : null;
+}
+
 function plan_wire(home) {
 	let dragging = null;
+	//a round or a zone being carried, rather than a single match
+	let carrying = null;
+
+	//what is under the hand is outlined, so that a handle says what it would take
+	home.addEventListener('mouseover', event => {
+		const handle = plan_handle_of(event.target, 'round') || plan_handle_of(event.target, 'zone');
+		if (handle === null || carrying !== null)
+			return;
+		plan_unoutline(home);
+		plan_outline(handle, true);
+	});
+
+	home.addEventListener('mouseout', event => {
+		const handle = plan_handle_of(event.target, 'round') || plan_handle_of(event.target, 'zone');
+		if (handle === null || carrying !== null)
+			return;
+		if (event.relatedTarget && handle.contains(event.relatedTarget))
+			return;
+		plan_unoutline(home);
+	});
 
 	home.addEventListener('dragstart', event => {
+		const handle = plan_handle_of(event.target, 'round') || plan_handle_of(event.target, 'zone');
+		if (handle !== null) {
+			carrying = handle.dataset.zone !== undefined
+				? { kind: 'zone', id: handle.dataset.zone }
+				: { kind: 'round', id: handle.dataset.round };
+			plan_unoutline(home);
+			plan_outline(handle, true);
+			home.classList.add('is-dragging');
+			if (event.dataTransfer) {
+				event.dataTransfer.effectAllowed = 'move';
+				event.dataTransfer.setData('text/plain', carrying.id);
+			}
+			return;
+		}
 		const cell = event.target.closest ? event.target.closest('td.cell-match') : null;
 		if (cell === null)
 			return;
@@ -508,11 +653,23 @@ function plan_wire(home) {
 
 	home.addEventListener('dragend', () => {
 		dragging = null;
+		carrying = null;
 		home.classList.remove('is-dragging');
+		plan_unoutline(home);
 		home.querySelectorAll('.cell-drop').forEach(cell => cell.classList.remove('cell-drop'));
 	});
 
 	home.addEventListener('dragover', event => {
+		if (carrying !== null) {
+			const onto = plan_handle_of(event.target, carrying.kind);
+			if (onto === null || onto.dataset[carrying.kind] === carrying.id)
+				return;
+			event.preventDefault();
+			if (event.dataTransfer)
+				event.dataTransfer.dropEffect = 'move';
+			plan_outline(onto, true);
+			return;
+		}
 		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
 		if (cell === null || dragging === null || cell.dataset.key === dragging)
 			return;
@@ -529,6 +686,20 @@ function plan_wire(home) {
 	});
 
 	home.addEventListener('drop', event => {
+		if (carrying !== null) {
+			const onto = plan_handle_of(event.target, carrying.kind);
+			const held = carrying;
+			carrying = null;
+			plan_unoutline(home);
+			if (onto === null || onto.dataset[held.kind] === held.id)
+				return;
+			event.preventDefault();
+			wb_swap(held.kind === 'zone'
+				? wb_zone_pairs(held.id, onto.dataset.zone)
+				: wb_round_pairs(held.id, onto.dataset.round));
+			sheets_draw();
+			return;
+		}
 		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
 		if (cell === null)
 			return;
@@ -549,6 +720,15 @@ function plan_wire(home) {
 		const cell = event.target.closest ? event.target.closest('td.cell[data-key]') : null;
 		if (cell !== null)
 			plan_editor(cell);
+	});
+
+	//a handle taken by the keyboard is dropped by the keyboard
+	home.addEventListener('dragleave', event => {
+		if (carrying === null)
+			return;
+		const onto = plan_handle_of(event.target, carrying.kind);
+		if (onto !== null && event.relatedTarget && !onto.contains(event.relatedTarget))
+			plan_outline(onto, false);
 	});
 
 	home.addEventListener('keydown', event => {
@@ -630,7 +810,7 @@ function plan_editor(cell) {
 	const what = document.createElement('select');
 	const blank = document.createElement('option');
 	blank.value = '';
-	blank.textContent = '— κενό —';
+	blank.textContent = '— Κενό —';
 	what.appendChild(blank);
 	choices.forEach(choice => {
 		const option = document.createElement('option');
@@ -706,8 +886,8 @@ function plan_editor(cell) {
 		wrong.appendChild(wrong_list);
 		box.appendChild(wrong);
 	};
-	tell('wrong', 'Παραβίαση κανόνα', wb_complaints(key));
-	tell('caution', 'Συνιστάται προσοχή', wb_cautions(key));
+	tell('wrong', 'Παραβίαση κανόνα', plan_shows_rules() ? wb_complaints(key) : []);
+	tell('caution', 'Συνιστάται προσοχή', plan_shows_cautions() ? wb_cautions(key) : []);
 
 	const bar = document.createElement('div');
 	bar.classList.add('plan-editor-bar');

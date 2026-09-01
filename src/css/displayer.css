@@ -14,6 +14,9 @@
 
 /* what the colours stand for, and how much there is */
 
+/* what is read before the calendar itself: the colours, the two switches and how
+   much there is. it is laid out from the left, since a wide calendar is scrolled
+   sideways and whatever sits at the far end of the bar goes with it. */
 .program-bar {
 	align-items: center;
 	color: var(--muted);
@@ -21,8 +24,10 @@
 	flex-wrap: wrap;
 	font-size: 14px;
 	gap: 8px 18px;
-	justify-content: space-between;
+	justify-content: flex-start;
 	padding: 0 2px 12px;
+	position: sticky;
+	left: 0;
 }
 
 .legend {
@@ -42,6 +47,24 @@
 	border-radius: 3px;
 	height: 10px;
 	width: 10px;
+}
+
+/* the two switches, beside the marking they turn off */
+.program-switches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.program-switch {
+	font-size: 12.5px;
+	padding: 4px 10px;
+}
+
+.program-switch.is-off {
+	background: var(--warn-soft);
+	border-color: var(--warn);
+	color: var(--warn);
 }
 
 .program-counts {

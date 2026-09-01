@@ -140,6 +140,35 @@
 	outline-offset: -2px;
 }
 
+/* a whole round or a whole zone under the hand: the number of the round and the
+   name of the zone are handles, and what they would take is outlined before it
+   is taken */
+.zone-name[data-zone],
+.round-rank[data-round] {
+	cursor: grab;
+}
+
+.day-list.is-dragging .zone-name[data-zone],
+.day-list.is-dragging .round-rank[data-round] {
+	cursor: grabbing;
+}
+
+tr.is-picking > * {
+	background: var(--accent-soft);
+}
+
+tr.is-picking-first > * {
+	box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+tr.is-picking-last > * {
+	box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+tr.is-picking-first.is-picking-last > * {
+	box-shadow: inset 0 2px 0 0 var(--accent), inset 0 -2px 0 0 var(--accent);
+}
+
 /* the cell being dragged and the one it is over */
 .day-list.is-dragging .cell[data-key] {
 	cursor: grabbing;
@@ -214,6 +243,15 @@
 	padding: 12px 14px;
 	position: absolute;
 	z-index: 40;
+}
+
+/* outlined in the colour of the worse of what it has to say */
+.plan-warning-is-wrong {
+	border-color: var(--danger);
+}
+
+.plan-warning-is-caution {
+	border-color: var(--warn);
 }
 
 .plan-warning-head {

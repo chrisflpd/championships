@@ -112,9 +112,8 @@ function says(key, what) {
 
 	say('\n=== what is worth a second look ===');
 
-	// the same pair again in the same zone, a round apart and two rounds apart. the
-	// rounds beside a slot are rounds of its own zone, so the two are the one rule
-	// and it is said once, as closely as it can be.
+	// the same pair again in the same zone, whether a round apart or two: the zone
+	// is where it is said, once
 	laid(() => {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
 		wb_put(at(0, 1, 2, 'Γ2'), 'pg', 3, 4);
@@ -124,9 +123,8 @@ function says(key, what) {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
 		wb_put(at(0, 1, 1, 'Γ2'), 'pg', 3, 4);
 	});
-	check(says(at(0, 1, 1, 'Γ2'), 'συναντιούνται ξανά στον διπλανό γύρο'), 'and said as the round beside when it is');
 	check(wb_cautions(at(0, 1, 1, 'Γ2')).filter(one => one.indexOf('συναντιούνται ξανά') !== -1).length === 1,
-		'and said once, not twice over');
+		'said once whether the rounds are beside each other or not');
 
 	// the same pair, the same sport, the same day, a zone apart
 	laid(() => {
@@ -140,7 +138,7 @@ function says(key, what) {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
 		wb_put(at(0, 1, 1, 'Γ2'), 'pg', 3, 5);
 	});
-	check(says(at(0, 1, 1, 'Γ2'), 'και στον διπλανό γύρο'), 'a team at one sport in two rounds running');
+	check(says(at(0, 1, 1, 'Γ2'), 'ξανά σε αυτήν τη ζώνη'), 'a team at one sport twice in a zone');
 
 	// the team of the camp's own, on the morning everybody arrives
 	laid(() => wb_put(at(0, 0, 0, 'Γ1'), 'pg', 1, 4));
@@ -159,20 +157,20 @@ function says(key, what) {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pf', null, null);
 		wb_put(at(1, 0, 0, 'Γ2'), 'pg', 3, 4);
 	});
-	check(says(at(0, 1, 0, 'Γ1'), 'προηγείται αγώνων ομίλου'), 'a knockout before the groups of its sport');
+	check(says(at(0, 1, 0, 'Γ1'), 'πριν τελειώσουν οι όμιλοι'), 'a knockout before the groups of its sport');
 
 	say('\n=== and the baseball, which the camp spreads out ===');
 
 	// the match that brings a team to the sport goes in the first round of a zone
 	laid(() => wb_put(at(0, 1, 1, 'Γ1'), 'bg', 3, 4));
-	check(says(at(0, 1, 1, 'Γ1'), 'πρώτο γύρο της ζώνης'), 'a team’s first baseball outside the first round');
+	check(says(at(0, 1, 1, 'Γ1'), 'δεν παίζεται στον πρώτο γύρο της ζώνης'), 'a team’s first baseball outside the first round');
 
 	// and the diamond is left free in the round after it
 	laid(() => {
 		wb_put(at(0, 1, 0, 'Γ1'), 'bg', 3, 4);
 		wb_put(at(0, 1, 1, 'Γ1'), 'pg', 5, 6);
 	});
-	check(says(at(0, 1, 1, 'Γ1'), 'μένει ελεύθερο στον γύρο μετά'), 'and the field taken in the round after it');
+	check(says(at(0, 1, 1, 'Γ1'), 'έπρεπε να μείνει ελεύθερο'), 'and the field taken in the round after it');
 
 	// one to a zone, and the zones take them in turn
 	laid(() => {
@@ -180,7 +178,19 @@ function says(key, what) {
 		wb_put(at(1, 0, 0, 'Γ2'), 'pg', 3, 4);
 		wb_put(at(1, 1, 0, 'Γ1'), 'bg', 3, 4);
 	});
-	check(says(at(1, 1, 0, 'Γ1'), 'με τη σειρά'), 'and a zone passed over while they are spread');
+	check(says(at(1, 1, 0, 'Γ1'), 'χωρίς μπέιζμπολ'), 'and a zone passed over while they are spread');
+
+	say('\n=== every one of them says what is wrong ===');
+	// a rule stated as a rule reads as though it were being explained rather than
+	// broken, so none of them is left saying only what ought to happen
+	laid(() => {
+		wb_put(at(0, 1, 0, 'Γ1'), 'bg', 3, 4);
+		wb_put(at(0, 1, 1, 'Γ1'), 'pg', 5, 6);
+		wb_put(at(0, 0, 0, 'Γ2'), 'pg', 1, 4);
+	});
+	const stated = said(at(0, 1, 1, 'Γ1')).concat(said(at(0, 0, 0, 'Γ2')));
+	check(stated.length > 0 && stated.every(one => /αλλά|έπρεπε|δεν |ξανά|ήδη|πριν|μετά|ενώ/.test(one)),
+		`all ${stated.length} of them name the fault and not the rule`);
 
 	say('\n=== the two are told apart ===');
 	laid(() => {
@@ -193,6 +203,36 @@ function says(key, what) {
 	laid(() => wb_put(at(0, 1, 0, 'Γ1'), 'kg', 3, 4));
 	check(wb_complaints(at(0, 1, 0, 'Γ1')).length > 0,
 		'and one that cannot says it there and not under Συνιστάται προσοχή');
+
+	say('\n=== a whole round, and a whole zone, change places ===');
+	laid(() => {
+		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 1, 2);
+		wb_put(at(0, 1, 0, 'Γ3'), 'kg', 3, 4);
+		wb_put(at(0, 1, 1, 'Γ2'), 'pg', 5, 6);
+	});
+	const before_round = ['Γ1', 'Γ2', 'Γ3'].map(court => {
+		const game = wb_at(at(0, 1, 0, court));
+		return game === null ? '·' : game.id + game.home + '-' + game.away;
+	}).join(',');
+	wb_swap(wb_round_pairs('2026-08-10|1|0', '2026-08-10|1|2'));
+	wb_recount();
+	check(['Γ1', 'Γ2', 'Γ3'].every(court => wb_at(at(0, 1, 0, court)) === null),
+		'a round dropped on an empty one leaves nothing behind');
+	check(['Γ1', 'Γ2', 'Γ3'].map(court => {
+		const game = wb_at(at(0, 1, 2, court));
+		return game === null ? '·' : game.id + game.home + '-' + game.away;
+	}).join(',') === before_round, 'and stands whole where it was dropped, field by field');
+
+	laid(() => {
+		wb_put(at(0, 0, 0, 'Γ1'), 'pg', 1, 2);
+		wb_put(at(0, 1, 1, 'Γ3'), 'kg', 3, 4);
+	});
+	wb_swap(wb_zone_pairs('2026-08-10|0', '2026-08-10|1'));
+	wb_recount();
+	check(wb_at(at(0, 1, 0, 'Γ1')) !== null && wb_at(at(0, 0, 0, 'Γ1')) === null,
+		'a zone dropped on another carries its rounds across in order');
+	check(wb_at(at(0, 0, 1, 'Γ3')) !== null && wb_at(at(0, 1, 1, 'Γ3')) === null,
+		'and brings the other one back the other way');
 
 	say(fail.length ? `\n${fail.length} FAILED\n  ` + fail.join('\n  ') : '\nall checks passed');
 	process.exit(fail.length ? 1 : 0);
