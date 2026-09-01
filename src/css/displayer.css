@@ -61,10 +61,27 @@
 	padding: 4px 10px;
 }
 
-.program-switch.is-off {
-	background: var(--warn-soft);
+/* each switch wears the colour of the marking it turns off, and keeps that
+   colour whichever way it is set, so what it belongs to is never in doubt. the
+   hover of a quiet button would otherwise take the colour back, which is why
+   each of these is said twice. */
+.program-switch[data-tells="plan-rules"],
+.program-switch[data-tells="plan-rules"]:hover:not(:disabled) {
+	border-color: var(--danger);
+	color: var(--danger);
+}
+
+.program-switch[data-tells="plan-cautions"],
+.program-switch[data-tells="plan-cautions"]:hover:not(:disabled) {
 	border-color: var(--warn);
 	color: var(--warn);
+}
+
+/* turned off, the letters go green to say the marking is gone. the outline stays
+   as it was: it is what the switch is for, not what the switch is doing. */
+.program-switch.is-off,
+.program-switch.is-off:hover:not(:disabled) {
+	color: var(--ok);
 }
 
 .program-counts {
