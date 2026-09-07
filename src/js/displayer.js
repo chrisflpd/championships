@@ -122,6 +122,16 @@ function plan_draw(sheet) {
 	const switches = document.createElement('div');
 	switches.classList.add('program-switches');
 	bar.appendChild(switches);
+	[['plan-undo', '↶ Αναίρεση', false], ['plan-redo', '↷ Επανάληψη', true]].forEach(([id, label, redo]) => {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.id = id;
+		button.classList.add('button', 'button-quiet');
+		button.textContent = label;
+		button.disabled = !(redo ? wb_history.future : wb_history.past).length;
+		button.addEventListener('click', () => wb_history_step(redo));
+		switches.appendChild(button);
+	});
 	[
 		[PLAN_RULES_KEY, plan_shows_rules(), 'κανόνων'],
 		[PLAN_CAUTIONS_KEY, plan_shows_cautions(), 'συστάσεων'],
@@ -343,7 +353,7 @@ const PLAN_CAUTIONS_KEY = 'plan-cautions';
 
 function plan_told_off(key) {
 	try {
-		return localStorage.getItem(key) === 'off';
+		return appStorage.getItem(key) === 'off';
 	} catch (error) {
 		return false;
 	}
@@ -351,7 +361,7 @@ function plan_told_off(key) {
 
 function plan_tell(key, on) {
 	try {
-		localStorage.setItem(key, on ? 'on' : 'off');
+		appStorage.setItem(key, on ? 'on' : 'off');
 	} catch (error) {
 		console.log(error);
 	}

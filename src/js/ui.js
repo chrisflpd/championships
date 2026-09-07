@@ -10,7 +10,7 @@ const PANEL_KEY = 'panel';
 //a browser may keep no storage at all, and the page still has to open
 function ui_stored(key) {
 	try {
-		return localStorage.getItem(key);
+		return appStorage.getItem(key);
 	} catch (error) {
 		return null;
 	}
@@ -18,7 +18,7 @@ function ui_stored(key) {
 
 function ui_store(key, value) {
 	try {
-		localStorage.setItem(key, value);
+		appStorage.setItem(key, value);
 	} catch (error) {
 		console.log(error);
 	}
@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				title: 'Θα χαθεί το πρόγραμμα που υπάρχει',
 				body: [
 					'Μια νέα υποβολή ξεκινά αναζήτηση από την αρχή. Το πρόγραμμα που βλέπετε, μαζί με όσες αλλαγές έχετε κάνει με το χέρι πάνω του, θα αντικατασταθεί από αυτό που θα βρεθεί.',
-					'Τα σκορ και οι διαιτητές που έχετε καταχωρίσει κρατιούνται, γιατί ανήκουν στον αγώνα και όχι στη θέση του. Αν θέλετε να κρατήσετε και το ίδιο το πρόγραμμα, δημιουργήστε πρώτα το αρχείο Excel.',
+					'Τα σκορ και οι διαιτητές που έχετε καταχωρίσει κρατιούνται, γιατί ανήκουν στον αγώνα και όχι στη θέση του. Αν θέλετε να κρατήσετε και το ίδιο το πρόγραμμα, πατήστε πρώτα Εξαγωγή για ένα πλήρες αντίγραφο.',
 				],
 				ok: 'Νέα αναζήτηση',
 				cancel: 'Ακύρωση',

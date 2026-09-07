@@ -11,6 +11,10 @@ const CONFIGS = process.argv.length > 2 ? process.argv.slice(2) : ['examples/inp
 
 // the same one browser behaviour page.js puts back, for the same reason
 const SHIM = `<script>
+// jsdom's postMessage event.source is null; JSZip's browser task queue expects
+// window. Give it an equivalent timer queue for asynchronous compression.
+window.setImmediate = callback => window.setTimeout(callback, 0);
+window.clearImmediate = id => window.clearTimeout(id);
 Array.prototype.forEach.call(document.forms, function (form) {
 	Array.prototype.forEach.call(form.elements, function (el) {
 		if (el.name && !(el.name in form))
@@ -30,7 +34,7 @@ const server = http.createServer((req, res) => {
 	}
 	let body = fs.readFileSync(file);
 	if (name === 'index.html')
-		body = Buffer.from(body.toString('utf8').replace(/<script src="/, SHIM + '\n\t\t<script src="'), 'utf8');
+		body = Buffer.from(body.toString('utf8').replace(/(?=<script src="src\/js\/common\.js)/, SHIM), 'utf8');
 	res.writeHead(200, { 'Content-Type': (TYPES[path.extname(file)] || 'application/octet-stream') + '; charset=utf-8' });
 	res.end(body);
 });
@@ -118,14 +122,15 @@ async function shared(port, link, before, check) {
 		if (doc.readyState === 'complete') return res();
 		window.addEventListener('load', res);
 	});
-	await new Promise(res => window.setTimeout(res, 400));
+	for (let i = 0; i < 500 && !doc.querySelector('.day-list') && !doc.querySelector('#search.is-error'); i++)
+		await new Promise(res => window.setTimeout(res, 10));
 
-	check(doc.querySelector('.day-list') !== null, 'a link opens the championship it carries, with no search run for it');
+	check(doc.querySelector('.day-list') !== null, 'a link opens the championship it carries, with no search run for it: ' + doc.getElementById('search-status').textContent);
 	check(Object.keys(window.eval('workbook').slots).sort().join('|') === before,
 		'every match of it where the maker of the link left it');
 	check(doc.forms[0]['config'].value.length > 0, 'and the configuration it was made from in the box');
 	// looking at somebody else's leaves your own where it was
-	check(window.localStorage.getItem('workbook') === null,
+	check(window.eval('appStorage').getItem('workbook') === null,
 		'and nothing of it written over a championship of your own');
 	check(doc.querySelector('.saved-offer') === null, 'with nothing else offered over the top of it');
 	window.close();
@@ -203,7 +208,7 @@ async function run(CONFIG, fail) {
 	tabs[0].dispatchEvent(new window.Event('dragend', { bubbles: true }));
 	check([...doc.querySelectorAll('.sheet-tab')].map(tab => tab.dataset.sheet).join(',') === 'pages,plan,points,config',
 		'dragging a tab changes its position');
-	check(window.localStorage.getItem('sheet-order') === '["pages","plan","points","config"]',
+	check(window.eval('appStorage').getItem('sheet-order') === '["pages","plan","points","config"]',
 		'and the new order is remembered');
 
 	console.log('\n=== the pages ===');
@@ -581,10 +586,12 @@ async function run(CONFIG, fail) {
 	check(doc.getElementById('excel').disabled === false, 'the workbook is still there to be built');
 
 	console.log('\n=== the championship handed to somebody else ===');
-	const link = window.eval('share_link')(doc.forms[0]['config'].value);
+	const link = await window.eval('share_link')(doc.forms[0]['config'].value);
 	check(link.indexOf('#p=') !== -1, `a link carries the whole of it in itself (${link.length} characters)`);
 	// the button says so, and puts it where it can be copied
 	click(doc.getElementById('share'));
+	for (let i = 0; i < 100 && !doc.querySelector('.share-line'); i++)
+		await new Promise(resolve => window.setTimeout(resolve, 10));
 	const line = doc.querySelector('.share-line');
 	check(line !== null && line.querySelector('.share-link').value.indexOf('#p=') !== -1,
 		'and the button lays it out to be copied');
@@ -601,11 +608,12 @@ async function run(CONFIG, fail) {
 		const key = window.localStorage.key(i);
 		left_behind[key] = window.localStorage.getItem(key);
 	}
-	check(left_behind.workbook !== undefined && left_behind.config !== undefined,
+	const prefix = window.eval('STORAGE_PREFIX');
+	check(left_behind[prefix + 'workbook'] !== undefined && left_behind[prefix + 'config'] !== undefined,
 		'the visit leaves the championship and its configuration in the browser');
 	// the panel is folded away by the time a program is drawn, and the camp may
 	// have folded it itself, so the second visit opens with it folded
-	left_behind.panel = 'collapsed';
+	left_behind[prefix + 'panel'] = 'collapsed';
 	await second(port, left_behind, before, check);
 
 	console.log('\n=== submitting again asks before it throws the program away ===');

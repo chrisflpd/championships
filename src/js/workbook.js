@@ -18,6 +18,7 @@ const WB_STORE = 'workbook';
 
 const workbook = {
 	sig: '',        // the configuration these games belong to
+	configuration: '', // original text, kept with the plan even while the form is edited
 	calendar: [],   // every date from the first to the last, the passed over ones included
 	cols: [],       // one entry per sport and court pair: the columns of the plan
 	slots: {},      // slot key -> game, holding only the slots that carry one
@@ -209,14 +210,14 @@ function wb_next_occ(id, home, away, except) {
 
 function wb_stored() {
 	try {
-		const raw = localStorage.getItem(WB_STORE);
+		const raw = appStorage.getItem(WB_STORE);
 		return raw === null ? null : JSON.parse(raw);
 	} catch (error) {
 		return null;
 	}
 }
 
-function wb_save() {
+function wb_snapshot() {
 	const plan = {};
 	for (const key in workbook.slots) {
 		const game = workbook.slots[key];
@@ -229,12 +230,51 @@ function wb_save() {
 			occ: game.occ,
 		};
 	}
+	return { sig: workbook.sig, configuration: workbook.configuration, plan, results: workbook.results };
+}
+
+// History stores plain data, never live game objects. One swap of a round or
+// zone is one step. A new/restored championship starts a new history.
+const wb_history = { past: [], future: [], current: null };
+function wb_history_reset() {
+	wb_history.past = [];
+	wb_history.future = [];
+	wb_history.current = JSON.stringify(wb_snapshot());
+}
+
+function wb_history_step(redo) {
+	const source = redo ? wb_history.future : wb_history.past;
+	if (!source.length) return;
+	const target = redo ? wb_history.past : wb_history.future;
+	target.push(wb_history.current);
+	const state = source.pop();
+	const saved = JSON.parse(state);
+	workbook.offered = saved.plan;
+	workbook.results = saved.results;
+	wb_restore(false);
+	wb_history.current = state;
+	wb_save();
+	sheets_draw();
+}
+
+function wb_history_buttons() {
+	const undo = document.getElementById('plan-undo'), redo = document.getElementById('plan-redo');
+	if (undo) undo.disabled = !wb_history.past.length;
+	if (redo) redo.disabled = !wb_history.future.length;
+}
+
+function wb_save() {
+	const state = JSON.stringify(wb_snapshot());
+	if (wb_history.current !== null && state !== wb_history.current) {
+		wb_history.past.push(wb_history.current);
+		if (wb_history.past.length > 100) wb_history.past.shift();
+		wb_history.future = [];
+	}
+	wb_history.current = state;
+	wb_history_buttons();
 	try {
-		localStorage.setItem(WB_STORE, JSON.stringify({
-			sig: workbook.sig,
-			plan: plan,
-			results: workbook.results,
-		}));
+		appStorage.setItem(WB_STORE, state);
+		if (workbook.configuration) appStorage.setItem('config', workbook.configuration);
 	} catch (error) {
 		console.log(error);
 	}
@@ -286,6 +326,7 @@ function wb_game_of(match, court, occ) {
  */
 function wb_build(program) {
 	workbook.sig = wb_signature();
+	workbook.configuration = config.text;
 
 	workbook.cols = [];
 	config.sports.forEach(sport => {
@@ -333,6 +374,7 @@ function wb_build(program) {
 	//one, so that is what is drawn; the plan the camp left is offered instead of
 	//being forced back over it.
 	workbook.offered = mine && stored.plan && Object.keys(stored.plan).length ? stored.plan : null;
+	wb_history_reset();
 }
 
 /**
@@ -341,11 +383,10 @@ function wb_build(program) {
  *
  * @returns {boolean} - whether there was one to put back
  */
-function wb_restore() {
+function wb_restore(resetHistory = true) {
 	if (workbook.offered === null)
 		return false;
 	const slots = {};
-	let kept = 0;
 	for (const key in workbook.offered) {
 		const one = workbook.offered[key];
 		const sport = wb_sport(one.sport);
@@ -360,12 +401,10 @@ function wb_restore() {
 			away: one.away === undefined ? null : one.away,
 			occ: one.occ === undefined ? 0 : one.occ,
 		};
-		kept++;
 	}
-	if (!kept)
-		return false;
 	workbook.slots = slots;
 	workbook.offered = null;
+	if (resetHistory) wb_history_reset();
 	return true;
 }
 

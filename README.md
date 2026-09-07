@@ -23,6 +23,11 @@ are handles, and dropping one on another puts the whole of the one where the
 other was, field by field. What a handle would take is outlined before it is
 taken.
 
+**Αναίρεση** and **Επανάληψη** step back and forward through up to 100 workbook
+edits, including scores and referees. A whole-round or whole-zone swap is one
+step. History lasts for the current visit and resets when a championship is
+generated, restored or imported; a new edit after undo discards the redo branch.
+
 The marking can be in the way rather than the point — a plan known to break a
 rule and being built around it — so **Απενεργοποίηση κανόνων** and
 **Απενεργοποίηση συστάσεων** turn off the red and the amber respectively, and the
@@ -111,6 +116,12 @@ stands and every score entered — into a link, and copies it. Whoever opens the
 link has it: the tabs are drawn from the link itself, with no search run for it
 and nothing needed at the other end but a browser.
 
+Links use a compact indexed plan and DEFLATE compression through the existing
+JSZip dependency. The sample 73-match championship is around 1,300 characters;
+this is not a fixed limit—larger configurations, scores and referee names can
+make links longer. Old uncompressed links still open. Links use the configuration
+the plan was built with, not unsubmitted changes in the configuration box.
+
 It is a copy and not a window. What the link carries is the championship as it
 stood when the link was made; changes made afterwards live in the maker's browser
 and nowhere else, and a fresh link has to be handed over for them. A link that
@@ -123,6 +134,18 @@ arrives by link is drawn but not stored, and only a change of your own puts it i
 your browser's place.
 
 ## what is kept
+
+**Εξαγωγή** in Configuration downloads a `.json` backup of the current workbook
+(or the stored one before it is opened) and its configuration. It includes all
+match positions, scores and referees, and can also carry configuration alone.
+**Εισαγωγή** validates that backup and asks before replacing the current/saved
+championship, then saves and opens it without another search. This is distinct
+from **Δημιουργία Excel**, which exports the printable Excel workbook.
+
+All browser storage keys start with `championships:<deployment-path>:`; for
+example, `championships:/championships/:workbook`. This isolates projects hosted
+on the same GitHub Pages origin. Recognized legacy data is copied once without
+overwriting namespaced values or deleting generic keys another app may use.
 
 A championship is kept in the browser between visits, and the page offers it back
 over the head of the configuration, before any search is run: open the page the next

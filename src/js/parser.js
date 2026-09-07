@@ -318,6 +318,7 @@ function parse_knockout_line(line) {
  * @returns {void}
  */
 function parse_config(text) {
+	config.text = text;
 	config.courts = [];
 	config.sports = [];
 	config.zones = [];
@@ -379,13 +380,13 @@ document.addEventListener('DOMContentLoaded', () => {
 	function keep_config() {
 		const value = form['config'].value;
 		if (value.length)
-			localStorage.setItem('config', value);
+			appStorage.setItem('config', value);
 		else
-			localStorage.removeItem('config');
+			appStorage.removeItem('config');
 	}
 	document.getElementById('save').addEventListener('click', keep_config);
 	document.getElementById('load').addEventListener('click', event => {
-		const value = localStorage.getItem('config');
+		const value = appStorage.getItem('config');
 		if (value !== null)
 			form['config'].value = value;
 		else

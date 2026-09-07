@@ -15,6 +15,8 @@ const CONFIGS = process.argv.length > 2 ? process.argv.slice(2)
 // parser.js reads form['config'], so the page is served with that one browser
 // behaviour put back. nothing else about the page is changed.
 const SHIM = `<script>
+window.setImmediate = callback => window.setTimeout(callback, 0);
+window.clearImmediate = id => window.clearTimeout(id);
 Array.prototype.forEach.call(document.forms, function (form) {
 	Array.prototype.forEach.call(form.elements, function (el) {
 		if (el.name && !(el.name in form))
@@ -37,7 +39,7 @@ const server = http.createServer((req, res) => {
 		// the shim goes in front of the first fetched script, which is the first
 		// thing to read the form. the name may carry a version, so it is matched
 		// rather than spelt out.
-		body = Buffer.from(body.toString('utf8').replace(/<script src="/, SHIM + '\n\t\t<script src="'), 'utf8');
+		body = Buffer.from(body.toString('utf8').replace(/(?=<script src="src\/js\/common\.js)/, SHIM), 'utf8');
 	res.writeHead(200, { 'Content-Type': (TYPES[path.extname(file)] || 'application/octet-stream') + '; charset=utf-8' });
 	res.end(body);
 });
@@ -84,7 +86,7 @@ async function run(CONFIG, fail) {
 	console.log('\n=== save and load still work ===');
 	doc.forms[0]['config'].value = 'ΔΟΚΙΜΗ';
 	click(doc.getElementById('save'));
-	check(window.localStorage.getItem('config') === 'ΔΟΚΙΜΗ', 'save writes the config');
+	check(window.eval('appStorage').getItem('config') === 'ΔΟΚΙΜΗ', 'save writes the config');
 	doc.forms[0]['config'].value = '';
 	click(doc.getElementById('load'));
 	check(doc.forms[0]['config'].value === 'ΔΟΚΙΜΗ', 'load reads it back');
@@ -105,7 +107,7 @@ async function run(CONFIG, fail) {
 	const after = doc.documentElement.getAttribute('data-theme');
 	check(after !== before && (after === 'dark' || after === 'light'), `toggles ${before} -> ${after}`);
 	check(themeBtn.getAttribute('aria-checked') === (after === 'dark' ? 'true' : 'false'), 'and the knob follows');
-	check(window.localStorage.getItem('theme') === after, 'the choice is kept');
+	check(window.eval('appStorage').getItem('theme') === after, 'the choice is kept');
 	click(themeBtn);
 	check(doc.documentElement.getAttribute('data-theme') === before, 'toggles back');
 	check(themeBtn.getAttribute('aria-checked') === (before === 'dark' ? 'true' : 'false'), 'and so does the knob');
@@ -123,7 +125,7 @@ async function run(CONFIG, fail) {
 	check(/Ανάπτυξη/.test(collapseBtn.title), 'and says how to undo it');
 	click(collapseBtn);
 	check(!panel.classList.contains('is-collapsed') && collapseBtn.getAttribute('aria-expanded') === 'true', 'comes back up');
-	window.localStorage.removeItem('panel');
+	window.eval('appStorage').removeItem('panel');
 
 	// a browser that has never run this configuration has nothing to be offered
 	check(doc.querySelector('.saved-offer') === null, 'a first visit is offered no saved championship');
@@ -157,7 +159,7 @@ async function run(CONFIG, fail) {
 	check(doc.getElementById('stop').hidden === true, 'the stop is gone');
 	check(doc.getElementById('excel').disabled === false, 'excel is enabled');
 	check(panel.classList.contains('is-collapsed'), 'the config folded away on its own');
-	check(window.localStorage.getItem('panel') !== 'collapsed', 'a fold it did on its own is not kept');
+	check(window.eval('appStorage').getItem('panel') !== 'collapsed', 'a fold it did on its own is not kept');
 
 	console.log('\n=== the grid ===');
 	// common.js declares config with const, so it is a lexical global and not a

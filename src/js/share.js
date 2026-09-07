@@ -76,11 +76,24 @@ function share_decode(code) {
  * the link itself.
  *
  * @param {string} text - the configuration as it was written
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function share_link(text) {
+async function share_link(text) {
 	const where = window.location;
-    return where.origin + where.pathname + SHARE_MARK + share_encode(JSON.stringify(share_data(text)));
+	// Repeated group names become small dictionary indexes; slots become deltas.
+	// Use the configuration of the actual plan, not an unsubmitted textarea edit.
+	const data = share_data(workbook.configuration || text);
+	const ids = [...Object.keys(config.groups), ...Object.keys(config.knockouts)];
+	let previous = 0;
+	const plan = data.p.flatMap(one => {
+		const delta = one[0] - previous;
+		previous = one[0];
+		return [delta, ids.indexOf(one[1]), one[2] || 0, one[3] || 0, one[4]];
+	});
+	const zip = new JSZip();
+	zip.file('p', JSON.stringify({ v: 2, c: data.c, p: plan, r: data.r }), { date: new Date('2000-01-01T00:00:00Z') });
+	const code = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+	return where.origin + where.pathname + SHARE_MARK + '2.' + code.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
@@ -94,6 +107,8 @@ function share_link(text) {
 function share_open(data) {
 	if (!data || typeof data.c !== 'string')
 		return false;
+	// Validate before replacing any visible or saved championship.
+	const saved = championship_validate(data.c, null, data);
 	parse_config(data.c);
 	const form = document.forms[0];
 	if (form !== undefined && form['config'])
@@ -101,28 +116,8 @@ function share_open(data) {
 
 	displayer(config.days);
 
-	const slots = share_slots();
-	const plan = {};
-	(data.p || []).forEach(one => {
-		const key = slots[one[0]];
-		if (key === undefined)
-			return;
-		const id = one[1];
-		const kn = id in config.knockouts;
-		const sport = kn ? config.knockouts[id].sport : (config.groups[id] || {}).sport;
-		if (sport === undefined)
-			return;
-		plan[key] = {
-			sport: sport.name,
-			id: id,
-			kn: kn ? id : null,
-			home: kn ? null : one[2],
-			away: kn ? null : one[3],
-			occ: one[4],
-		};
-	});
-	workbook.offered = plan;
-	workbook.results = data.r && typeof data.r === 'object' ? data.r : {};
+	workbook.offered = saved.plan;
+	workbook.results = saved.results;
 	if (!wb_restore())
 		return false;
 	sheets_draw();
@@ -130,14 +125,30 @@ function share_open(data) {
 }
 
 //what is in the address bar, if it is one of ours
-function share_carried() {
+async function share_carried() {
 	const hash = window.location.hash || '';
 	if (hash.indexOf(SHARE_MARK) !== 0)
 		return null;
 	try {
-		return JSON.parse(share_decode(hash.slice(SHARE_MARK.length)));
+		const code = hash.slice(SHARE_MARK.length);
+		if (!code.startsWith('2.')) return JSON.parse(share_decode(code));
+		if (code.length > 200000) throw new Error('Ο σύνδεσμος είναι υπερβολικά μεγάλος.');
+		const zip = await JSZip.loadAsync(code.slice(2).replace(/-/g, '+').replace(/_/g, '/'), { base64: true });
+		const file = zip.file('p');
+		if (!file) throw new Error('Δεν υπάρχει πρωτάθλημα στον σύνδεσμο.');
+		let size = 0;
+		const text = await new Promise((resolve, reject) => {
+			let text = '';
+			const stream = file.internalStream('string');
+			stream.on('data', chunk => {
+				size += chunk.length;
+				if (size > 2000000) { stream.pause(); reject(new Error('Το πρωτάθλημα είναι υπερβολικά μεγάλο.')); }
+				else text += chunk;
+			}).on('error', reject).on('end', () => resolve(text)).resume();
+		});
+		return JSON.parse(text);
 	} catch (error) {
-		return null;
+		throw new Error('Ο σύνδεσμος πρωταθλήματος δεν είναι έγκυρος.');
 	}
 }
 
@@ -204,13 +215,16 @@ function share_show(link) {
 	}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
 	const button = document.getElementById('share');
 	const form = document.forms[0];
 	if (button !== null && form !== undefined) {
-		button.addEventListener('click', () => {
-			share_show(share_link(form['config'].value));
+		button.addEventListener('click', async () => {
+			button.disabled = true;
+			try { share_show(await share_link(form['config'].value)); }
+			catch (error) { search_report('Δεν ήταν δυνατή η δημιουργία συνδέσμου.', true, 'error'); }
+			finally { button.disabled = false; }
 		});
 		//there is nothing to hand over until there is a program to hand over
 		const program = document.getElementById('program');
@@ -222,10 +236,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	//a link that is carrying one takes the page, and nothing else is offered
-	const carried = share_carried();
-	if (carried !== null && share_open(carried)) {
-		if (button !== null)
-			button.disabled = false;
-		search_report('Αυτό το πρωτάθλημα ανοίχτηκε από σύνδεσμο, όπως ήταν τη στιγμή που δόθηκε.', true, 'ok');
+	try {
+		const carried = await share_carried();
+		if (carried !== null && share_open(carried)) {
+			if (button !== null)
+				button.disabled = false;
+			search_report('Αυτό το πρωτάθλημα ανοίχτηκε από σύνδεσμο, όπως ήταν τη στιγμή που δόθηκε.', true, 'ok');
+		}
+	} catch (error) {
+		search_report(error.message, true, 'error');
+		const stored = saved_stored();
+		if (stored !== null) saved_ask(stored);
 	}
 });

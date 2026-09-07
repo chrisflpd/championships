@@ -21,6 +21,7 @@ function load(file) {
 	vm.runInThisContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), { filename: file });
 }
 
+load('src/js/storage.js');
 load('src/js/common.js');
 load('src/js/parser.js');
 load('src/js/championships.js');

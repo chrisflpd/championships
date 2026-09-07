@@ -18,6 +18,7 @@
 	gap: 4px;
 	margin-bottom: 16px;
 	overflow-x: auto;
+	overflow-y: hidden;
 	padding: 6px 7px 0;
 	position: sticky;
 	/* the height of the title bar, which is sticky above it */

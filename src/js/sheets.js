@@ -20,7 +20,7 @@ const SHEETS = [
 //a browser may keep no storage at all, and the page still has to open
 function sheets_stored() {
 	try {
-		return localStorage.getItem(SHEET_KEY);
+		return appStorage.getItem(SHEET_KEY);
 	} catch (error) {
 		return null;
 	}
@@ -28,7 +28,7 @@ function sheets_stored() {
 
 function sheets_remember(id) {
 	try {
-		localStorage.setItem(SHEET_KEY, id);
+		appStorage.setItem(SHEET_KEY, id);
 	} catch (error) {
 		console.log(error);
 	}
@@ -37,7 +37,7 @@ function sheets_remember(id) {
 function sheets_order() {
 	const standard = SHEETS.map(one => one.id);
 	try {
-		const stored = JSON.parse(localStorage.getItem(SHEET_ORDER_KEY));
+		const stored = JSON.parse(appStorage.getItem(SHEET_ORDER_KEY));
 		if (Array.isArray(stored) && stored.length === standard.length
 			&& standard.every(id => stored.includes(id)))
 			return stored;
@@ -49,7 +49,7 @@ function sheets_order() {
 
 function sheets_remember_order(strip) {
 	try {
-		localStorage.setItem(SHEET_ORDER_KEY, JSON.stringify(
+		appStorage.setItem(SHEET_ORDER_KEY, JSON.stringify(
 			[...strip.querySelectorAll('.sheet-tab')].map(tab => tab.dataset.sheet)));
 	} catch (error) {
 		console.log(error);
