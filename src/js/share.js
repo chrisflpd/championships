@@ -133,7 +133,9 @@ async function share_carried() {
 		const code = hash.slice(SHARE_MARK.length);
 		if (!code.startsWith('2.')) return JSON.parse(share_decode(code));
 		if (code.length > 200000) throw new Error('Ο σύνδεσμος είναι υπερβολικά μεγάλος.');
-		const zip = await JSZip.loadAsync(code.slice(2).replace(/-/g, '+').replace(/_/g, '/'), { base64: true });
+		const base64 = code.slice(2).replace(/-/g, '+').replace(/_/g, '/');
+		// URLs omit padding, but JSZip requires complete four-character groups.
+		const zip = await JSZip.loadAsync(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='), { base64: true });
 		const file = zip.file('p');
 		if (!file) throw new Error('Δεν υπάρχει πρωτάθλημα στον σύνδεσμο.');
 		let size = 0;

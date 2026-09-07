@@ -106,6 +106,13 @@ function sheetCells(doc) {
 	const parser = new DOMParser();
 	const pages = sheetCells(parser.parseFromString(await zip.file('xl/worksheets/sheet5.xml').async('string'), 'text/xml'));
 	const plan = sheetCells(parser.parseFromString(await zip.file('xl/worksheets/sheet1.xml').async('string'), 'text/xml'));
+	check(caught.filename === 'champ' + String(program[0].date.getUTCFullYear()).slice(-2) + '.xlsx',
+		'the download uses the championship year: ' + caught.filename);
+	const knockouts = wb_placed().filter(one => one.game.kn !== null);
+	check(knockouts.every(one => Object.values(plan).includes(wb_display_id(one.game.kn))),
+		'Excel contains the shortened knockout IDs');
+	check(knockouts.filter(one => wb_display_id(one.game.kn) !== one.game.kn)
+		.every(one => !Object.values(plan).includes(one.game.kn)), 'Excel does not retain the removed sport prefixes');
 
 	say('\n=== the score reached the pages sheet ===');
 	const scoreRows = Object.keys(pages).filter(ref => /^I\d+$/.test(ref) && pages[ref] === '4')
@@ -174,6 +181,64 @@ function sheetCells(doc) {
 	say('\n=== the workbook works itself out when it is opened ===');
 	const wb = await zip.file('xl/workbook.xml').async('string');
 	check(/fullCalcOnLoad="1"/.test(wb), 'the games and the points are recalculated rather than shown as the template left them');
+
+	say('\n=== all scores and referees survive another export ===');
+	// Include unfinished entries, real zeroes, knockout results and literal text
+	// that looks like XML or an Excel formula. No separate Save click is needed.
+	wb_placed().forEach((one, i) => {
+		wb_set_result(one.game, i % 4 === 0 ? null : i % 4,
+			i % 5 === 0 ? null : i % 3,
+			i % 3 === 0 ? '' : (i % 2 ? 'Διαιτητής <Α> & Β ' + i : '=Διαιτητής ' + i));
+	});
+	// Move a scored match itself (rather than the unscored match above).
+	if (landing !== null) wb_move(scored.key, landing);
+	const beforeRestore = JSON.stringify(wb_snapshot());
+	const backup = JSON.parse(beforeRestore);
+	wb_build(program);
+	workbook.offered = backup.plan;
+	workbook.results = backup.results;
+	check(wb_restore(), 'a restored workbook is used without running a new search');
+	check(JSON.stringify(wb_snapshot()) === beforeRestore, 'restoration preserves the exact plan and all results');
+
+	async function checkAllInputs(label) {
+		caught.bytes = null;
+		await exportToExcel();
+		if (!caught.bytes) { check(false, label + ': no workbook produced'); return; }
+		const actualZip = await JSZip.loadAsync(caught.bytes);
+		const xml = parser.parseFromString(await actualZip.file('xl/worksheets/sheet5.xml').async('string'), 'text/xml');
+		const values = sheetCells(xml);
+		const expected = {};
+		wb_placed().forEach(one => {
+			const day = getDateSerial(one.day.date) - getDateSerial(program[0].date);
+			const field = workbook.cols.findIndex((col, i) => col.court === one.game.court && wb_shows(one.game, col, i));
+			const parts = one.key.split('|');
+			const zone = one.day.dzones.findIndex(z => String(z.zone.rank) === parts[1]);
+			const round = one.day.dzones[zone].rounds.find(r => String(r.rank) === parts[2]).row;
+			const row = 4 + day * 22 + (zone * (4 / config.zones.length) + round) * 5 + field;
+			const result = wb_result(one.game);
+			for (const [col, value] of [['I', result.sh], ['J', result.sa], ['K', result.ref]]) {
+				if (value !== null && value !== '') expected[col + row] = String(value);
+			}
+		});
+		let mismatches = 0;
+		for (let d = 0; d < 12; d++) for (let r = 0; r < 20; r++) for (const col of ['I', 'J', 'K']) {
+			const ref = col + (4 + d * 22 + r);
+			if (values[ref] !== expected[ref]) mismatches++;
+		}
+		check(mismatches === 0, `${label}: every one of 720 template input cells matches the live workbook (${Object.keys(expected).length} filled)`);
+		let wrongTypes = 0;
+		for (const cell of [...xml.getElementsByTagName('c')]) {
+			const ref = cell.getAttribute('r');
+			if (!(ref in expected)) continue;
+			if (ref.startsWith('K') ? cell.getAttribute('t') !== 'inlineStr' : cell.getAttribute('t') === 'inlineStr') wrongTypes++;
+			if (cell.getElementsByTagName('f').length) wrongTypes++;
+		}
+		check(wrongTypes === 0, label + ': scores are numeric and referees are literal text, never formulas');
+	}
+	await checkAllInputs('after scores, a move and restoration');
+	const clear = wb_placed()[0].game;
+	wb_set_result(clear, null, null, '');
+	await checkAllInputs('after clearing an entry and exporting again');
 
 	say(fail.length ? `\n${fail.length} FAILED\n  ` + fail.join('\n  ') : '\nall checks passed');
 	process.exit(fail.length ? 1 : 0);

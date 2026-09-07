@@ -62,7 +62,7 @@ function browser_bits() {
 	global.JSZip = global.JSZip || global.window.JSZip;
 	global.fetch = async url => ({ ok: true, arrayBuffer: async () => fs.readFileSync(path.join(ROOT, url)) });
 	global.URL = { createObjectURL: () => 'blob:x', revokeObjectURL() {} };
-	global.document.createElement = () => ({ style: {}, classList: { add() {} }, click() {}, set href(v) {}, set download(v) {} });
+	global.document.createElement = () => ({ style: {}, classList: { add() {} }, click() {}, set href(v) {}, set download(v) { caught.filename = v; } });
 	global.document.body = { appendChild() {}, removeChild() {} };
 	// the export writes the workbook and not the program, so what stands behind
 	// the three tabs comes with it
@@ -70,7 +70,7 @@ function browser_bits() {
 	load('src/js/displayer.js');
 	// jszip cannot build a Blob outside a browser, so it is asked for bytes
 	const generate = JSZip.prototype.generateAsync;
-	const caught = { bytes: null, alerts: [] };
+	const caught = { bytes: null, alerts: [], filename: null };
 	JSZip.prototype.generateAsync = function (opts) {
 		return generate.call(this, { ...opts, type: 'nodebuffer' }).then(b => { caught.bytes = b; return b; });
 	};

@@ -192,6 +192,18 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 		samePlan(plan(other), initial);
 		assert.equal(stored(other), before, 'viewing a link does not overwrite storage');
 	}
+	const lengths = new Set();
+	for (let i = 0; i < 3; i++) {
+		const data = { v: 2, c: configText + '\n#' + 'x'.repeat(i), p: [], r: {} };
+		const zip = new w.JSZip();
+		zip.file('p', JSON.stringify(data));
+		const encoded = (await zip.generateAsync({ type: 'base64', compression: 'STORE' }))
+			.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+		lengths.add(encoded.length % 4);
+		other.history.replaceState(null, '', '#p=2.' + encoded);
+		assert.equal(JSON.stringify(await other.share_carried()), JSON.stringify(data));
+	}
+	assert.deepEqual([...lengths].sort(), [0, 2, 3], 'links decode with zero, one or two omitted padding characters');
 	other.history.replaceState(null, '', '#p=2.invalid');
 	await assert.rejects(other.share_carried());
 	console.log('ok: compressed and legacy links preserve every match, score and referee');
@@ -219,5 +231,31 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(other.document.querySelector('.day-list'), null);
 	assert.equal(other.eval('appStorage').getItem('workbook'), null);
 	console.log('ok: empty workbooks and configuration-only backups');
+
+	const example = fs.readFileSync(path.join(ROOT, 'examples/input26g.txt'), 'utf8');
+	w.parse_config(example);
+	w.displayer(w.eval('config.days'));
+	assert.deepEqual(['pg1', 'ps1', 'ps2', 'pf'].map(id => w.wb_display_id(id)), ['g1', 's1', 's2', 'f']);
+	assert.deepEqual(['kg1', 'kb', 'ks1', 'kf'].map(id => w.wb_display_id(id)), ['g1', 'b', 's1', 'f']);
+	const knockoutKey = w.share_slots()[0];
+	w.wb_put(knockoutKey, 'ps1', null, null);
+	w.sheets_draw();
+	assert.equal(w.wb_plan_label(w.wb_at(knockoutKey)), 's1');
+	assert.equal(w.document.querySelector('#sheet-plan [data-key="' + knockoutKey + '"]').textContent, 's1');
+	assert.equal(w.wb_at(knockoutKey).kn, 'ps1', 'the stored ID is never renamed');
+	assert.equal(w.wb_ident(w.wb_at(knockoutKey)), 'k:ps1', 'score identity remains unchanged');
+	assert.equal(w.getComputedStyle(w.document.querySelector('.pages-table thead th')).textTransform, 'none');
+	assert.equal(w.getComputedStyle(w.document.querySelector('.points-sport-name')).textTransform, 'none');
+	w.parse_config(example.replace(/\bpg1\b/g, 'xg1'));
+	assert.equal(w.wb_display_id('ps1'), 'ps1', 'mixed group prefixes remain intact');
+	assert.equal(w.wb_display_id('kf'), 'f', 'another sport is unaffected');
+	w.parse_config(example.replace(/\bps1\b/g, 'xs1'));
+	assert.equal(w.wb_display_id('pf'), 'pf', 'mixed knockout prefixes remain intact');
+	w.parse_config(configText.replace('[groups]\npg Ποδόσφαιρο: 1v2, 1v2, 3v4\nbg Μπάσκετ: 1v3\n', '').replace('pg:1 pg:2', '1 2'));
+	assert.equal(w.wb_display_id('pf'), 'pf', 'without group IDs there is no shared prefix to infer');
+	assert.equal(w.excel_filename([{ date: new Date('2026-08-10T00:00:00Z') }]), 'champ26.xlsx');
+	assert.equal(w.excel_filename([{ date: new Date('2006-08-10T00:00:00Z') }]), 'champ06.xlsx');
+	assert.equal(w.excel_filename([{ date: new Date('2025-12-31T00:00:00Z') }, { date: new Date('2026-01-01T00:00:00Z') }]), 'champ25.xlsx');
+	console.log('ok: conditional sport-prefix labels, stable IDs, sentence-case headings, and championship-year filenames');
 	for (const page of [w, other, reloaded, migrated, isolated]) page.close();
 })().catch(error => { console.error(error); process.exitCode = 1; });

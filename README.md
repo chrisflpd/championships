@@ -18,6 +18,11 @@ Every slot can be changed. Drag a match onto a free slot to move it, or onto
 another match to swap the two. Click a slot to say what is played in it and by
 whom, or to empty it.
 
+When every group and knockout ID for a sport shares the same first letter,
+the plan and Excel export omit that letter from knockout labels: `ps1`, `ps2`,
+`pf` become `s1`, `s2`, `f`. The actual IDs, references and score identities stay
+unchanged. Resolved knockout labels still show the teams and stage as before.
+
 More than a match can be picked up: the number of a round and the name of a zone
 are handles, and dropping one on another puts the whole of the one where the
 other was, field by field. What a handle would take is outlined before it is
@@ -141,6 +146,9 @@ match positions, scores and referees, and can also carry configuration alone.
 **Εισαγωγή** validates that backup and asks before replacing the current/saved
 championship, then saves and opens it without another search. This is distinct
 from **Δημιουργία Excel**, which exports the printable Excel workbook.
+
+Excel downloads are named `champYY.xlsx`, using the championship's starting
+year (for example, `champ26.xlsx`), not the year of the download.
 
 All browser storage keys start with `championships:<deployment-path>:`; for
 example, `championships:/championships/:workbook`. This isolates projects hosted

@@ -1108,12 +1108,25 @@ function wb_knockout_stage(id) {
 	return feeds_final ? 's' : 'b';
 }
 
+// A shared first letter identifies the sport, which its column already names.
+// Only shorten presentation labels; stored IDs and knockout references stay intact.
+function wb_display_id(id) {
+	const owner = config.groups[id] || config.knockouts[id];
+	if (!owner) return id;
+	const groups = Object.values(config.groups).filter(one => one.sport.name === owner.sport.name);
+	const knockouts = Object.values(config.knockouts).filter(one => one.sport.name === owner.sport.name);
+	const prefix = Array.from(id)[0];
+	if (!prefix || !/^\p{L}$/u.test(prefix) || !groups.length || !knockouts.length) return id;
+	return groups.concat(knockouts).every(one => one.id.startsWith(prefix) && one.id.length > prefix.length)
+		? id.slice(prefix.length) : id;
+}
+
 function wb_plan_label(game) {
 	if (game.kn === null)
 		return `${wb_char(game.home)}-${wb_char(game.away)}`;
 	const sides = wb_sides(game);
 	if (sides.home === null || sides.away === null)
-		return game.kn;
+		return wb_display_id(game.kn);
 	return `${wb_char(sides.home)}${wb_knockout_stage(game.kn)}${wb_char(sides.away)}`;
 }
 

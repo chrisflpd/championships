@@ -60,6 +60,11 @@ round the configuration never gave is written there too, that every match of the
 plan is on the sheet as many times as it is played, and that the workbook is told to work
 its formulas out when it is opened rather than showing the template's numbers.
 
+It also checks all 720 score/referee input cells against the current workbook,
+including zeroes, partially entered scores, referee-only entries, knockouts,
+scored matches moved to other slots, restored plans and cleared results on a
+second export. Scores remain numbers and referee names remain literal text.
+
 **`npm run robust`** — configurations the camp has never used: three and four
 rounds a zone, one zone, four zones, six fields, fourteen days, a sport the
 program has never heard of. It checks that anything too big for the template is

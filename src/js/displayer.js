@@ -1451,7 +1451,7 @@ async function fillPlanSheet(zip, program, parser, serializer) {
 					// hand is time that was used after all, so it is not greyed out
 					givenRounds[dIdx + ',' + roundIdx] = true;
 					scheduleData[getCellRef(dIdx, roundIdx, fIdx)] = game.kn !== null
-						? game.kn
+						? wb_display_id(game.kn)
 						: [teamChar(game.home), teamChar(game.away)].join('-');
 					pageOf[getPageRow(dIdx, roundIdx, fIdx)] = wb_result(game);
 				});
@@ -1672,6 +1672,11 @@ function planBlockers(program) {
 	return reasons;
 }
 
+function excel_filename(program) {
+	const year = program[0].date.getUTCFullYear();
+	return 'champ' + String(year % 100).padStart(2, '0') + '.xlsx';
+}
+
 async function exportToExcel() {
 	if (!window.currentProgram || window.currentProgram.length === 0) {
 		alert("Δεν υπάρχει διαθέσιμο πρόγραμμα για εξαγωγή. Παρακαλώ υποβάλετε τη διαμόρφωση πρώτα.");
@@ -1717,7 +1722,7 @@ async function exportToExcel() {
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
 		link.href = url;
-		link.download = 'programma_championships.xlsx';
+		link.download = excel_filename(window.currentProgram);
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);

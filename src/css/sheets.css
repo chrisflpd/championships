@@ -537,7 +537,7 @@
 	font-weight: 550;
 	letter-spacing: .02em;
 	padding-bottom: 5px;
-	text-transform: uppercase;
+	text-transform: none;
 }
 
 /* the last row of a round, of a zone, and of the day itself. the merged round
@@ -681,7 +681,7 @@
 	letter-spacing: .03em;
 	margin: 0 0 10px;
 	padding-bottom: 3px;
-	text-transform: uppercase;
+	text-transform: none;
 }
 
 .points-tables {
