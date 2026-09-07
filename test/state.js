@@ -294,6 +294,17 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(w.document.querySelector('#sheet-plan [data-key="' + knockoutKey + '"]').textContent, 's1');
 	assert.equal(w.wb_at(knockoutKey).kn, 'ps1', 'the stored ID is never renamed');
 	assert.equal(w.wb_ident(w.wb_at(knockoutKey)), 'k:ps1', 'score identity remains unchanged');
+	assert.equal(w.wb_sides(w.wb_at(knockoutKey)).home_label, '1η θέση ομίλου pg1');
+	assert.equal(w.document.querySelector('#sheet-pages .pages-home-team').textContent, '1η θέση ομίλου pg1');
+	assert.equal(w.wb_side_label({type: 'knockout', is_winner: false, knockout: {id: 'ps1'}}), 'Ηττημένος ps1');
+	w.wb_put(knockoutKey, 'pf', null, null);
+	w.sheets_draw();
+	assert.equal(w.wb_sides(w.wb_at(knockoutKey)).home_label, 'Νικητής ps1');
+	assert.equal(w.wb_sides(w.wb_at(knockoutKey)).away_label, 'Νικητής ps2');
+	assert.equal(w.document.querySelector('#sheet-pages .pages-home-team').textContent, 'Νικητής ps1');
+	assert.ok([...w.document.querySelectorAll('#sheet-points .points-team')].some(cell => cell.textContent === 'Νικητής ps1'));
+	assert.equal(w.wb_plan_label(w.wb_at(knockoutKey)), 'f', 'compact plan labels remain unchanged');
+	console.log('ok: clear winner, loser and group-position placeholders in match sheets and standings');
 	assert.equal(w.getComputedStyle(w.document.querySelector('.pages-table thead th')).textTransform, 'none');
 	assert.equal(w.getComputedStyle(w.document.querySelector('.points-sport-name')).textTransform, 'none');
 	w.parse_config(example.replace(/\bpg1\b/g, 'xg1'));

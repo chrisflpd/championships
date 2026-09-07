@@ -1138,9 +1138,9 @@ function wb_side_label(union) {
 	if (union.type === 'fixed')
 		return union.team.name;
 	if (union.type === 'group')
-		return `${union.group.id}:${union.rank}`;
+		return `${union.rank}η θέση ομίλου ${union.group.id}`;
 	if (union.type === 'knockout')
-		return `${union.is_winner ? 'Ν' : 'Η'} ${union.knockout.id}`;
+		return `${union.is_winner ? 'Νικητής' : 'Ηττημένος'} ${union.knockout.id}`;
 	return '';
 }
 
