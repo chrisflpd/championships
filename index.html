@@ -4,11 +4,11 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>Ομαδικά Πρωταθλήματα</title>
-		<link rel="stylesheet" href="src/css/theme.css?v=2026-09-07-3">
-		<link rel="stylesheet" href="src/css/config.css?v=2026-09-07-3">
-		<link rel="stylesheet" href="src/css/displayer.css?v=2026-09-07-3">
-		<link rel="stylesheet" href="src/css/sheets.css?v=2026-09-07-3">
-		<script src="src/js/storage.js?v=2026-09-07-3"></script>
+		<link rel="stylesheet" href="src/css/theme.css?v=2026-09-07-4">
+		<link rel="stylesheet" href="src/css/config.css?v=2026-09-07-4">
+		<link rel="stylesheet" href="src/css/displayer.css?v=2026-09-07-4">
+		<link rel="stylesheet" href="src/css/sheets.css?v=2026-09-07-4">
+		<script src="src/js/storage.js?v=2026-09-07-4"></script>
 		<script>
 			// the theme is put on before the page is drawn, so that a dark one does
 			// not go through a white flash on its way in
@@ -55,15 +55,15 @@
 						<p class="hint">Ενότητες: <code>[sports]</code> <code>[zones]</code> <code>[days]</code> <code>[teams]</code> <code>[groups]</code> <code>[knockouts]</code>. Οι γραμμές που ξεκινούν με <code>#</code> αγνοούνται.</p>
 					</div>
 					<div class="toolbar">
-						<button type="submit" class="button button-primary" title="Αποθηκεύει τη διαμόρφωση και ξεκινά τη δημιουργία προγράμματος.">Υποβολή</button>
+						<button type="submit" class="button button-primary" data-tooltip="Αποθηκεύει τη διαμόρφωση και ξεκινά τη δημιουργία προγράμματος.">Υποβολή</button>
 						<span class="toolbar-gap"></span>
-						<button type="button" id="load" class="button" title="Επαναφέρει το αποθηκευμένο κείμενο διαμόρφωσης, αντικαθιστώντας το τρέχον κείμενο.">Φόρτωση</button>
-						<button type="button" id="save" class="button" title="Αποθηκεύει το κείμενο διαμόρφωσης σε αυτόν τον browser, χωρίς να δημιουργεί πρόγραμμα.">Αποθήκευση</button>
-						<button type="button" id="backup-export" class="button" title="Κατεβάζει αντίγραφο ασφαλείας (.json) με τη διαμόρφωση, το πρόγραμμα, τα σκορ και τους διαιτητές.">Εξαγωγή</button>
-						<button type="button" id="backup-import" class="button" title="Επαναφέρει διαμόρφωση και πρωτάθλημα από αρχείο αντιγράφου ασφαλείας (.json).">Εισαγωγή</button>
+						<button type="button" id="load" class="button" data-tooltip="Επαναφέρει το αποθηκευμένο κείμενο διαμόρφωσης, αντικαθιστώντας το τρέχον κείμενο.">Φόρτωση</button>
+						<button type="button" id="save" class="button" data-tooltip="Αποθηκεύει το κείμενο διαμόρφωσης σε αυτόν τον browser, χωρίς να δημιουργεί πρόγραμμα.">Αποθήκευση</button>
+						<button type="button" id="backup-export" class="button" data-tooltip="Αποθηκεύει τη διαμόρφωση, το πρόγραμμα, τα σκορ και τους διαιτητές σε αρχείο αντιγράφου ασφαλείας (.json).">Εξαγωγή</button>
+						<button type="button" id="backup-import" class="button" data-tooltip="Επαναφέρει τη διαμόρφωση, το πρόγραμμα, τα σκορ και τους διαιτητές από αρχείο αντιγράφου ασφαλείας (.json).">Εισαγωγή</button>
 						<input type="file" id="backup-file" accept=".json,application/json" hidden="hidden">
-						<button type="button" id="share" class="button" disabled="disabled" title="Δημιουργεί σύνδεσμο με την τρέχουσα εικόνα του πρωταθλήματος. Οι μελλοντικές αλλαγές χρειάζονται νέο σύνδεσμο.">Κοινή χρήση</button>
-						<button type="button" id="excel" class="button" disabled="disabled" title="Κατεβάζει το πρωτάθλημα σε Excel, μαζί με τα συμπληρωμένα σκορ και τους διαιτητές.">Δημιουργία Excel</button>
+						<button type="button" id="share" class="button" disabled="disabled" data-tooltip="Δημιουργεί σύνδεσμο με την τρέχουσα εικόνα του πρωταθλήματος. Οι μελλοντικές αλλαγές χρειάζονται νέο σύνδεσμο.">Κοινή χρήση</button>
+						<button type="button" id="excel" class="button" disabled="disabled" data-tooltip="Κατεβάζει το πρωτάθλημα σε Excel, μαζί με τα συμπληρωμένα σκορ και τους διαιτητές.">Δημιουργία Excel</button>
 					</div>
 					<div id="search" hidden="hidden" role="status" aria-live="polite">
 						<span class="spinner" aria-hidden="true"></span>
@@ -76,19 +76,19 @@
 			</section>
 			<section id="program" class="program"></section>
 		</main>
-		<script src="src/js/common.js?v=2026-09-07-3"></script>
-		<script src="src/js/parser.js?v=2026-09-07-3"></script>
-		<script src="src/js/championships.js?v=2026-09-07-3"></script>
-		<script src="src/js/scheduling_algorithms.js?v=2026-09-07-3"></script>
-		<script src="vendor/jszip.min.js?v=2026-09-07-3"></script>
-		<script src="src/js/workbook.js?v=2026-09-07-3"></script>
-		<script src="src/js/sheets.js?v=2026-09-07-3"></script>
-		<script src="src/js/pages.js?v=2026-09-07-3"></script>
-		<script src="src/js/points.js?v=2026-09-07-3"></script>
-		<script src="src/js/displayer.js?v=2026-09-07-3"></script>
-		<script src="src/js/ui.js?v=2026-09-07-3"></script>
-		<script src="src/js/share.js?v=2026-09-07-3"></script>
-		<script src="src/js/backup.js?v=2026-09-07-3"></script>
-		<script src="src/js/saved.js?v=2026-09-07-3"></script>
+		<script src="src/js/common.js?v=2026-09-07-4"></script>
+		<script src="src/js/parser.js?v=2026-09-07-4"></script>
+		<script src="src/js/championships.js?v=2026-09-07-4"></script>
+		<script src="src/js/scheduling_algorithms.js?v=2026-09-07-4"></script>
+		<script src="vendor/jszip.min.js?v=2026-09-07-4"></script>
+		<script src="src/js/workbook.js?v=2026-09-07-4"></script>
+		<script src="src/js/sheets.js?v=2026-09-07-4"></script>
+		<script src="src/js/pages.js?v=2026-09-07-4"></script>
+		<script src="src/js/points.js?v=2026-09-07-4"></script>
+		<script src="src/js/displayer.js?v=2026-09-07-4"></script>
+		<script src="src/js/ui.js?v=2026-09-07-4"></script>
+		<script src="src/js/share.js?v=2026-09-07-4"></script>
+		<script src="src/js/backup.js?v=2026-09-07-4"></script>
+		<script src="src/js/saved.js?v=2026-09-07-4"></script>
 	</body>
 </html>

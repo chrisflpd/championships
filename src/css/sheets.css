@@ -744,7 +744,8 @@
 	text-underline-offset: 3px;
 }
 
-.points-table thead th[data-tooltip]::after {
+.points-table thead th[data-tooltip]::after,
+.toolbar button[data-tooltip]::after {
 	background: #202124;
 	border-radius: 6px;
 	box-shadow: 0 4px 14px rgba(0, 0, 0, .22);
@@ -766,9 +767,60 @@
 }
 
 .points-table thead th[data-tooltip]:hover::after,
-.points-table thead th[data-tooltip]:focus-visible::after {
+.points-table thead th[data-tooltip]:focus-visible::after,
+.toolbar button[data-tooltip]:hover::after,
+.toolbar button[data-tooltip]:focus-visible::after {
 	opacity: 1;
 	transform: translate(-50%, 0);
+}
+
+/* Reuse the standings' quick dark hints, with room for full sentences. */
+.toolbar button[data-tooltip] {
+	position: relative;
+}
+
+/* Fade the disabled button itself, not its explanation. */
+.toolbar button[data-tooltip]:disabled {
+	opacity: 1;
+	color: var(--faint);
+	border-color: var(--border);
+}
+
+.toolbar button[data-tooltip]::after {
+	left: auto;
+	right: 0;
+	width: 280px;
+	max-width: calc(100vw - 64px);
+	white-space: normal;
+	text-align: left;
+	line-height: 1.45;
+	padding: 8px 10px;
+	transform: translateY(-3px);
+}
+
+.toolbar button[data-tooltip]:first-child::after,
+.toolbar #load[data-tooltip]::after {
+	left: 0;
+	right: auto;
+}
+
+.toolbar button[data-tooltip]:hover::after,
+.toolbar button[data-tooltip]:focus-visible::after {
+	transform: translateY(0);
+}
+
+/* Once the toolbar wraps, anchor hints to it so edge buttons never clip them. */
+@media (max-width: 1000px) {
+	.toolbar { position: relative; }
+	.toolbar button[data-tooltip] { position: static; }
+	.toolbar button[data-tooltip]::after,
+	.toolbar button[data-tooltip]:first-child::after,
+	.toolbar #load[data-tooltip]::after {
+		left: 16px;
+		right: 16px;
+		width: auto;
+		max-width: none;
+	}
 }
 
 .points-id {

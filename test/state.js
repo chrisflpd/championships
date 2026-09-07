@@ -58,7 +58,20 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const w = await page();
 	const hints = [...w.document.querySelectorAll('.toolbar button')];
 	assert.equal(hints.length, 7);
-	assert.ok(hints.every(button => button.title.length > 25), 'every configuration action explains its purpose on hover');
+	assert.ok(hints.every(button => button.dataset.tooltip.length > 25 && !button.hasAttribute('title')),
+		'every configuration action uses the quick custom tooltip, not a delayed native title');
+	const exportHint = w.document.getElementById('backup-export').dataset.tooltip;
+	const importHint = w.document.getElementById('backup-import').dataset.tooltip;
+	assert.equal(importHint, exportHint.replace('Αποθηκεύει', 'Επαναφέρει').replace(' σε αρχείο', ' από αρχείο'),
+		'import and export describe the same data in opposite directions');
+	const tooltipRules = [...w.document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
+	const sharedHint = tooltipRules.find(rule => rule.selectorText?.includes('.points-table thead th[data-tooltip]::after')
+		&& rule.selectorText.includes('.toolbar button[data-tooltip]::after'));
+	assert.ok(sharedHint, 'standings and toolbar share the same tooltip styling');
+	assert.equal(sharedHint.style.background, 'rgb(32, 33, 36)');
+	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
+	assert.equal(w.getComputedStyle(w.document.getElementById('excel')).opacity, '1',
+		'disabled buttons do not fade the dark tooltip');
 	w.parse_config(configText);
 	w.document.forms[0].config.value = configText;
 	w.displayer(w.eval('config.days'));
