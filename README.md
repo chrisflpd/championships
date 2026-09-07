@@ -48,7 +48,7 @@ ID always comes last. These are camp rules, not claims about federation rules.
 
 ```ini
 [tiebreakers]
-Ποδόσφαιρο: μεταξύ_τους, μεταξύ_τους_διαφορά, μεταξύ_τους_υπέρ, συνολική_διαφορά, συνολικά_υπέρ, νίκες
+Ποδόσφαιρο: μεταξύ_τους, μεταξύ_τους_διαφορά, μεταξύ_τους_υπέρ, μεταξύ_τους_κατά, συνολική_διαφορά, συνολικά_υπέρ, συνολικές_νίκες, συνολικά_κατά
 Μπάσκετ: μεταξύ_τους, μεταξύ_τους_διαφορά, συνολική_διαφορά, συνολικά_υπέρ
 Μπέιζμπολ: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
 Βόλεϊ: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
@@ -61,10 +61,11 @@ The sport names must match `[sports]`. Tokens:
 | `μεταξύ_τους` | For two teams, most mutual wins; for 3+, points in their mutual mini-table |
 | `μεταξύ_τους_διαφορά` | Score difference in mutual matches |
 | `μεταξύ_τους_υπέρ` | Scores for in mutual matches |
+| `μεταξύ_τους_κατά` | Fewer scores conceded in mutual matches |
 | `συνολική_διαφορά` | Scores for minus against, across the group's matches |
 | `συνολικά_υπέρ` | Total scores for, across the group's matches |
-| `νίκες` | Total group wins |
-| `λιγότερα_κατά` | Fewer scores conceded in the group |
+| `συνολικές_νίκες` | Total group wins |
+| `συνολικά_κατά` | Fewer scores conceded in the group |
 | `id` | Smaller numeric team ID (automatically appended if omitted; must be last) |
 
 Scores mean goals for football, points for basketball, runs for baseball and

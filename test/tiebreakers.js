@@ -84,17 +84,19 @@ assert.deepEqual(order(), [1,2,3], 'set statistics tie falls to ID');
 setup('συνολικά_υπέρ', [], 'Ποδόσφαιρο', 2);
 const synthetic = () => [{team:{id:1},pts:3,gd:1,gf:2,ga:1,w:2}, {team:{id:2},pts:3,gd:1,gf:4,ga:3,w:1}];
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, synthetic()).map(r=>r.team.id), [2,1]);
-tbConfig.sports[0].tiebreakers = ['νίκες','id'];
+tbConfig.sports[0].tiebreakers = ['συνολικές_νίκες','id'];
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, synthetic()).map(r=>r.team.id), [1,2]);
 tbConfig.sports[0].tiebreakers = ['id'];
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, [10,2].map(id=>({team:{id},pts:0}))).map(r=>r.team.id),
 	[2,10], 'ID fallback compares numbers, not strings');
-tbConfig.sports[0].tiebreakers = ['λιγότερα_κατά','id'];
+tbConfig.sports[0].tiebreakers = ['συνολικά_κατά','id'];
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, synthetic()).map(r=>r.team.id), [1,2]);
+setup('μεταξύ_τους_κατά', [[1,2,1,0],[2,1,3,0]], 'Ποδόσφαιρο', 2);
+assert.deepEqual(order(), [2,1], 'mutual against prefers the team that conceded fewer in mutual matches');
 
 const text = setup(rules, twoTied);
 assert.deepEqual(tbConfig.sports[0].tiebreakers, ['μεταξύ_τους','συνολική_διαφορά','συνολικά_υπέρ','id']);
-for (const invalid of ['', 'τυπογραφικό', 'id, νίκες', 'νίκες, νίκες', 'νίκες,'])
+for (const invalid of ['', 'τυπογραφικό', 'id, συνολικές_νίκες', 'συνολικές_νίκες, συνολικές_νίκες', 'συνολικές_νίκες,', 'νίκες', 'λιγότερα_κατά'])
 	assert.throws(() => parse_config(text.replace(rules, invalid)), /Ισοβαθμίες/);
 assert.throws(() => parse_config(text + 'Ποδόσφαιρο: id\n'), /δύο φορές/);
 assert.throws(() => parse_config(text + 'Άγνωστο: id\n'), /άγνωστο άθλημα/);

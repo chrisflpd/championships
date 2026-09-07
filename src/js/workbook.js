@@ -1027,7 +1027,7 @@ function wb_standings(group) {
 // Two teams compare wins; 3+ compare mini-table points under their sport's rules.
 function wb_mini_table(group, rows, fixtures) {
 	const ids = new Set(rows.map(row => row.team.id));
-	const stat = new Map(rows.map(row => [row.team.id, { pts: 0, w: 0, gf: 0, gd: 0 }]));
+	const stat = new Map(rows.map(row => [row.team.id, { pts: 0, w: 0, gf: 0, ga: 0, gd: 0 }]));
 	const counts = new Map();
 	for (const game of fixtures) {
 		if (!ids.has(game.home) || !ids.has(game.away)) continue;
@@ -1043,6 +1043,7 @@ function wb_mini_table(group, rows, fixtures) {
 		home.pts += points[0]; away.pts += points[1];
 		home.w += Number(result.sh > result.sa); away.w += Number(result.sa > result.sh);
 		home.gf += result.sh; away.gf += result.sa;
+		home.ga += result.sa; away.ga += result.sh;
 		home.gd += result.sh - result.sa; away.gd += result.sa - result.sh;
 	}
 	if (counts.size !== rows.length * (rows.length - 1) / 2 || new Set(counts.values()).size !== 1)
@@ -1071,10 +1072,11 @@ function wb_final_ranks(group, rows) {
 					case 'μεταξύ_τους': return mini.get(row.team.id)[tied.length === 2 ? 'w' : 'pts'];
 					case 'μεταξύ_τους_διαφορά': return mini.get(row.team.id).gd;
 					case 'μεταξύ_τους_υπέρ': return mini.get(row.team.id).gf;
+					case 'μεταξύ_τους_κατά': return -mini.get(row.team.id).ga;
 					case 'συνολική_διαφορά': return row.gd;
 					case 'συνολικά_υπέρ': return row.gf;
-					case 'νίκες': return row.w;
-					case 'λιγότερα_κατά': return -row.ga;
+					case 'συνολικές_νίκες': return row.w;
+					case 'συνολικά_κατά': return -row.ga;
 					case 'id': return -row.team.id;
 				}
 			};

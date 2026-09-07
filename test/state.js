@@ -27,7 +27,7 @@ bg Μπάσκετ: 1v3
 pf Ποδόσφαιρο pg:1 pg:2
 [tiebreakers]
 Ποδόσφαιρο: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
-Μπάσκετ: νίκες, id
+Μπάσκετ: συνολικές_νίκες, id
 `;
 
 async function page(url = 'https://example.test/championships/', kept = {}) {
