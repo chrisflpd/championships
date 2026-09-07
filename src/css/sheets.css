@@ -745,6 +745,7 @@
 }
 
 .points-table thead th[data-tooltip]::after,
+.points-table td[data-tooltip]::after,
 .toolbar button[data-tooltip]::after {
 	background: #202124;
 	border-radius: 6px;
@@ -768,10 +769,44 @@
 
 .points-table thead th[data-tooltip]:hover::after,
 .points-table thead th[data-tooltip]:focus-visible::after,
+.points-table td[data-tooltip]:hover::after,
+.points-table td[data-tooltip]:focus-visible::after,
 .toolbar button[data-tooltip]:hover::after,
 .toolbar button[data-tooltip]:focus-visible::after {
 	opacity: 1;
 	transform: translate(-50%, 0);
+}
+
+.points-tiebreaks {
+	color: var(--muted);
+	font-size: 13px;
+	margin: 0 0 12px;
+}
+
+.points-frnk {
+	position: relative;
+	font-weight: 650;
+	border-left: 1px solid var(--border);
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+
+.points-provisional { color: var(--muted); }
+
+.points-table td[data-tooltip]::after {
+	left: auto;
+	right: 0;
+	width: 290px;
+	max-width: calc(100vw - 48px);
+	white-space: normal;
+	text-align: left;
+	line-height: 1.45;
+	transform: translateY(-3px);
+}
+
+.points-table td[data-tooltip]:hover::after,
+.points-table td[data-tooltip]:focus-visible::after {
+	transform: translateY(0);
 }
 
 /* Reuse the standings' quick dark hints, with room for full sentences. */

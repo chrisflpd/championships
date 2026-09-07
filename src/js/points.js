@@ -22,6 +22,7 @@ const POINTS_LEGEND = [
 	['GD', 'Διαφορά'],
 	['PTS', 'Βαθμοί'],
 	['RNK', 'Θέση'],
+	['FRNK', 'Τελική θέση μετά την επίλυση ισοβαθμιών'],
 ];
 
 function points_explain(cell, symbol) {
@@ -58,6 +59,10 @@ function points_draw(sheet) {
 		name.classList.add('points-sport-name');
 		name.textContent = sport.name;
 		block.appendChild(name);
+		const criteria = document.createElement('p');
+		criteria.classList.add('points-tiebreaks');
+		criteria.textContent = 'Κριτήρια ισοβαθμίας: ' + tiebreak_order(sport).map(rule => TIEBREAK_CRITERIA[rule]).join(' → ');
+		block.appendChild(criteria);
 
 		const tables = document.createElement('div');
 		tables.classList.add('points-tables');
@@ -154,7 +159,7 @@ function points_table(title, rows, draws, ranked) {
 		cols.push('D');
 	cols.push('L', 'GF', 'GA', 'GD', 'PTS');
 	if (ranked)
-		cols.push('RNK');
+		cols.push('RNK', 'FRNK');
 
 	const thead = document.createElement('thead');
 	table.appendChild(thead);
@@ -189,7 +194,7 @@ function points_table(title, rows, draws, ranked) {
 
 		//the columns after the name, in the order the header names them
 		cols.slice(2).forEach(what => {
-			const value = { PLD: row.pld, W: row.w, D: row.d, L: row.l, GF: row.gf, GA: row.ga, GD: row.gd, PTS: row.pts, RNK: row.rnk }[what];
+			const value = { PLD: row.pld, W: row.w, D: row.d, L: row.l, GF: row.gf, GA: row.ga, GD: row.gd, PTS: row.pts, RNK: row.rnk, FRNK: row.frnk }[what];
 			const cell = document.createElement('td');
 			cell.classList.add('points-num');
 			if (what === 'PTS')
@@ -199,6 +204,13 @@ function points_table(title, rows, draws, ranked) {
 				//a place two teams are level on is not a place either of them holds
 				if (row.tied)
 					cell.title = 'ισοβαθμία';
+			}
+			if (what === 'FRNK') {
+				cell.classList.add('points-frnk');
+				cell.dataset.tooltip = row.rank_reason;
+				cell.tabIndex = 0;
+				cell.setAttribute('aria-label', `Τελική θέση ${value}: ${row.rank_reason}`);
+				cell.classList.toggle('points-provisional', row.rank_provisional);
 			}
 			//a difference reads as one, so the sign of it is written out
 			cell.textContent = what === 'GD' && value > 0 ? '+' + value : String(value);

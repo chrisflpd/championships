@@ -25,6 +25,9 @@ pg Ποδόσφαιρο: 1v2, 1v2, 3v4
 bg Μπάσκετ: 1v3
 [knockouts]
 pf Ποδόσφαιρο pg:1 pg:2
+[tiebreakers]
+Ποδόσφαιρο: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
+Μπάσκετ: νίκες, id
 `;
 
 async function page(url = 'https://example.test/championships/', kept = {}) {
@@ -163,6 +166,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	samePlan(plan(w), initial);
 
 	const backup = JSON.parse(JSON.stringify(w.backup_data()));
+	assert.ok(backup.configuration.includes('[tiebreakers]'), 'backups carry the ordered rules in configuration');
 	const storageBefore = stored(w), historyBefore = w.eval('JSON.stringify(wb_history)');
 	const invalid = [
 		{ ...backup, version: 99 }, { ...backup, configuration: 'bad' },
@@ -240,6 +244,10 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 		const before = stored(other);
 		other.share_open(await other.share_carried());
 		samePlan(plan(other), initial);
+		assert.equal(other.eval('JSON.stringify(config.sports.map(s => tiebreak_order(s)))'),
+			w.eval('JSON.stringify(config.sports.map(s => tiebreak_order(s)))'), 'compressed and legacy links retain criterion order');
+		assert.equal(other.eval('JSON.stringify(wb_standings(config.groups.pg))'),
+			w.eval('JSON.stringify(wb_standings(config.groups.pg))'), 'shared ranks and explanations match the source');
 		assert.equal(stored(other), before, 'viewing a link does not overwrite storage');
 	}
 	const lengths = new Set();

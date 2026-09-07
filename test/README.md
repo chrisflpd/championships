@@ -145,3 +145,11 @@ believing anything about the paper.
 jsdom also does not give a form the named properties a browser gives it, and
 `parser.js` reads `form['config']`, so the page is served with that one browser
 behaviour put back by a small script. Nothing else about the page is changed.
+
+## Tie-breaker regression checks
+
+`node tiebreakers.js` checks points-only RNK versus unique FRNK, configuration
+order, direct winners, three-way circular ties, subgroup restarts, missing and
+unbalanced mutual fixtures, provisional rankings, numeric-ID fallback, sport
+scoring and parser errors. The state and sheets suites additionally verify rule
+preservation in backups/links, qualification, FRNK placement and hover explanations.

@@ -40,6 +40,57 @@ same column, including across days. Tab/Shift+Tab still follow the scores, and
 Enter goes to the next match's left score. Shift+arrows select text normally.
 The configuration toolbar buttons explain their purpose on hover.
 
+### Configurable tie-breakers
+
+Append a `[tiebreakers]` section to the configuration. Each sport lists its
+criteria in priority order; points always come first, and smaller numeric team
+ID always comes last. These are camp rules, not claims about federation rules.
+
+```ini
+[tiebreakers]
+Ποδόσφαιρο: μεταξύ_τους, μεταξύ_τους_διαφορά, μεταξύ_τους_υπέρ, συνολική_διαφορά, συνολικά_υπέρ, νίκες
+Μπάσκετ: μεταξύ_τους, μεταξύ_τους_διαφορά, συνολική_διαφορά, συνολικά_υπέρ
+Μπέιζμπολ: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
+Βόλεϊ: μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ
+```
+
+The sport names must match `[sports]`. Tokens:
+
+| Token | Meaning |
+| --- | --- |
+| `μεταξύ_τους` | For two teams, most mutual wins; for 3+, points in their mutual mini-table |
+| `μεταξύ_τους_διαφορά` | Score difference in mutual matches |
+| `μεταξύ_τους_υπέρ` | Scores for in mutual matches |
+| `συνολική_διαφορά` | Scores for minus against, across the group's matches |
+| `συνολικά_υπέρ` | Total scores for, across the group's matches |
+| `νίκες` | Total group wins |
+| `λιγότερα_κατά` | Fewer scores conceded in the group |
+| `id` | Smaller numeric team ID (automatically appended if omitted; must be last) |
+
+Scores mean goals for football, points for basketball, runs for baseball and
+**sets** for volleyball. No per-set volleyball points are needed.
+
+Head-to-head criteria apply only when every tied pair has played the same
+positive number of matches and all their scheduled mutual matches have complete
+scores. Otherwise these criteria are skipped. Three-way circular wins are
+handled as a mini-table, never by inconsistent pairwise sorting. When a criterion
+separates some teams, restart the criteria for each smaller tied subgroup.
+
+**RNK** keeps shared points-only positions (e.g. 1, 2, 2, 4). **FRNK** (Τελική
+θέση) follows immediately and contains unique positions (1, 2, 3, 4). Its hover
+explanation shows the deciding criteria and any skipped head-to-head criteria.
+Ranks are provisional until all scheduled group scores are filled. Knockout
+group-place references use FRNK once the group is complete; these rules do not
+resolve drawn knockout matches. Overall championship totals are unchanged.
+
+The sport's criteria are shown above its group tables and travel with saved
+championships, JSON backups and both link formats. Without an explicit sport
+entry, existing configurations retain their previous difference / scores-for /
+ID ordering. Unknown or duplicate criteria and non-final `id` are rejected.
+
+**Excel is unchanged:** it does not gain FRNK or these configurable tie-breakers
+yet, and its calculated rankings/qualification may differ from the website.
+
 The marking can be in the way rather than the point — a plan known to break a
 rule and being built around it — so **Απενεργοποίηση κανόνων** and
 **Απενεργοποίηση συστάσεων** turn off the red and the amber respectively, and the

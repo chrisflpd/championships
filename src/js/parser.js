@@ -306,14 +306,28 @@ function parse_knockout_line(line) {
 }
 
 
+// Parse an ordered sport-specific list, with a mandatory final numeric fallback.
+function parse_tiebreak_line(line) {
+	const colon = line.indexOf(':');
+	const name = line.slice(0, colon).trim();
+	const sport = config.sports.find(one => one.name === name);
+	if (colon < 0 || !sport)
+		throw new Error(`Ισοβαθμίες: άγνωστο άθλημα ή λείπει το «:» στη γραμμή «${line}».`);
+	if (sport.tiebreakers)
+		throw new Error(`Ισοβαθμίες: το άθλημα ${name} δηλώθηκε δύο φορές.`);
+	const rules = line.slice(colon + 1).split(',').map(rule => rule.trim());
+	if (rules.some(rule => !Object.hasOwn(TIEBREAK_CRITERIA, rule)))
+		throw new Error(`Ισοβαθμίες (${name}): άγνωστο ή κενό κριτήριο. Διαθέσιμα: ${Object.keys(TIEBREAK_CRITERIA).join(', ')}.`);
+	if (new Set(rules).size !== rules.length)
+		throw new Error(`Ισοβαθμίες (${name}): κάθε κριτήριο δηλώνεται μόνο μία φορά.`);
+	if (rules.includes('id') && rules.at(-1) !== 'id')
+		throw new Error(`Ισοβαθμίες (${name}): το id πρέπει να είναι το τελευταίο κριτήριο.`);
+	sport.tiebreakers = rules.includes('id') ? rules : rules.concat('id');
+}
+
 /**
- * reads a configuration string into the config the rest of the program works
- * from. it is the one reader there is: the page calls it when the camp submits,
- * and so does anything else that has a configuration in its hand and wants the
- * program it describes.
- *
- * it throws on the first line it cannot read, leaving whatever it had got to.
- *
+ * Reads the configuration used by scheduling, restored workbooks and links.
+ * Throws on invalid input, leaving whatever has been parsed up to that point.
  * @param {string} text
  * @returns {void}
  */
@@ -329,6 +343,7 @@ function parse_config(text) {
 
 	//a word in square brackets says what the lines after it are
 	let config_var = null;
+	const tiebreak_lines = [];
 	text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n').forEach(line => {
 		if (line.length === 0 || line.startsWith('#'))
 			return;
@@ -338,6 +353,8 @@ function parse_config(text) {
 			return;
 		}
 		switch (config_var) {
+			case 'tiebreakers':
+				return tiebreak_lines.push(line);
 			case 'sports':
 				return parse_sport_line(line);
 			case 'zones':
@@ -352,6 +369,8 @@ function parse_config(text) {
 				return parse_knockout_line(line);
 		}
 	});
+	// Permit this section before or after the sport declarations.
+	tiebreak_lines.forEach(parse_tiebreak_line);
 
 	//the days are read in whatever order they are written in
 	config.days.sort((day1, day2) => day1.date.getTime() - day2.date.getTime());

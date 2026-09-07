@@ -122,6 +122,24 @@
  */
 const config = {};
 
+// Stable configuration tokens; labels describe the criterion, not a sport's
+// scoring units (goals, points, runs or sets).
+const TIEBREAK_CRITERIA = {
+	'μεταξύ_τους': 'Αποτελέσματα στους μεταξύ τους αγώνες',
+	'μεταξύ_τους_διαφορά': 'Διαφορά στους μεταξύ τους αγώνες',
+	'μεταξύ_τους_υπέρ': 'Υπέρ στους μεταξύ τους αγώνες',
+	'συνολική_διαφορά': 'Συνολική διαφορά',
+	'συνολικά_υπέρ': 'Συνολικά υπέρ',
+	'νίκες': 'Συνολικές νίκες',
+	'λιγότερα_κατά': 'Λιγότερα συνολικά κατά',
+	'id': 'Μικρότερο ID ομάδας',
+};
+
+function tiebreak_order(sport) {
+	// Existing championships retain their previous display/qualification order.
+	return sport.tiebreakers || ['συνολική_διαφορά', 'συνολικά_υπέρ', 'id'];
+}
+
 
 /*
  * the sports the baseball rules turn on, named here rather than in each of the

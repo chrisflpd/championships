@@ -481,6 +481,9 @@ async function run(CONFIG, fail) {
 		const head = [...table.querySelectorAll('thead th')].map(th => th.textContent);
 		const draws = window.eval('wb_has_draw')(group.sport);
 		check(head.includes('PLD') && head.includes('PTS') && head.includes('RNK'), 'with the columns of the template');
+		check(head[head.indexOf('RNK') + 1] === 'FRNK', 'unique final rank is immediately after the shared points rank');
+		check([...table.querySelectorAll('.points-frnk')].every((cell, i) => cell.textContent === String(i + 1)
+			&& cell.dataset.tooltip.length > 0), 'FRNK is unique and explains its ordering');
 		check(head.includes('D') === draws,
 			draws ? `${group.sport.name} can be drawn, so it has a D column` : `${group.sport.name} cannot be drawn, so it has no D column`);
 		const first = table.querySelector('tbody tr');

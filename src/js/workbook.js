@@ -290,6 +290,8 @@ function wb_save() {
 function wb_signature() {
 	const parts = [];
 	config.sports.forEach(sport => parts.push('s' + sport.name + ':' + sport.courts.join(',')));
+	config.sports.filter(sport => sport.tiebreakers).forEach(sport =>
+		parts.push('tb' + sport.name + ':' + sport.tiebreakers.join(',')));
 	config.zones.forEach(zone => parts.push('z' + zone.name));
 	config.days.forEach(day => parts.push('d' + wb_iso(day.date) + ':' + day.dzones.map(dzone => dzone.rounds.length).join(',')));
 	config.teams.forEach(team => parts.push('t' + team.id + team.name));
@@ -1013,14 +1015,95 @@ function wb_standings(group) {
 	rows.forEach(row => {
 		row.gd = row.gf - row.ga;
 	});
-	//the order is the one a table is read in; the rank is the one the template
-	//worked out, where two teams on the same points share a place
-	rows.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.team.id - b.team.id);
+	// RNK remains points-only; FRNK is the unique, qualification order.
 	rows.forEach(row => {
 		row.rnk = 1 + rows.filter(other => other.pts > row.pts).length;
 		row.tied = rows.some(other => other !== row && other.pts === row.pts);
 	});
-	return rows;
+	return wb_final_ranks(group, rows);
+}
+
+// Evaluate head-to-head only for a complete, balanced set of mutual fixtures.
+// Two teams compare wins; 3+ compare mini-table points under their sport's rules.
+function wb_mini_table(group, rows, fixtures) {
+	const ids = new Set(rows.map(row => row.team.id));
+	const stat = new Map(rows.map(row => [row.team.id, { pts: 0, w: 0, gf: 0, gd: 0 }]));
+	const counts = new Map();
+	for (const game of fixtures) {
+		if (!ids.has(game.home) || !ids.has(game.away)) continue;
+		if (game.home === game.away) return null;
+		const result = wb_result(game);
+		if (result.sh === null || result.sa === null) return null;
+		let points;
+		try { points = group.sport.points_fn(result.sh, result.sa); }
+		catch (error) { return null; }
+		const pair = [game.home, game.away].sort((a, b) => a - b).join(':');
+		counts.set(pair, (counts.get(pair) || 0) + 1);
+		const home = stat.get(game.home), away = stat.get(game.away);
+		home.pts += points[0]; away.pts += points[1];
+		home.w += Number(result.sh > result.sa); away.w += Number(result.sa > result.sh);
+		home.gf += result.sh; away.gf += result.sa;
+		home.gd += result.sh - result.sa; away.gd += result.sa - result.sh;
+	}
+	if (counts.size !== rows.length * (rows.length - 1) / 2 || new Set(counts.values()).size !== 1)
+		return null;
+	return stat;
+}
+
+function wb_final_ranks(group, rows) {
+	const rules = tiebreak_order(group.sport);
+	const fixtures = wb_placed().filter(p => p.game.kn === null && p.game.id === group.id).map(p => p.game);
+	const complete = fixtures.length > 0 && fixtures.every(game => wb_played(game));
+	function resolve(tied, path) {
+		if (tied.length === 1) {
+			tied[0].rank_reason = path.join(' → ');
+			return tied;
+		}
+		const mini = wb_mini_table(group, tied, fixtures);
+		const skipped = [];
+		for (const rule of rules) {
+			if (rule.startsWith('μεταξύ_τους') && mini === null) {
+				skipped.push('Παράλειψη: ' + TIEBREAK_CRITERIA[rule] + ' (ελλιπείς ή άνισοι μεταξύ τους αγώνες)');
+				continue;
+			}
+			const value = row => {
+				switch (rule) {
+					case 'μεταξύ_τους': return mini.get(row.team.id)[tied.length === 2 ? 'w' : 'pts'];
+					case 'μεταξύ_τους_διαφορά': return mini.get(row.team.id).gd;
+					case 'μεταξύ_τους_υπέρ': return mini.get(row.team.id).gf;
+					case 'συνολική_διαφορά': return row.gd;
+					case 'συνολικά_υπέρ': return row.gf;
+					case 'νίκες': return row.w;
+					case 'λιγότερα_κατά': return -row.ga;
+					case 'id': return -row.team.id;
+				}
+			};
+			const buckets = new Map();
+			for (const row of tied) {
+				const score = value(row);
+				if (!buckets.has(score)) buckets.set(score, []);
+				buckets.get(score).push(row);
+			}
+			if (buckets.size === 1) continue;
+			// Restart only on strictly smaller subgroups: bounded recursion, never
+			// a pairwise comparator that becomes inconsistent for circular wins.
+			return [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([score, subset]) =>
+				resolve(subset, path.concat(skipped, TIEBREAK_CRITERIA[rule])));
+		}
+		throw new Error('Λείπει το τελικό κριτήριο id.');
+	}
+	const buckets = new Map();
+	for (const row of rows) {
+		if (!buckets.has(row.pts)) buckets.set(row.pts, []);
+		buckets.get(row.pts).push(row);
+	}
+	const ordered = [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([pts, tied]) => resolve(tied, ['Βαθμοί']));
+	ordered.forEach((row, index) => {
+		row.frnk = index + 1;
+		row.rank_provisional = !complete;
+		if (!complete) row.rank_reason = 'Προσωρινή κατάταξη — εκκρεμούν σκορ. ' + row.rank_reason;
+	});
+	return ordered;
 }
 
 //the group standings are read again and again while the knockouts are worked
