@@ -396,9 +396,46 @@ async function run(CONFIG, fail) {
 	press(first, 'Enter');
 	check(doc.activeElement === scores.filter(b => b.dataset.which === 'sh')[1],
 		'return drops to the left score of the next match');
-	// the referee is left alone: it is not walked through with the scores
+	// Tab still follows the scores, while arrows include all three columns.
 	const ref = first.closest('tr').querySelector('.pages-input[data-which="ref"]');
-	check(scores.indexOf(ref) === -1, 'and the referee is not one of the boxes they are walked through');
+	const awayBox = first.closest('tr').querySelector('.pages-input[data-which="sa"]');
+	const nextRef = rows[1].querySelector('.pages-input[data-which="ref"]');
+	first.focus();
+	press(first, 'ArrowRight');
+	check(doc.activeElement === awayBox, 'right arrow moves to the away score');
+	press(awayBox, 'ArrowRight');
+	check(doc.activeElement === ref, 'right arrow reaches the referee');
+	press(ref, 'ArrowDown');
+	check(doc.activeElement === nextRef, 'down arrow keeps the referee column');
+	press(nextRef, 'ArrowUp');
+	check(doc.activeElement === ref, 'up arrow returns to the previous referee');
+	press(ref, 'ArrowLeft');
+	check(doc.activeElement === awayBox, 'left arrow returns from the referee to the score');
+	press(awayBox, 'ArrowDown');
+	check(doc.activeElement === rows[1].querySelector('.pages-input[data-which="sa"]'), 'down arrow keeps the away-score column');
+	first.focus();
+	press(first, 'ArrowLeft');
+	press(first, 'ArrowUp');
+	check(doc.activeElement === first, 'arrows stop at the top and left edges');
+	ref.focus();
+	press(ref, 'ArrowRight');
+	check(doc.activeElement === ref, 'right arrow stops at the referee column');
+	check(press(ref, 'ArrowLeft', true), 'shift and arrows remain native text selection');
+	check(doc.activeElement === ref, 'text selection does not change cells');
+	const lastRef = rows.at(-1).querySelector('.pages-input[data-which="ref"]');
+	lastRef.focus();
+	press(lastRef, 'ArrowDown');
+	check(doc.activeElement === lastRef, 'down arrow stops at the final match');
+	const nextDay = rows.findIndex(r => r.closest('.pages-day') !== rows[0].closest('.pages-day'));
+	if (nextDay > 0) {
+		const before = rows[nextDay - 1].querySelector('.pages-input[data-which="ref"]');
+		before.focus();
+		press(before, 'ArrowDown');
+		check(doc.activeElement === rows[nextDay].querySelector('.pages-input[data-which="ref"]'), 'vertical navigation continues across day boundaries');
+	}
+	ref.focus();
+	press(ref, 'Enter');
+	check(doc.activeElement === rows[1].querySelector('.pages-input[data-which="sh"]'), 'Enter from a referee also reaches the next left score');
 
 	console.log('\n=== a score typed in ===');
 	// a group match, since a knockout has nobody in it until one is played

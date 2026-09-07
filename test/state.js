@@ -56,6 +56,9 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 
 (async () => {
 	const w = await page();
+	const hints = [...w.document.querySelectorAll('.toolbar button')];
+	assert.equal(hints.length, 7);
+	assert.ok(hints.every(button => button.title.length > 25), 'every configuration action explains its purpose on hover');
 	w.parse_config(configText);
 	w.document.forms[0].config.value = configText;
 	w.displayer(w.eval('config.days'));
@@ -81,6 +84,40 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	w.document.getElementById('plan-redo').click();
 	samePlan(plan(w), moved);
 	assert.equal(w.wb_result(w.wb_at(keys[7])).ref, 'Διαιτητής Α');
+	const shortcut = (key, modifiers = {}, target = w.document.body) => {
+		const event = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers });
+		target.dispatchEvent(event);
+		return event.defaultPrevented;
+	};
+	w.sheets_show('plan');
+	for (const modifier of ['ctrlKey', 'metaKey']) {
+		assert.equal(shortcut('z', { [modifier]: true }), true);
+		samePlan(plan(w), initial);
+		assert.equal(shortcut('y', { [modifier]: true }), true);
+		samePlan(plan(w), moved);
+		shortcut('ζ', { [modifier]: true, code: 'KeyZ' });
+		samePlan(plan(w), initial);
+		shortcut('Z', { [modifier]: true, shiftKey: true, code: 'KeyZ' });
+		samePlan(plan(w), moved);
+	}
+	for (const sheet of ['pages', 'points', 'config']) {
+		w.sheets_show(sheet);
+		assert.equal(shortcut('z', { ctrlKey: true }), false, 'other tabs retain native shortcuts');
+		samePlan(plan(w), moved);
+	}
+	w.sheets_show('plan');
+	for (const target of [w.document.querySelector('textarea'), w.document.querySelector('.pages-input')]) {
+		assert.equal(shortcut('z', { metaKey: true }, target), false, 'text undo stays native');
+	}
+	for (const modifiers of [{}, { ctrlKey: true, altKey: true }, { ctrlKey: true, isComposing: true }])
+		assert.equal(shortcut('z', modifiers), false);
+	const editor = w.document.createElement('div');
+	editor.className = 'plan-editor';
+	w.document.body.appendChild(editor);
+	assert.equal(shortcut('z', { ctrlKey: true }), false, 'open match editor is not disrupted');
+	editor.remove();
+	samePlan(plan(w), moved);
+	console.log('ok: Greek button hints and plan-only Ctrl/Cmd undo/redo shortcuts');
 	w.wb_history_step(false);
 	w.wb_clear(keys[1]);
 	assert.equal(w.eval('wb_history.future.length'), 0, 'new edit discards redo');

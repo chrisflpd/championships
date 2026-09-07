@@ -128,6 +128,8 @@ function plan_draw(sheet) {
 		button.id = id;
 		button.classList.add('button', 'button-quiet');
 		button.textContent = label;
+		button.title = redo ? 'Επαναφέρει την τελευταία αναίρεση (Ctrl/Cmd+Y ή Ctrl/Cmd+Shift+Z).'
+			: 'Αναιρεί την τελευταία αλλαγή (Ctrl/Cmd+Z).';
 		button.disabled = !(redo ? wb_history.future : wb_history.past).length;
 		button.addEventListener('click', () => wb_history_step(redo));
 		switches.appendChild(button);
@@ -958,6 +960,19 @@ function plan_editor(cell) {
 document.addEventListener('keydown', event => {
 	if (event.key === 'Escape')
 		plan_close();
+	if (event.defaultPrevented || event.isComposing || event.altKey || !(event.ctrlKey || event.metaKey)
+		|| sheets_current() !== 'plan' || !document.getElementById('sheet-plan')
+		|| document.querySelector('.plan-editor') !== null)
+		return;
+	// Keep the browser's own text undo inside editable fields. Physical key
+	// codes also let the shortcuts work while a Greek keyboard is selected.
+	if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'))
+		return;
+	const key = event.code || ('Key' + event.key.toUpperCase());
+	if (key !== 'KeyZ' && key !== 'KeyY')
+		return;
+	event.preventDefault();
+	wb_history_step(key === 'KeyY' || event.shiftKey);
 });
 
 //a click anywhere else puts the editor away

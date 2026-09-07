@@ -374,8 +374,8 @@ function pages_wire(card) {
  * the scores are entered off a stack of paper, one match after the next, and the
  * hand never leaves the keyboard while that is going on. so the boxes are walked
  * the way a sheet is walked: tab to the one on the right, shift and tab to the
- * one on the left, and return down to the next match. the referee is typed far
- * less often and is left to the pointer.
+ * one on the left, and return down to the next match. Arrow keys move through
+ * all three editable columns, including the referee; up/down keep the column.
  */
 
 //every score box of the pages, in the order they are read in: the two of a match
@@ -400,12 +400,30 @@ function pages_below(box) {
 	return at === -1 ? null : (homes[at + 1] || null);
 }
 
+function pages_arrow(box, key) {
+	const rows = [...document.querySelectorAll('#sheet-pages tr[data-key]')];
+	const row = box.closest('tr');
+	if (key === 'ArrowUp' || key === 'ArrowDown') {
+		const next = rows[rows.indexOf(row) + (key === 'ArrowUp' ? -1 : 1)];
+		return next ? next.querySelector(`.pages-input[data-which="${box.dataset.which}"]`) : null;
+	}
+	const boxes = [...row.querySelectorAll('.pages-input')];
+	return boxes[boxes.indexOf(box) + (key === 'ArrowLeft' ? -1 : 1)] || null;
+}
+
 document.addEventListener('keydown', event => {
 	const box = event.target.closest ? event.target.closest('#sheet-pages .pages-input') : null;
-	if (box === null || box.dataset.which === 'ref')
+	if (box === null || sheets_current() !== 'pages' || event.defaultPrevented || event.isComposing
+		|| event.ctrlKey || event.metaKey || event.altKey)
 		return;
 	let to = null;
-	if (event.key === 'Tab')
+	if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+		// Shift+arrows remain available for selecting text in a referee's name.
+		if (event.shiftKey) return;
+		to = pages_arrow(box, event.key);
+		event.preventDefault();
+	}
+	else if (event.key === 'Tab' && box.dataset.which !== 'ref')
 		to = pages_beside(box, event.shiftKey ? -1 : 1);
 	else if (event.key === 'Enter')
 		to = pages_below(box);

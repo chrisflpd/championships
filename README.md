@@ -32,6 +32,13 @@ taken.
 edits, including scores and referees. A whole-round or whole-zone swap is one
 step. History lasts for the current visit and resets when a championship is
 generated, restored or imported; a new edit after undo discards the redo branch.
+In the plan tab, Ctrl/Cmd+Z undoes and Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redoes.
+These shortcuts leave text editing and the other tabs alone.
+
+In match sheets, arrow keys move between scores and referees; up/down keep the
+same column, including across days. Tab/Shift+Tab still follow the scores, and
+Enter goes to the next match's left score. Shift+arrows select text normally.
+The configuration toolbar buttons explain their purpose on hover.
 
 The marking can be in the way rather than the point — a plan known to break a
 rule and being built around it — so **Απενεργοποίηση κανόνων** and
