@@ -96,27 +96,12 @@ function plan_draw(sheet) {
 	home.classList.add('day-list');
 	sheet.appendChild(home);
 
-	//over the days, what the colours stand for and how much there is to read
+	//Editing controls and match counts above the days.
 	const bar = document.createElement('div');
 	bar.classList.add('program-bar');
 	home.appendChild(bar);
-	const legend = document.createElement('div');
-	legend.classList.add('legend');
-	bar.appendChild(legend);
-	config.sports.forEach((sport, i) => {
-		const item = document.createElement('span');
-		item.classList.add('legend-item');
-		item.dataset.sportIndex = i;
-		legend.appendChild(item);
-		const swatch = document.createElement('span');
-		swatch.classList.add('legend-swatch');
-		item.appendChild(swatch);
-		const label = document.createElement('span');
-		label.textContent = `${sport.name} (${sport.courts.length})`;
-		item.appendChild(label);
-	});
 	//the marking can be in the way rather than the point, so either lot of it can
-	//be turned off from beside the plan it marks. it stands by the legend and not
+	//be turned off from beside the plan it marks. it stands by the controls and not
 	//across the bar: a wide calendar is scrolled sideways, and anything at the far
 	//end of the bar is scrolled off with it.
 	const switches = document.createElement('div');

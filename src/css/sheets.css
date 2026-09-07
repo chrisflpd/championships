@@ -882,10 +882,6 @@
 	color: var(--muted);
 }
 
-.points-rnk[title] {
-	text-decoration: underline dotted;
-}
-
 /* a team nobody has played yet has nothing to say */
 .points-unplayed {
 	color: var(--faint);

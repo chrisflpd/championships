@@ -88,6 +88,11 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	w.wb_history_reset();
 	w.sheets_draw();
 	const initial = plan(w);
+	const tiedRanks = [...w.document.querySelectorAll('.points-rnk[title]')];
+	assert.ok(tiedRanks.length > 0, 'exercise shared RNK values');
+	assert.ok(tiedRanks.every(cell => !w.getComputedStyle(cell).textDecoration.includes('underline')));
+	assert.ok([...w.document.querySelectorAll('.points-table thead tr')].every(row => row.firstElementChild.textContent === 'id'));
+	assert.equal(w.document.querySelector('#sheet-plan .legend'), null);
 	assert.equal(w.document.getElementById('plan-undo').disabled, true);
 
 	w.wb_move(keys[0], keys[7]);

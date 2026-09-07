@@ -104,7 +104,7 @@ function points_draw(sheet) {
 		table.appendChild(thead);
 		const head_row = document.createElement('tr');
 		thead.appendChild(head_row);
-		['', 'team', 'PLD', 'PTS', 'RNK'].forEach(text => {
+		['id', 'team', 'PLD', 'PTS', 'RNK'].forEach(text => {
 			const cell = document.createElement('th');
 			cell.scope = 'col';
 			cell.textContent = text;
@@ -154,7 +154,7 @@ function points_table(title, rows, draws, ranked) {
 	table.classList.add('points-table');
 	box.appendChild(table);
 
-	const cols = ['', 'team', 'PLD', 'W'];
+	const cols = ['id', 'team', 'PLD', 'W'];
 	if (draws)
 		cols.push('D');
 	cols.push('L', 'GF', 'GA', 'GD', 'PTS');

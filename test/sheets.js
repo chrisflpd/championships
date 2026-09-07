@@ -479,6 +479,7 @@ async function run(CONFIG, fail) {
 	check(table !== undefined, `the ${group.id} standings are on the page`);
 	if (table !== undefined) {
 		const head = [...table.querySelectorAll('thead th')].map(th => th.textContent);
+		check(head[0] === 'id' && head[1] === 'team', 'team ID column has its own id heading');
 		const draws = window.eval('wb_has_draw')(group.sport);
 		check(head.includes('PLD') && head.includes('PTS') && head.includes('RNK'), 'with the columns of the template');
 		check(head[head.indexOf('RNK') + 1] === 'FRNK', 'unique final rank is immediately after the shared points rank');
@@ -491,6 +492,10 @@ async function run(CONFIG, fail) {
 		check(first.querySelector('.points-pts').textContent === String(stand[0].pts), 'and its points beside it');
 	}
 	check(doc.querySelector('.points-legend') === null, 'there is no separate symbol explanation block');
+	check([...doc.querySelectorAll('.points-table thead tr')].every(row => row.firstElementChild.textContent === 'id'),
+		'id heading appears in both sport groups and overall standings');
+	check([...doc.querySelectorAll('.points-rnk[title]')].every(cell =>
+		!window.getComputedStyle(cell).textDecoration.includes('underline')), 'tied RNK numbers have no dotted underline');
 	check([...doc.querySelectorAll('.points-table thead th[data-tooltip]')]
 		.some(th => th.textContent === 'PLD' && th.dataset.tooltip === 'Αγώνες' && th.title === ''),
 		'hovering a standings symbol shows its own visible explanation');
