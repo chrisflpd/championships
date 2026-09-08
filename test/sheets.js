@@ -253,9 +253,33 @@ async function run(CONFIG, fail) {
 	// they are ruled is read off the stylesheet above and not off the page: jsdom
 	// resolves no var() into a computed style, and every rule of this sheet is
 	// drawn in the measures its side declares.
-	const upright = ['pages-home-id', 'pages-away-id', 'pages-home-score', 'pages-away-score', 'pages-ref'];
+	const upright = ['pages-home-id', 'pages-away-id', 'pages-home-score', 'pages-away-score', 'pages-ref', 'pages-free'];
 	check(cards.every(card => upright.every(kind => card.querySelector('.' + kind) !== null)),
 		`every day sheet carries the ${upright.length} columns the upright rules stand between`);
+	const freeCells = [...doc.querySelectorAll('#sheet-pages .pages-free')];
+	check(freeCells.length === [...doc.querySelectorAll('#sheet-pages .pages-round')].length
+		&& freeCells.every(cell => cell.rowSpan === fields),
+		'every round has one independent Ελεύθερες cell merged over all its match rows');
+	check(freeCells.every(cell => {
+		const teams = window.eval('pages_free_teams')(cell.dataset.iso,
+			Number(cell.dataset.zone), Number(cell.dataset.round));
+		const shown = [...cell.querySelectorAll('.pages-free-team')].map(line => ({
+			id: line.querySelector('.pages-free-id').textContent,
+			name: line.querySelector('.pages-free-name').textContent,
+		}));
+		return JSON.stringify(shown) === JSON.stringify(teams.map(team => ({
+			id: String(team.id), name: team.name,
+		}))) && cell.querySelector('.pages-free-print').textContent === teams.map(team => team.id).join(', ');
+	}), 'free teams are listed by ID and name on screen, and by ID only on paper');
+	check(window.getComputedStyle(freeCells[0]).verticalAlign === 'middle',
+		'the free-team list is vertically centred in its merged cell');
+	const pageHeads = [...cards[0].querySelectorAll('thead th')];
+	check(pageHeads.map(cell => cell.textContent).join('|')
+		=== 'Γύρος|Γήπεδο|Γηπεδούχος|Φιλοξενούμενη|Σκορ|Διαιτητής|Ελεύθερες'
+		&& pageHeads[2].colSpan === 2 && pageHeads[3].colSpan === 2 && pageHeads[4].colSpan === 2,
+		'team headings begin over their narrow ID columns and Ελεύθερες follows the referee');
+	check(pageHeads.slice(2).every(cell => window.getComputedStyle(cell).textAlign === 'left'),
+		'the team and free-team headings are left aligned');
 	// the round name stands in the middle of its merged cell. `.pages-table th` is
 	// the more particular of the two selectors, so naming the cell by its class
 	// alone left the name set to the left by the rule that sets the rest of the
@@ -278,14 +302,17 @@ async function run(CONFIG, fail) {
 		return ends.every(one => one.classList.contains('pages-round-end')
 				|| one.classList.contains('pages-round-zone-end')
 				|| one.classList.contains('pages-round-day-end'))
-			&& card.querySelectorAll('.pages-round-day-end').length === 1
-			&& card.querySelectorAll('.pages-round-zone-end').length === cfg.zones.length - 1;
+			&& card.querySelectorAll('.pages-round.pages-round-day-end').length === 1
+			&& card.querySelectorAll('.pages-round.pages-round-zone-end').length === cfg.zones.length - 1;
 	}), 'every round block closes itself: single between rounds, double between zones, the frame at the end');
 	// the printed sheet names no columns, as the workbook did not
 	check(cards.every(card => card.querySelector('thead') !== null),
 		'the column names are there on screen and taken off by the print stylesheet');
-	check(cards.every(card => card.querySelectorAll('colgroup col').length === 9),
-		'every printed day keeps the nine column proportions of Excel C:K');
+	check(cards.every(card => card.querySelectorAll('colgroup col').length === 10),
+		'every printed day keeps ten fixed column proportions including Ελεύθερες');
+	const pageCols = [...cards[0].querySelectorAll('colgroup col')].map(col => parseFloat(col.style.width));
+	check(pageCols[2] < pageCols[3] && pageCols[4] < pageCols[5],
+		'the two team-ID columns are narrower than their name columns');
 	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
 		&& card.querySelector('.pages-date-print') !== null),
 		'every day carries its Greek screen and print dates');
@@ -341,6 +368,10 @@ async function run(CONFIG, fail) {
 		&& /\.pages-round\s*{[^}]*vertical-align:\s*middle/s.test(printCss)
 		&& /\.pages-round\s*{[^}]*text-align:\s*center/s.test(printCss),
 		'and the round name stands in the middle of it, both ways');
+	check(/is-printing \.pages-free-screen\s*{[^}]*display:\s*none/s.test(printCss)
+		&& /is-printing \.pages-free-print\s*{[^}]*display:\s*inline-block/s.test(printCss)
+		&& /is-printing \.pages-free-print\s*{[^}]*writing-mode:\s*vertical-rl/s.test(printCss),
+		'the paper hides free-team names and sets their IDs vertically');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 	// the body is a page tall to begin with, and the first printed day carries a

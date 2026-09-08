@@ -5,8 +5,9 @@
  * the template gave every day a block of its own, twenty two rows apart, and
  * printed columns C to K of it: the round, the field, the two teams by number
  * and by name, the two scores and the referee. everything left of C and right of
- * K was working out and never reached the paper. the same block is drawn here,
- * with the three columns the camp fills in being the three that can be typed in.
+ * K was working out and never reached the paper. The same block is drawn here,
+ * with one extra column for the teams sitting each round out and with the three
+ * columns the camp fills in being the three that can be typed in.
  */
 
 //the rounds of a zone are named after it, as the template named them Πρωί Α',
@@ -56,6 +57,63 @@ function pages_print_date(date) {
 		month: 'long',
 		year: 'numeric',
 	});
+}
+
+//Everybody whose number is not on either side of a match in this round. A set
+//also makes a manually duplicated team count only once.
+function pages_free_teams(iso, zone_rank, round_rank) {
+	const playing = new Set();
+	wb_round_keys(iso, zone_rank, round_rank).forEach(key => {
+		const game = wb_at(key);
+		if (game === null)
+			return;
+		const sides = wb_sides(game);
+		if (sides.home !== null)
+			playing.add(sides.home);
+		if (sides.away !== null)
+			playing.add(sides.away);
+	});
+	return config.teams.filter(team => !playing.has(team.id));
+}
+
+function pages_free_fill(cell, teams) {
+	cell.replaceChildren();
+	cell.setAttribute('aria-label', teams.length === 0
+		? 'Δεν υπάρχουν ελεύθερες ομάδες'
+		: `Ελεύθερες ομάδες: ${teams.map(team => `${team.id} ${team.name}`).join(', ')}`);
+
+	const screen = document.createElement('div');
+	screen.classList.add('pages-free-screen');
+	teams.forEach(team => {
+		const line = document.createElement('div');
+		line.classList.add('pages-free-team');
+		const id = document.createElement('span');
+		id.classList.add('pages-free-id');
+		id.textContent = String(team.id);
+		line.appendChild(id);
+		const name = document.createElement('span');
+		name.classList.add('pages-free-name');
+		name.textContent = team.name;
+		line.appendChild(name);
+		screen.appendChild(line);
+	});
+	cell.appendChild(screen);
+
+	const printed = document.createElement('span');
+	printed.classList.add('pages-free-print');
+	printed.textContent = teams.map(team => team.id).join(', ');
+	cell.appendChild(printed);
+}
+
+function pages_free_cell(day, dzone, round, end_class) {
+	const cell = document.createElement('td');
+	cell.classList.add('pages-free', end_class);
+	cell.rowSpan = workbook.cols.length;
+	cell.dataset.iso = day.iso;
+	cell.dataset.zone = String(dzone.zone.rank);
+	cell.dataset.round = String(round.rank);
+	pages_free_fill(cell, pages_free_teams(day.iso, dzone.zone.rank, round.rank));
+	return cell;
 }
 
 /**
@@ -157,10 +215,10 @@ function pages_day(day, retell) {
 	table.classList.add('pages-table');
 	card.appendChild(table);
 
-	//the widths are the ones of columns C:K in the workbook. percentages keep
-	//the same proportions on screen and when the table is fitted to A4.
+	//The original proportions are tightened just enough to add Ελεύθερες without
+	//making the day any wider on screen or on A4.
 	const colgroup = document.createElement('colgroup');
-	const excel_widths = [4.332, 17, 4.332, 16.332, 4.332, 16.332, 6.219, 6.219, 21.887];
+	const excel_widths = [4.332, 15, 3, 14.332, 3, 14.332, 6.219, 6.219, 18.551, 12];
 	const excel_total = excel_widths.reduce((sum, width) => sum + width, 0);
 	excel_widths.forEach(width => {
 		const col = document.createElement('col');
@@ -173,16 +231,14 @@ function pages_day(day, retell) {
 	table.appendChild(thead);
 	const head_row = document.createElement('tr');
 	thead.appendChild(head_row);
-	['Γύρος', 'Γήπεδο', '', 'Γηπεδούχος', '', 'Φιλοξενούμενη', 'Σκορ', '', 'Διαιτητής'].forEach((text, i) => {
+	[
+		['Γύρος', 1], ['Γήπεδο', 1], ['Γηπεδούχος', 2],
+		['Φιλοξενούμενη', 2], ['Σκορ', 2], ['Διαιτητής', 1], ['Ελεύθερες', 1],
+	].forEach(column => {
 		const cell = document.createElement('th');
 		cell.scope = 'col';
-		cell.textContent = text;
-		//the two number columns stand with the name they belong to, and the two
-		//score boxes under the one word
-		if (i === 6)
-			cell.colSpan = 2;
-		if (i === 7)
-			return;
+		cell.textContent = column[0];
+		cell.colSpan = column[1];
 		head_row.appendChild(cell);
 	});
 
@@ -196,6 +252,11 @@ function pages_day(day, retell) {
 		const rounds = dzone.rounds;
 		rounds.forEach((round, round_index) => {
 		workbook.cols.forEach((col, c) => {
+			const last_round = round_index === rounds.length - 1;
+			const last_zone = dzone_index === day.dzones.length - 1;
+			const end_class = last_round
+				? (last_zone ? 'pages-round-day-end' : 'pages-round-zone-end')
+				: 'pages-round-end';
 			const key = wb_key(day.iso, dzone.zone.rank, round.rank, col.court);
 			const game = wb_at(key);
 			const mine = game !== null && wb_shows(game, col, c);
@@ -221,11 +282,7 @@ function pages_day(day, retell) {
 				//rows beside it stop at their own columns: a single one between two
 				//rounds, the double one of the template between two zones, and none
 				//at all where the frame of the day closes it
-				const last_round = round_index === rounds.length - 1;
-				const last_zone = dzone_index === day.dzones.length - 1;
-				name.classList.add(last_round
-					? (last_zone ? 'pages-round-day-end' : 'pages-round-zone-end')
-					: 'pages-round-end');
+				name.classList.add(end_class);
 				name.scope = 'rowgroup';
 				name.rowSpan = workbook.cols.length;
 				//the name is a thing of its own inside the cell, so that the rules
@@ -259,6 +316,8 @@ function pages_day(day, retell) {
 					empty.textContent = '';
 					row.appendChild(empty);
 				});
+				if (c === 0)
+					row.appendChild(pages_free_cell(day, dzone, round, end_class));
 				return;
 			}
 
@@ -315,6 +374,9 @@ function pages_day(day, retell) {
 			ref.setAttribute('aria-label', 'Διαιτητής');
 			ref_cell.appendChild(ref);
 			row.appendChild(ref_cell);
+
+			if (c === 0)
+				row.appendChild(pages_free_cell(day, dzone, round, end_class));
 		});
 		});
 	});
@@ -453,6 +515,10 @@ function pages_refresh_knockouts() {
 				name.classList.toggle('pages-open', side[1] === null);
 			}
 		});
+	});
+	document.querySelectorAll('#sheet-pages .pages-free').forEach(cell => {
+		pages_free_fill(cell, pages_free_teams(cell.dataset.iso,
+			Number(cell.dataset.zone), Number(cell.dataset.round)));
 	});
 }
 

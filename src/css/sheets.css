@@ -603,7 +603,8 @@
 .pages-table .pages-home-id,
 .pages-table .pages-away-id,
 .pages-table .pages-home-score,
-.pages-table .pages-ref {
+.pages-table .pages-ref,
+.pages-table .pages-free {
 	border-left: var(--pages-rule-weight) solid var(--pages-rule);
 }
 
@@ -619,9 +620,9 @@
 .pages-id {
 	color: var(--faint);
 	font-variant-numeric: tabular-nums;
+	padding-left: 5px;
 	padding-right: 0;
-	text-align: right;
-	width: 1.5em;
+	text-align: left;
 }
 
 .pages-team {
@@ -656,6 +657,46 @@
 
 .pages-ref .pages-input {
 	width: 13em;
+}
+
+/* One cell belongs to the whole round, not to any of its match rows. Its own
+   short lines list the teams sitting that round out without continuing the
+   dotted field rules through the list. */
+.pages-table .pages-free {
+	background: color-mix(in srgb, var(--surface-2) 58%, var(--surface));
+	padding: 4px 7px;
+	vertical-align: middle;
+}
+
+.pages-free-screen {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	justify-content: center;
+}
+
+.pages-free-team {
+	align-items: baseline;
+	display: flex;
+	gap: 5px;
+	line-height: 1.2;
+}
+
+.pages-free-id {
+	color: var(--faint);
+	flex: 0 0 1.35em;
+	font-variant-numeric: tabular-nums;
+}
+
+.pages-free-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pages-free-print {
+	display: none;
 }
 
 .pages-input:focus {
@@ -1089,6 +1130,25 @@
 	body.is-printing .pages-table .pages-id {
 		font-variant-numeric: tabular-nums;
 		text-align: left;
+	}
+
+	body.is-printing .pages-table .pages-free {
+		padding: 0;
+		text-align: center;
+		vertical-align: middle;
+	}
+
+	body.is-printing .pages-free-screen {
+		display: none;
+	}
+
+	body.is-printing .pages-free-print {
+		display: inline-block;
+		font-variant-numeric: tabular-nums;
+		transform: rotate(180deg);
+		vertical-align: middle;
+		white-space: nowrap;
+		writing-mode: vertical-rl;
 	}
 
 	body.is-printing .pages-table .pages-team {
