@@ -787,6 +787,9 @@
 	position: relative;
 	font-weight: 650;
 	border-left: 1px solid var(--border);
+}
+
+.points-frnk[data-tooltip] {
 	text-decoration: underline dotted;
 	text-underline-offset: 3px;
 }

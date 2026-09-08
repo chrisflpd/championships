@@ -483,20 +483,30 @@ async function run(CONFIG, fail) {
 		const draws = window.eval('wb_has_draw')(group.sport);
 		check(head.includes('PLD') && head.includes('PTS') && head.includes('RNK'), 'with the columns of the template');
 		check(head[head.indexOf('RNK') + 1] === 'FRNK', 'unique final rank is immediately after the shared points rank');
-		check([...table.querySelectorAll('.points-frnk')].every((cell, i) => cell.textContent === String(i + 1)),
-			'FRNK is unique');
+		const displayedRows = [...table.querySelectorAll('tbody tr')];
+		check(displayedRows.every((row, i) => Number(row.querySelector('.points-id').textContent)
+			=== [...group.teams].sort((a, b) => a.id - b.id)[i].id), 'teams are displayed in numeric ID order');
+		check(new Set([...table.querySelectorAll('.points-frnk')].map(cell => cell.textContent)).size === stand.length,
+			'FRNK is unique while rows remain in ID order');
 		check([...table.querySelectorAll('.points-frnk[data-tooltip]')].every(cell =>
 			!cell.dataset.tooltip.includes('Παράλειψη') && !cell.dataset.tooltip.includes('Βαθμοί')),
 			'FRNK explanations contain only tie-breakers that actually separated teams');
+		check([...table.querySelectorAll('.points-frnk.points-provisional')].every(cell =>
+			cell.dataset.tooltip.includes('Προσωρινή κατάταξη — εκκρεμούν σκορ.')),
+			'provisional FRNK values restore their unfinished-scores warning');
 		check(head.includes('D') === draws,
 			draws ? `${group.sport.name} can be drawn, so it has a D column` : `${group.sport.name} cannot be drawn, so it has no D column`);
 		const first = table.querySelector('tbody tr');
-		check(first.querySelector('.points-team').textContent === stand[0].team.name, 'the top of the table first');
-		check(first.querySelector('.points-pts').textContent === String(stand[0].pts), 'and its points beside it');
+		const smallest = stand.slice().sort((a, b) => a.team.id - b.team.id)[0];
+		check(first.querySelector('.points-team').textContent === smallest.team.name, 'the smallest team ID first');
+		check(first.querySelector('.points-pts').textContent === String(smallest.pts), 'with its points beside it');
 	}
 	check(doc.querySelector('.points-legend') === null, 'there is no separate symbol explanation block');
 	check([...doc.querySelectorAll('.points-table thead tr')].every(row => row.firstElementChild.textContent === 'id'),
 		'id heading appears in both sport groups and overall standings');
+	check([...doc.querySelectorAll('.points-total tbody .points-id')].every((cell, i, cells) =>
+		i === 0 || Number(cells[i - 1].textContent) < Number(cell.textContent)),
+		'overall standings are displayed in numeric ID order too');
 	check([...doc.querySelectorAll('.points-rnk[title]')].every(cell =>
 		!window.getComputedStyle(cell).textDecoration.includes('underline')), 'tied RNK numbers have no dotted underline');
 	check([...doc.querySelectorAll('.points-table thead th[data-tooltip]')]

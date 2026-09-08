@@ -90,6 +90,7 @@ function points_draw(sheet) {
 		rows.forEach(row => {
 			row.rnk = 1 + rows.filter(other => other.pts > row.pts).length;
 		});
+		rows.sort((a, b) => a.team.id - b.team.id);
 		const block = document.createElement('section');
 		block.classList.add('points-sport', 'points-total');
 		sheet.appendChild(block);
@@ -175,7 +176,7 @@ function points_table(title, rows, draws, ranked) {
 
 	const body = document.createElement('tbody');
 	table.appendChild(body);
-	rows.forEach(row => {
+	rows.slice().sort((a, b) => a.team.id - b.team.id).forEach(row => {
 		const tr = document.createElement('tr');
 		if (row.pld === 0)
 			tr.classList.add('points-unplayed');
@@ -207,10 +208,14 @@ function points_table(title, rows, draws, ranked) {
 			}
 			if (what === 'FRNK') {
 				cell.classList.add('points-frnk');
-				if (row.rank_reason) {
-					cell.dataset.tooltip = row.rank_reason;
+				const explanation = [
+					row.rank_provisional ? 'Προσωρινή κατάταξη — εκκρεμούν σκορ.' : '',
+					row.rank_reason,
+				].filter(Boolean).join(' ');
+				if (explanation) {
+					cell.dataset.tooltip = explanation;
 					cell.tabIndex = 0;
-					cell.setAttribute('aria-label', `Τελική θέση ${value}: ${row.rank_reason}`);
+					cell.setAttribute('aria-label', `Τελική θέση ${value}: ${explanation}`);
 				} else {
 					cell.setAttribute('aria-label', `Τελική θέση ${value}`);
 				}

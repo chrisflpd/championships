@@ -76,6 +76,11 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.ok(sharedHint, 'standings and toolbar share the same tooltip styling');
 	assert.equal(sharedHint.style.background, 'rgb(32, 33, 36)');
 	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
+	const plainFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk');
+	const explainedFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk[data-tooltip]');
+	assert.equal(plainFrnk.style.textDecorationLine, '');
+	assert.match(explainedFrnk.style.textDecoration, /underline dotted/,
+		'only FRNK cells with an explanation receive a dotted underline');
 	assert.equal(w.getComputedStyle(w.document.getElementById('excel')).opacity, '1',
 		'disabled buttons do not fade the dark tooltip');
 	w.parse_config(configText);
