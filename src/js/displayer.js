@@ -489,7 +489,8 @@ function plan_warning_open(cell) {
 	const width = box.offsetWidth || 320;
 	const height = box.offsetHeight || 120;
 	const room = window.innerHeight || 768;
-	const left = Math.max(8, Math.min(at.left, (window.innerWidth || 1024) - width - 8));
+	const centred = at.left + at.width / 2 - width / 2;
+	const left = Math.max(8, Math.min(centred, (window.innerWidth || 1024) - width - 8));
 	//over the cell rather than under it when there is no room below
 	const below = at.bottom + 8 + height < room;
 	box.style.left = `${left + (window.scrollX || 0)}px`;

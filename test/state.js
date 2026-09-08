@@ -75,11 +75,17 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const tooltipRules = [...w.document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
 	const appRule = tooltipRules.find(rule => rule.selectorText === '.app');
 	assert.equal(appRule.style.maxWidth, 'none', 'every tab uses the same full-width reading area');
+	const tabInset = tooltipRules.find(rule => rule.selectorText?.includes('.sheet[data-sheet="pages"]')
+		&& rule.selectorText.includes('.panel-config[data-sheet="config"]'));
+	assert.equal(tabInset.style.marginInline, '22px', 'the other tabs follow the plan grid side margins');
 	const sharedHint = tooltipRules.find(rule => rule.selectorText?.includes('.points-table thead th[data-tooltip]::after')
 		&& rule.selectorText.includes('.toolbar button[data-tooltip]::after'));
 	assert.ok(sharedHint, 'standings and toolbar share the same tooltip styling');
 	assert.equal(sharedHint.style.background, 'rgb(32, 33, 36)');
 	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
+	assert.match(sharedHint.style.transform, /--tooltip-shift/, 'tooltips can move only when a page edge requires it');
+	const refereeRule = tooltipRules.find(rule => rule.selectorText === '.pages-ref .pages-input');
+	assert.equal(refereeRule.style.width, '11em', 'referee inputs have room for a longer name');
 	const plainFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk');
 	const explainedFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk[data-tooltip]');
 	const provisionalFrnk = tooltipRules.find(rule =>

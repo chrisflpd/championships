@@ -288,7 +288,7 @@ async function run(CONFIG, fail) {
 		'every printed day keeps the nine column proportions of Excel C:K');
 	check(cards.every(card => card.querySelector('.pages-date-screen') !== null
 		&& card.querySelector('.pages-date-print') !== null),
-		'every day carries its Greek screen date and its Excel-style print date');
+		'every day carries its Greek screen and print dates');
 	// the date is what picks the day, so the target is a line of writing rather
 	// than a box the size of a full stop
 	check(cards.every(card => {
@@ -296,8 +296,9 @@ async function run(CONFIG, fail) {
 		return label !== null && label.contains(card.querySelector('.pages-pick'))
 			&& label.contains(card.querySelector('.pages-date-screen'));
 	}), 'and the whole of it picks the day for printing');
-	check(/^[A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}$/.test(cards[0].querySelector('.pages-date-print').textContent),
-		'the printed date uses Excel long-date wording');
+	check(cards.every(card => card.querySelector('.pages-date-print').textContent
+		=== card.querySelector('.pages-date-screen').textContent),
+		'the printed date uses the same Greek day and date as the screen');
 	const printCss = fs.readFileSync(path.join(ROOT, 'src/css/sheets.css'), 'utf8');
 	// the block, the row and the type, measured off a page printed out of the real
 	// workbook: 493.8 x 321.2 pt of 15.3 pt rows in 11.9 pt type

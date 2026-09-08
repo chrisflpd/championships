@@ -48,11 +48,9 @@ function pages_date(date) {
 	});
 }
 
-//the workbook was printed with Excel's long English date even though the rest
-//of the sheet was in Greek. keep the friendly Greek date on the screen and the
-//template's date on the paper.
+//The printed sheet uses the same Greek day and date as the screen.
 function pages_print_date(date) {
-	return date.toLocaleDateString('en-US', {
+	return date.toLocaleDateString('el', {
 		weekday: 'long',
 		day: '2-digit',
 		month: 'long',

@@ -24,6 +24,28 @@ function ui_store(key, value) {
 	}
 }
 
+//Quick explanations sit under the middle of what they describe. Only when that
+//would cross a window edge is the centre shifted far enough to keep them in it.
+function ui_tooltip_place(target) {
+	target.style.removeProperty('--tooltip-shift');
+	const pseudo = window.getComputedStyle(target, '::after');
+	const width = parseFloat(pseudo.width);
+	if (!Number.isFinite(width) || width <= 0)
+		return;
+	const at = target.getBoundingClientRect();
+	const centre = at.left + at.width / 2;
+	const room = document.documentElement.clientWidth || window.innerWidth || 1024;
+	const half = width / 2;
+	const fitted = Math.max(8 + half, Math.min(centre, room - 8 - half));
+	target.style.setProperty('--tooltip-shift', `${fitted - centre}px`);
+}
+
+function ui_tooltip_event(event) {
+	const target = event.target.closest ? event.target.closest('[data-tooltip]') : null;
+	if (target !== null)
+		ui_tooltip_place(target);
+}
+
 //the theme the page is showing right now, which is the one that was chosen or,
 //when none was, the one the system asks for
 function ui_theme() {
@@ -154,6 +176,8 @@ function ui_confirm(said, then) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+	document.addEventListener('pointerover', ui_tooltip_event);
+	document.addEventListener('focusin', ui_tooltip_event);
 
 	const form = document.forms[0];
 	if (form !== undefined) {
