@@ -62,7 +62,8 @@ assert.deepEqual([1,2,3].map(id=>customMini.get(id).pts), [6,3,7], 'mini-table u
 setup(rules, [[1,2,1,0]], 'Ποδόσφαιρο', 3);
 const equal = [1,2,3].map(id => ({team:{id},pts:3,gd:0,gf:1,ga:1,w:1}));
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, equal).map(r=>r.team.id), [1,2,3]);
-assert.ok(equal.every(r => r.rank_reason.includes('Παράλειψη')), 'missing mutual fixtures are explained');
+assert.ok(equal.every(r => r.rank_reason === 'Μικρότερο ID ομάδας'),
+	'missing mutual fixtures are omitted and only the deciding rule is explained');
 setup(rules, cycle.concat([[1,2,1,0]]), 'Ποδόσφαιρο', 3);
 assert.equal(wb_mini_table(tbConfig.groups.g, ranks(), wb_placed().map(p=>p.game)), null, 'unequal pair counts disable mini-table');
 setup(rules, [[1,2,null,null]], 'Ποδόσφαιρο', 2);

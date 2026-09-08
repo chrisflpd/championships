@@ -60,7 +60,9 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 (async () => {
 	const w = await page();
 	const hints = [...w.document.querySelectorAll('.toolbar button')];
-	assert.match(w.document.querySelector('.hint').textContent, /\[tiebreakers\]\s*\(προαιρετικά\)/);
+	const optionalTiebreakers = [...w.document.querySelectorAll('.hint code')]
+		.find(code => code.textContent.includes('[tiebreakers]'));
+	assert.equal(optionalTiebreakers.textContent, '[tiebreakers] (προαιρετικά)');
 	assert.equal(hints.length, 7);
 	assert.ok(hints.every(button => button.dataset.tooltip.length > 25 && !button.hasAttribute('title')),
 		'every configuration action uses the quick custom tooltip, not a delayed native title');
@@ -95,7 +97,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.ok([...w.document.querySelectorAll('.points-table thead tr')].every(row => row.firstElementChild.textContent === 'id'));
 	assert.equal(w.document.querySelector('#sheet-plan .legend'), null);
 	assert.equal(w.document.body.dataset.sheet, 'plan');
-	assert.equal(w.getComputedStyle(w.document.querySelector('.day-grid')).display, 'grid');
+	assert.equal(w.getComputedStyle(w.document.querySelector('.day-grid')).display, 'flex');
 	assert.equal(w.document.getElementById('plan-undo').disabled, true);
 
 	w.wb_move(keys[0], keys[7]);

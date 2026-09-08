@@ -207,9 +207,13 @@ function points_table(title, rows, draws, ranked) {
 			}
 			if (what === 'FRNK') {
 				cell.classList.add('points-frnk');
-				cell.dataset.tooltip = row.rank_reason;
-				cell.tabIndex = 0;
-				cell.setAttribute('aria-label', `Τελική θέση ${value}: ${row.rank_reason}`);
+				if (row.rank_reason) {
+					cell.dataset.tooltip = row.rank_reason;
+					cell.tabIndex = 0;
+					cell.setAttribute('aria-label', `Τελική θέση ${value}: ${row.rank_reason}`);
+				} else {
+					cell.setAttribute('aria-label', `Τελική θέση ${value}`);
+				}
 				cell.classList.toggle('points-provisional', row.rank_provisional);
 			}
 			//a difference reads as one, so the sign of it is written out

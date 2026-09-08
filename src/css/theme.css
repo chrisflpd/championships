@@ -184,12 +184,11 @@ h2 {
 	padding: 16px 20px 48px;
 }
 
-/* Three intrinsic-width plan cards form every row. Narrower windows scroll
-   horizontally instead of squeezing the individual day tables. */
+/* Let the plan use the whole viewport. Its intrinsic-width day cards wrap to
+   however many fit, and overflow only when even one card cannot fit. */
 body[data-sheet="plan"] .app {
 	max-width: none;
-	min-width: 100%;
-	width: max-content;
+	width: 100%;
 }
 
 

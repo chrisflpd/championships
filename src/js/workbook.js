@@ -1061,10 +1061,8 @@ function wb_final_ranks(group, rows) {
 			return tied;
 		}
 		const mini = wb_mini_table(group, tied, fixtures);
-		const skipped = [];
 		for (const rule of rules) {
 			if (rule.startsWith('μεταξύ_τους') && mini === null) {
-				skipped.push('Παράλειψη: ' + TIEBREAK_CRITERIA[rule] + ' (ελλιπείς ή άνισοι μεταξύ τους αγώνες)');
 				continue;
 			}
 			const value = row => {
@@ -1090,7 +1088,7 @@ function wb_final_ranks(group, rows) {
 			// Restart only on strictly smaller subgroups: bounded recursion, never
 			// a pairwise comparator that becomes inconsistent for circular wins.
 			return [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([score, subset]) =>
-				resolve(subset, path.concat(skipped, TIEBREAK_CRITERIA[rule])));
+				resolve(subset, path.concat(TIEBREAK_CRITERIA[rule])));
 		}
 		throw new Error('Λείπει το τελικό κριτήριο id.');
 	}
@@ -1099,11 +1097,10 @@ function wb_final_ranks(group, rows) {
 		if (!buckets.has(row.pts)) buckets.set(row.pts, []);
 		buckets.get(row.pts).push(row);
 	}
-	const ordered = [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([pts, tied]) => resolve(tied, ['Βαθμοί']));
+	const ordered = [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([pts, tied]) => resolve(tied, []));
 	ordered.forEach((row, index) => {
 		row.frnk = index + 1;
 		row.rank_provisional = !complete;
-		if (!complete) row.rank_reason = 'Προσωρινή κατάταξη — εκκρεμούν σκορ. ' + row.rank_reason;
 	});
 	return ordered;
 }
