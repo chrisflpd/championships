@@ -801,7 +801,19 @@
 }
 
 .points-table thead th.points-frnk-provisional[data-tooltip]::after {
+	left: auto;
+	line-height: 1.45;
+	max-width: calc(100vw - 48px);
+	right: 0;
+	text-align: left;
+	transform: translateY(-3px);
+	width: max-content;
 	white-space: pre-line;
+}
+
+.points-table thead th.points-frnk-provisional[data-tooltip]:hover::after,
+.points-table thead th.points-frnk-provisional[data-tooltip]:focus-visible::after {
+	transform: translateY(0);
 }
 
 .points-provisional { color: var(--muted); }

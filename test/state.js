@@ -82,9 +82,14 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
 	const plainFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk');
 	const explainedFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk[data-tooltip]');
+	const provisionalFrnk = tooltipRules.find(rule =>
+		rule.selectorText === '.points-table thead th.points-frnk-provisional[data-tooltip]::after');
 	assert.equal(plainFrnk.style.textDecorationLine, '');
 	assert.match(explainedFrnk.style.textDecoration, /underline dotted/,
 		'only FRNK cells with an explanation receive a dotted underline');
+	assert.equal(provisionalFrnk.style.width, 'max-content');
+	assert.equal(provisionalFrnk.style.whiteSpace, 'pre-line',
+		'the provisional FRNK explanation keeps its two explicit lines');
 	assert.ok(tooltipRules.some(rule => rule.selectorText === '.pages-played .pages-score .pages-input'),
 		'completed-match green styling targets score cells');
 	assert.ok(!tooltipRules.some(rule => rule.selectorText === '.pages-played .pages-input'),
