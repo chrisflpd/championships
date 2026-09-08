@@ -16,7 +16,7 @@
 	border-radius: 12px 12px 0 0;
 	display: flex;
 	gap: 4px;
-	margin-bottom: 16px;
+	margin: 0 22px 16px;
 	overflow-x: auto;
 	overflow-y: hidden;
 	padding: 6px 7px 0;
@@ -655,7 +655,7 @@
 }
 
 .pages-ref .pages-input {
-	width: 11em;
+	width: 13em;
 }
 
 .pages-input:focus {
@@ -819,7 +819,7 @@
 .points-provisional { color: var(--muted); }
 
 .points-table td[data-tooltip]::after {
-	width: 290px;
+	width: max-content;
 	max-width: calc(100vw - 48px);
 	white-space: normal;
 	text-align: left;
@@ -839,7 +839,7 @@
 }
 
 .toolbar button[data-tooltip]::after {
-	width: 280px;
+	width: max-content;
 	max-width: calc(100vw - 64px);
 	white-space: normal;
 	text-align: left;

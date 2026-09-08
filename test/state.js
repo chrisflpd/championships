@@ -78,6 +78,8 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const tabInset = tooltipRules.find(rule => rule.selectorText?.includes('.sheet[data-sheet="pages"]')
 		&& rule.selectorText.includes('.panel-config[data-sheet="config"]'));
 	assert.equal(tabInset.style.marginInline, '22px', 'the other tabs follow the plan grid side margins');
+	const tabsRule = tooltipRules.find(rule => rule.selectorText === '.sheet-tabs');
+	assert.equal(tabsRule.style.margin, '0px 22px 16px', 'the tab bar follows those same side margins');
 	const sharedHint = tooltipRules.find(rule => rule.selectorText?.includes('.points-table thead th[data-tooltip]::after')
 		&& rule.selectorText.includes('.toolbar button[data-tooltip]::after'));
 	assert.ok(sharedHint, 'standings and toolbar share the same tooltip styling');
@@ -85,7 +87,11 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
 	assert.match(sharedHint.style.transform, /--tooltip-shift/, 'tooltips can move only when a page edge requires it');
 	const refereeRule = tooltipRules.find(rule => rule.selectorText === '.pages-ref .pages-input');
-	assert.equal(refereeRule.style.width, '11em', 'referee inputs have room for a longer name');
+	assert.equal(refereeRule.style.width, '13em', 'referee inputs have room for a longer name');
+	const cellHint = tooltipRules.find(rule => rule.selectorText === '.points-table td[data-tooltip]::after');
+	const toolbarHint = tooltipRules.find(rule => rule.selectorText === '.toolbar button[data-tooltip]::after');
+	assert.equal(cellHint.style.width, 'max-content', 'standings explanations use only the width their text needs');
+	assert.equal(toolbarHint.style.width, 'max-content', 'configuration explanations use only the width their text needs');
 	const plainFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk');
 	const explainedFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk[data-tooltip]');
 	const provisionalFrnk = tooltipRules.find(rule =>
