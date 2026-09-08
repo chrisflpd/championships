@@ -159,6 +159,7 @@ function sheets_shell(home) {
 }
 
 function sheets_clear() {
+	delete document.body.dataset.sheet;
 	document.querySelectorAll('.sheet-tabs').forEach(strip => strip.remove());
 	const config_panel = document.querySelector('.panel-config');
 	if (config_panel !== null) {
@@ -181,6 +182,7 @@ function sheets_current() {
  * @returns {void}
  */
 function sheets_show(id, remember) {
+	document.body.dataset.sheet = id;
 	document.querySelectorAll('.sheet-tab').forEach(tab => {
 		const open = tab.dataset.sheet === id;
 		tab.classList.toggle('is-open', open);

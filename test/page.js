@@ -170,6 +170,9 @@ async function run(CONFIG, fail) {
 	sports.forEach(s => s.courts.forEach(c => cols.push({ sport: s.name, court: c })));
 	check(list.style.getPropertyValue('--cols') === '', 'no fixed column count is set any more');
 	check(list.querySelectorAll('.day-grid').length === 1, 'one day grid');
+	check(window.getComputedStyle(list.querySelector('.day-grid')).gridTemplateColumns.includes('repeat(3'),
+		'the plan lays out three intrinsic-width day cards per row');
+	check(doc.body.dataset.sheet === 'plan', 'the open plan receives its wider page canvas');
 	check(list.querySelectorAll('.program-bar').length === 1, 'one editing toolbar');
 	check(list.querySelector('.legend') === null, 'sport legend is removed from the toolbar');
 	check(list.querySelector('#plan-undo') !== null && list.querySelector('#plan-redo') !== null,

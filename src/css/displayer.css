@@ -73,9 +73,10 @@
 
 .day-grid {
 	align-items: flex-start;
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: repeat(3, max-content);
 	gap: 12px;
+	justify-items: start;
 }
 
 .day {

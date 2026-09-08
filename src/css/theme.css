@@ -184,6 +184,14 @@ h2 {
 	padding: 16px 20px 48px;
 }
 
+/* Three intrinsic-width plan cards form every row. Narrower windows scroll
+   horizontally instead of squeezing the individual day tables. */
+body[data-sheet="plan"] .app {
+	max-width: none;
+	min-width: 100%;
+	width: max-content;
+}
+
 
 /* a panel is a sheet of surface with a heading over it */
 

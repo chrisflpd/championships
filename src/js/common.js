@@ -136,9 +136,13 @@ const TIEBREAK_CRITERIA = {
 	'id': 'Μικρότερο ID ομάδας',
 };
 
+const DEFAULT_TIEBREAK_ORDER = Object.freeze([
+	'μεταξύ_τους', 'μεταξύ_τους_διαφορά', 'μεταξύ_τους_υπέρ', 'μεταξύ_τους_κατά',
+	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'id',
+]);
+
 function tiebreak_order(sport) {
-	// Existing championships retain their previous display/qualification order.
-	return sport.tiebreakers || ['συνολική_διαφορά', 'συνολικά_υπέρ', 'id'];
+	return sport.tiebreakers || DEFAULT_TIEBREAK_ORDER;
 }
 
 

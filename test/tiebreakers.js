@@ -37,7 +37,11 @@ assert.ok(ranks().every(r => !r.rank_provisional));
 setup('συνολική_διαφορά, μεταξύ_τους', twoTied);
 assert.deepEqual(order(), [4,1,2,3], 'manager order controls ranking');
 setup(null, twoTied);
-assert.deepEqual(order(), [4,1,2,3], 'legacy configurations keep prior order');
+assert.deepEqual(tiebreak_order(tbConfig.sports[0]), [
+	'μεταξύ_τους', 'μεταξύ_τους_διαφορά', 'μεταξύ_τους_υπέρ', 'μεταξύ_τους_κατά',
+	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'id',
+], 'every sport receives the complete default order without a section');
+assert.deepEqual(order(), [4,2,1,3], 'omitting the optional section applies the default order');
 
 const cycle = [[1,2,1,0], [2,3,2,0], [3,1,3,0]];
 setup(rules, cycle, 'Ποδόσφαιρο', 3);
