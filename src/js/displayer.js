@@ -850,7 +850,7 @@ function plan_editor(cell) {
 		config.teams.forEach(team => {
 			const option = document.createElement('option');
 			option.value = String(team.id);
-			option.textContent = `${wb_char(team.id)} · ${team.name}`;
+			option.textContent = `${team.id} · ${team.name}`;
 			select.appendChild(option);
 		});
 		if (chosen !== null)

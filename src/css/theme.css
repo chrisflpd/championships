@@ -180,14 +180,8 @@ h2 {
 	flex-direction: column;
 	gap: 16px;
 	margin: 0 auto;
-	max-width: 1600px;
-	padding: 16px 20px 48px;
-}
-
-/* Let the plan use the whole viewport. Its intrinsic-width day cards wrap to
-   however many fit, and overflow only when even one card cannot fit. */
-body[data-sheet="plan"] .app {
 	max-width: none;
+	padding: 16px 20px 48px;
 	width: 100%;
 }
 

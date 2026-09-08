@@ -21,8 +21,8 @@ const POINTS_LEGEND = [
 	['GA', 'Κατά'],
 	['GD', 'Διαφορά'],
 	['PTS', 'Βαθμοί'],
-	['RNK', 'Θέση'],
-	['FRNK', 'Τελική θέση μετά την επίλυση ισοβαθμιών'],
+	['RNK', 'Κατάταξη'],
+	['FRNK', 'Τελική κατάταξη μετά από επίλυση ισοβαθμιών'],
 ];
 
 function points_explain(cell, symbol) {
@@ -172,13 +172,14 @@ function points_table(title, rows, draws, ranked) {
 		cell.textContent = text;
 		points_explain(cell, text);
 		if (text === 'FRNK' && rows.some(row => row.rank_provisional)) {
+			cell.classList.add('points-frnk-provisional');
 			const warning = document.createElement('span');
 			warning.classList.add('points-frnk-warning');
 			warning.textContent = ' ⚠';
 			warning.setAttribute('aria-hidden', 'true');
 			cell.appendChild(warning);
-			cell.dataset.tooltip = 'Προσωρινή κατάταξη, εκκρεμούν αγώνες';
-			cell.setAttribute('aria-label', 'FRNK: Προσωρινή κατάταξη, εκκρεμούν αγώνες');
+			cell.dataset.tooltip = 'Τελική κατάταξη μετά από επίλυση ισοβαθμιών\nΠροσωρινή τελική κατάταξη, εκκρεμούν αγώνες';
+			cell.setAttribute('aria-label', 'FRNK: Τελική κατάταξη μετά από επίλυση ισοβαθμιών. Προσωρινή τελική κατάταξη, εκκρεμούν αγώνες');
 		}
 		head_row.appendChild(cell);
 	});
@@ -221,9 +222,9 @@ function points_table(title, rows, draws, ranked) {
 				if (explanation) {
 					cell.dataset.tooltip = explanation;
 					cell.tabIndex = 0;
-					cell.setAttribute('aria-label', `Τελική θέση ${value}: ${explanation}`);
+					cell.setAttribute('aria-label', `Τελική κατάταξη ${value}: ${explanation}`);
 				} else {
-					cell.setAttribute('aria-label', `Τελική θέση ${value}`);
+					cell.setAttribute('aria-label', `Τελική κατάταξη ${value}`);
 				}
 				cell.classList.toggle('points-provisional', row.rank_provisional);
 			}

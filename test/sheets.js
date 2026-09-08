@@ -492,8 +492,10 @@ async function run(CONFIG, fail) {
 			!cell.dataset.tooltip.includes('Παράλειψη') && !cell.dataset.tooltip.includes('Βαθμοί')),
 			'FRNK explanations contain only tie-breakers that actually separated teams');
 		const frnkHead = [...table.querySelectorAll('thead th')].find(cell => cell.textContent.startsWith('FRNK'));
+		const rnkHead = [...table.querySelectorAll('thead th')].find(cell => cell.textContent === 'RNK');
+		check(rnkHead.dataset.tooltip === 'Κατάταξη', 'RNK is explained as Κατάταξη');
 		check(frnkHead.querySelector('.points-frnk-warning') !== null
-			&& frnkHead.dataset.tooltip === 'Προσωρινή κατάταξη, εκκρεμούν αγώνες',
+			&& frnkHead.dataset.tooltip === 'Τελική κατάταξη μετά από επίλυση ισοβαθμιών\nΠροσωρινή τελική κατάταξη, εκκρεμούν αγώνες',
 			'an unfinished group puts one warning beside its FRNK heading');
 		check([...table.querySelectorAll('.points-frnk')].every(cell =>
 			!cell.dataset.tooltip?.includes('Προσωρινή κατάταξη')),

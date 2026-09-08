@@ -1205,11 +1205,11 @@ function wb_display_id(id) {
 
 function wb_plan_label(game) {
 	if (game.kn === null)
-		return `${wb_char(game.home)}-${wb_char(game.away)}`;
+		return `${game.home}-${game.away}`;
 	const sides = wb_sides(game);
 	if (sides.home === null || sides.away === null)
 		return wb_display_id(game.kn);
-	return `${wb_char(sides.home)}${wb_knockout_stage(game.kn)}${wb_char(sides.away)}`;
+	return `${sides.home}${wb_knockout_stage(game.kn)}${sides.away}`;
 }
 
 //how a place still to be filled is read: the group and the ranking, or the

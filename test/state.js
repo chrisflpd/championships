@@ -66,11 +66,15 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(hints.length, 7);
 	assert.ok(hints.every(button => button.dataset.tooltip.length > 25 && !button.hasAttribute('title')),
 		'every configuration action uses the quick custom tooltip, not a delayed native title');
+	assert.ok(hints.every(button => !button.dataset.tooltip.endsWith('.')),
+		'configuration action explanations have no final full stop');
 	const exportHint = w.document.getElementById('backup-export').dataset.tooltip;
 	const importHint = w.document.getElementById('backup-import').dataset.tooltip;
 	assert.equal(importHint, exportHint.replace('Αποθηκεύει', 'Επαναφέρει').replace(' σε αρχείο', ' από αρχείο'),
 		'import and export describe the same data in opposite directions');
 	const tooltipRules = [...w.document.styleSheets].flatMap(sheet => [...sheet.cssRules]);
+	const appRule = tooltipRules.find(rule => rule.selectorText === '.app');
+	assert.equal(appRule.style.maxWidth, 'none', 'every tab uses the same full-width reading area');
 	const sharedHint = tooltipRules.find(rule => rule.selectorText?.includes('.points-table thead th[data-tooltip]::after')
 		&& rule.selectorText.includes('.toolbar button[data-tooltip]::after'));
 	assert.ok(sharedHint, 'standings and toolbar share the same tooltip styling');

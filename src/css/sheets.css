@@ -796,8 +796,12 @@
 
 .points-frnk-warning {
 	color: var(--warn);
-	font-size: .9em;
+	font-size: 1.2em;
 	text-decoration: none;
+}
+
+.points-table thead th.points-frnk-provisional[data-tooltip]::after {
+	white-space: pre-line;
 }
 
 .points-provisional { color: var(--muted); }

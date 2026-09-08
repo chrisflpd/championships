@@ -42,6 +42,8 @@ assert.deepEqual(tiebreak_order(tbConfig.sports[0]), [
 	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'id',
 ], 'every sport receives the complete default order without a section');
 assert.deepEqual(order(), [4,2,1,3], 'omitting the optional section applies the default order');
+setup(null, [], 'Ποδόσφαιρο', 10);
+assert.equal(wb_plan_label({kn:null, home:10, away:1}), '10-1', 'two-digit team IDs stay numeric on the plan');
 
 const cycle = [[1,2,1,0], [2,3,2,0], [3,1,3,0]];
 setup(rules, cycle, 'Ποδόσφαιρο', 3);
