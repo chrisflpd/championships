@@ -482,7 +482,7 @@ async function run(CONFIG, fail) {
 		check(head[0] === 'id' && head[1] === 'team', 'team ID column has its own id heading');
 		const draws = window.eval('wb_has_draw')(group.sport);
 		check(head.includes('PLD') && head.includes('PTS') && head.includes('RNK'), 'with the columns of the template');
-		check(head[head.indexOf('RNK') + 1] === 'FRNK', 'unique final rank is immediately after the shared points rank');
+		check(head[head.indexOf('RNK') + 1].startsWith('FRNK'), 'unique final rank is immediately after the shared points rank');
 		const displayedRows = [...table.querySelectorAll('tbody tr')];
 		check(displayedRows.every((row, i) => Number(row.querySelector('.points-id').textContent)
 			=== [...group.teams].sort((a, b) => a.id - b.id)[i].id), 'teams are displayed in numeric ID order');
@@ -491,9 +491,13 @@ async function run(CONFIG, fail) {
 		check([...table.querySelectorAll('.points-frnk[data-tooltip]')].every(cell =>
 			!cell.dataset.tooltip.includes('Παράλειψη') && !cell.dataset.tooltip.includes('Βαθμοί')),
 			'FRNK explanations contain only tie-breakers that actually separated teams');
-		check([...table.querySelectorAll('.points-frnk.points-provisional')].every(cell =>
-			cell.dataset.tooltip.includes('Προσωρινή κατάταξη — εκκρεμούν σκορ.')),
-			'provisional FRNK values restore their unfinished-scores warning');
+		const frnkHead = [...table.querySelectorAll('thead th')].find(cell => cell.textContent.startsWith('FRNK'));
+		check(frnkHead.querySelector('.points-frnk-warning') !== null
+			&& frnkHead.dataset.tooltip === 'Προσωρινή κατάταξη, εκκρεμούν αγώνες',
+			'an unfinished group puts one warning beside its FRNK heading');
+		check([...table.querySelectorAll('.points-frnk')].every(cell =>
+			!cell.dataset.tooltip?.includes('Προσωρινή κατάταξη')),
+			'the provisional warning is not repeated in every FRNK cell');
 		check(head.includes('D') === draws,
 			draws ? `${group.sport.name} can be drawn, so it has a D column` : `${group.sport.name} cannot be drawn, so it has no D column`);
 		const first = table.querySelector('tbody tr');
@@ -529,10 +533,15 @@ async function run(CONFIG, fail) {
 		window.eval('wb_recount')();
 		window.eval('pages_refresh_knockouts')();
 		window.eval('plan_refresh_knockouts')();
+		window.eval('points_refresh')();
 		const sides = window.eval('wb_sides')(knockoutGame);
 		const label = window.eval('wb_plan_label')(knockoutGame);
 		check(window.eval('wb_group_complete')(targetGroup) === true && sides.home !== null && sides.away !== null,
 			'all group results automatically fill both knockout sides');
+		const completedTable = [...doc.querySelectorAll('.points-group')]
+			.find(box => box.querySelector('.points-group-name').textContent === targetGroup.id);
+		check(completedTable.querySelector('.points-frnk-warning') === null,
+			'the FRNK warning vanishes when every group match is complete');
 		check(/^[0-9A-Z][sfb][0-9A-Z]$/.test(label), `the plan shows the resolved stage label ${label}`);
 		check(Object.keys(cfg.knockouts).some(id => window.eval('wb_knockout_stage')(id) === 'f'),
 			'the final uses the f marker');

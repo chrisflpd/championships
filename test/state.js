@@ -81,6 +81,10 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(plainFrnk.style.textDecorationLine, '');
 	assert.match(explainedFrnk.style.textDecoration, /underline dotted/,
 		'only FRNK cells with an explanation receive a dotted underline');
+	assert.ok(tooltipRules.some(rule => rule.selectorText === '.pages-played .pages-score .pages-input'),
+		'completed-match green styling targets score cells');
+	assert.ok(!tooltipRules.some(rule => rule.selectorText === '.pages-played .pages-input'),
+		'completed-match green styling cannot include the referee cell');
 	assert.equal(w.getComputedStyle(w.document.getElementById('excel')).opacity, '1',
 		'disabled buttons do not fade the dark tooltip');
 	w.parse_config(configText);

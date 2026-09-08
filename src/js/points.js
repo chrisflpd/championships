@@ -171,6 +171,15 @@ function points_table(title, rows, draws, ranked) {
 		cell.scope = 'col';
 		cell.textContent = text;
 		points_explain(cell, text);
+		if (text === 'FRNK' && rows.some(row => row.rank_provisional)) {
+			const warning = document.createElement('span');
+			warning.classList.add('points-frnk-warning');
+			warning.textContent = ' ⚠';
+			warning.setAttribute('aria-hidden', 'true');
+			cell.appendChild(warning);
+			cell.dataset.tooltip = 'Προσωρινή κατάταξη, εκκρεμούν αγώνες';
+			cell.setAttribute('aria-label', 'FRNK: Προσωρινή κατάταξη, εκκρεμούν αγώνες');
+		}
 		head_row.appendChild(cell);
 	});
 
@@ -208,10 +217,7 @@ function points_table(title, rows, draws, ranked) {
 			}
 			if (what === 'FRNK') {
 				cell.classList.add('points-frnk');
-				const explanation = [
-					row.rank_provisional ? 'Προσωρινή κατάταξη — εκκρεμούν σκορ.' : '',
-					row.rank_reason,
-				].filter(Boolean).join(' ');
+				const explanation = row.rank_reason;
 				if (explanation) {
 					cell.dataset.tooltip = explanation;
 					cell.tabIndex = 0;

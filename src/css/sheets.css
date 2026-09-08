@@ -661,7 +661,7 @@
 	color: var(--muted);
 }
 
-.pages-played .pages-input {
+.pages-played .pages-score .pages-input {
 	background: var(--ok-soft);
 	border-color: var(--ok);
 }
@@ -792,6 +792,12 @@
 .points-frnk[data-tooltip] {
 	text-decoration: underline dotted;
 	text-underline-offset: 3px;
+}
+
+.points-frnk-warning {
+	color: var(--warn);
+	font-size: .9em;
+	text-decoration: none;
 }
 
 .points-provisional { color: var(--muted); }
