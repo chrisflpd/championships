@@ -79,22 +79,11 @@ function pages_free_teams(iso, zone_rank, round_rank) {
 }
 
 //Keep every rotated print line short enough to fit inside the fixed-height
-//round. Four one-digit IDs or three two-digit IDs fit without changing a row.
+//round. Four IDs fit on one line without changing a row.
 function pages_free_chunks(teams) {
 	const chunks = [];
-	let line = '';
-	teams.forEach(team => {
-		const id = String(team.id);
-		const next = line === '' ? id : `${line}, ${id}`;
-		if (line !== '' && next.length > 10) {
-			chunks.push(line);
-			line = id;
-		} else {
-			line = next;
-		}
-	});
-	if (line !== '')
-		chunks.push(line);
+	for (let at = 0; at < teams.length; at += 4)
+		chunks.push(teams.slice(at, at + 4).map(team => team.id).join(', '));
 	return chunks;
 }
 
