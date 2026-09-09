@@ -63,17 +63,39 @@ function pages_print_date(date) {
 //also makes a manually duplicated team count only once.
 function pages_free_teams(iso, zone_rank, round_rank) {
 	const playing = new Set();
+	let games = 0;
 	wb_round_keys(iso, zone_rank, round_rank).forEach(key => {
 		const game = wb_at(key);
 		if (game === null)
 			return;
+		games++;
 		const sides = wb_sides(game);
 		if (sides.home !== null)
 			playing.add(sides.home);
 		if (sides.away !== null)
 			playing.add(sides.away);
 	});
-	return config.teams.filter(team => !playing.has(team.id));
+	return games === 0 ? [] : config.teams.filter(team => !playing.has(team.id));
+}
+
+//Keep every rotated print line short enough to fit inside the fixed-height
+//round. Four one-digit IDs or three two-digit IDs fit without changing a row.
+function pages_free_chunks(teams) {
+	const chunks = [];
+	let line = '';
+	teams.forEach(team => {
+		const id = String(team.id);
+		const next = line === '' ? id : `${line}, ${id}`;
+		if (line !== '' && next.length > 10) {
+			chunks.push(line);
+			line = id;
+		} else {
+			line = next;
+		}
+	});
+	if (line !== '')
+		chunks.push(line);
+	return chunks;
 }
 
 function pages_free_fill(cell, teams) {
@@ -99,9 +121,17 @@ function pages_free_fill(cell, teams) {
 	});
 	cell.appendChild(screen);
 
-	const printed = document.createElement('span');
+	const printed = document.createElement('div');
 	printed.classList.add('pages-free-print');
-	printed.textContent = teams.map(team => team.id).join(', ');
+	pages_free_chunks(teams).forEach(chunk => {
+		const line = document.createElement('span');
+		line.classList.add('pages-free-print-line');
+		const text = document.createElement('span');
+		text.classList.add('pages-free-print-text');
+		text.textContent = chunk;
+		line.appendChild(text);
+		printed.appendChild(line);
+	});
 	cell.appendChild(printed);
 }
 

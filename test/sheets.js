@@ -267,10 +267,21 @@ async function run(CONFIG, fail) {
 			id: line.querySelector('.pages-free-id').textContent,
 			name: line.querySelector('.pages-free-name').textContent,
 		}));
+		const printed = [...cell.querySelectorAll('.pages-free-print-text')].map(line => line.textContent);
 		return JSON.stringify(shown) === JSON.stringify(teams.map(team => ({
 			id: String(team.id), name: team.name,
-		}))) && cell.querySelector('.pages-free-print').textContent === teams.map(team => team.id).join(', ');
+		}))) && printed.join(', ') === teams.map(team => team.id).join(', ')
+			&& printed.every(line => line.length <= 10);
 	}), 'free teams are listed by ID and name on screen, and by ID only on paper');
+	check(freeCells.every(cell => {
+		const hasMatch = window.eval('wb_round_keys')(cell.dataset.iso,
+			Number(cell.dataset.zone), Number(cell.dataset.round))
+			.some(key => window.eval('wb_at')(key) !== null);
+		return hasMatch || (cell.querySelectorAll('.pages-free-team').length === 0
+			&& cell.querySelectorAll('.pages-free-print-text').length === 0);
+	}), 'rounds without a match leave Ελεύθερες blank');
+	check(freeCells.some(cell => cell.querySelectorAll('.pages-free-print-text').length > 1),
+		'long printed ID lists split across short vertical lines');
 	check(window.getComputedStyle(freeCells[0]).verticalAlign === 'middle',
 		'the free-team list is vertically centred in its merged cell');
 	const pageHeads = [...cards[0].querySelectorAll('thead th')];
@@ -369,9 +380,9 @@ async function run(CONFIG, fail) {
 		&& /\.pages-round\s*{[^}]*text-align:\s*center/s.test(printCss),
 		'and the round name stands in the middle of it, both ways');
 	check(/is-printing \.pages-free-screen\s*{[^}]*display:\s*none/s.test(printCss)
-		&& /is-printing \.pages-free-print\s*{[^}]*display:\s*inline-block/s.test(printCss)
-		&& /is-printing \.pages-free-print\s*{[^}]*writing-mode:\s*vertical-rl/s.test(printCss),
-		'the paper hides free-team names and sets their IDs vertically');
+		&& /is-printing \.pages-free-print\s*{[^}]*position:\s*absolute/s.test(printCss)
+		&& /is-printing \.pages-free-print-text\s*{[^}]*rotate\(-90deg\)/s.test(printCss),
+		'the paper hides free-team names and rotates short ID lines without changing row height');
 	check(/@page\s*{[^}]*margin:\s*0/s.test(printCss),
 		'the A4 page reserves no browser header or footer margin');
 	// the body is a page tall to begin with, and the first printed day carries a

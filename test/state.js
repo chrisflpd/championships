@@ -87,7 +87,8 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(sharedHint.style.transition, 'opacity .12s ease, transform .12s ease');
 	assert.match(sharedHint.style.transform, /--tooltip-shift/, 'tooltips can move only when a page edge requires it');
 	const refereeRule = tooltipRules.find(rule => rule.selectorText === '.pages-ref .pages-input');
-	assert.equal(refereeRule.style.width, '13em', 'referee inputs have room for a longer name');
+	assert.equal(refereeRule.style.width, '100%', 'referee inputs shrink with their column');
+	assert.equal(refereeRule.style.maxWidth, '13em', 'and still have room for a longer name when space allows');
 	const cellHint = tooltipRules.find(rule => rule.selectorText === '.points-table td[data-tooltip]::after');
 	const toolbarHint = tooltipRules.find(rule => rule.selectorText === '.toolbar button[data-tooltip]::after');
 	assert.equal(cellHint.style.width, 'max-content', 'standings explanations use only the width their text needs');

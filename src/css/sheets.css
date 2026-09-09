@@ -656,7 +656,10 @@
 }
 
 .pages-ref .pages-input {
-	width: 13em;
+	display: block;
+	max-width: 13em;
+	min-width: 0;
+	width: 100%;
 }
 
 /* One cell belongs to the whole round, not to any of its match rows. Its own
@@ -1134,6 +1137,7 @@
 
 	body.is-printing .pages-table .pages-free {
 		padding: 0;
+		position: relative;
 		text-align: center;
 		vertical-align: middle;
 	}
@@ -1143,12 +1147,27 @@
 	}
 
 	body.is-printing .pages-free-print {
-		display: inline-block;
+		align-items: stretch;
+		display: flex;
 		font-variant-numeric: tabular-nums;
-		transform: rotate(180deg);
-		vertical-align: middle;
+		inset: 0;
+		justify-content: center;
+		overflow: hidden;
+		position: absolute;
+	}
+
+	body.is-printing .pages-free-print-line {
+		align-items: center;
+		display: flex;
+		flex: 1 1 0;
+		justify-content: center;
+		min-width: 0;
+	}
+
+	body.is-printing .pages-free-print-text {
+		display: inline-block;
+		transform: rotate(-90deg);
 		white-space: nowrap;
-		writing-mode: vertical-rl;
 	}
 
 	body.is-printing .pages-table .pages-team {
