@@ -157,7 +157,7 @@ function produce_matches() {
 				}
 			}
 			catch(error){
-				alert(error.toString());
+				throw error;
 			}
 		}
 	});
@@ -188,9 +188,8 @@ function produce_matches() {
 /*
  * the search
  *
- * a window of the search holds the browser for as long as its time limit, so the
- * windows are run one after the other with a pause in between. the pause is what
- * lets the page draw the count of the attempts and take a stop from the user.
+ * Each search window runs in a worker, including match pairing. The page owns
+ * progress, retries and worker termination so stopping never waits for a window.
  */
 
 const SEARCH_WINDOW_MS = 3000; //the time limit that used to end the whole search
@@ -357,8 +356,8 @@ function search_impossible() {
 function search_run_window() {
 	produce_matches();
 	let program = null;
-	window.startTime = Date.now();
-	while (Date.now() - window.startTime < SEARCH_WINDOW_MS) {
+	globalThis.startTime = Date.now();
+	while (Date.now() - globalThis.startTime < SEARCH_WINDOW_MS) {
 		let currentMatches = shuffle([...matches]);
 		//the scheduler puts the matches straight into the calendar it is given and
 		//takes them back out again, so every ordering starts from its own copy and
@@ -398,6 +397,7 @@ function match_label(m) {
  * @returns {string} - empty until the search has got somewhere
  */
 function search_progress() {
+	if (search?.progress) return search.progress;
 	if (schedule_best_left === Infinity || matches.length === 0)
 		return '';
 	const placed = matches.length - schedule_best_left;
@@ -446,9 +446,50 @@ function search_notify(text) {
 	}
 }
 
-function search_window() {
+const SEARCH_WORKER_URL = typeof document === 'undefined' || !globalThis.location ? null
+	: new URL('search-worker.js' + new URL(document.currentScript?.src || window.location.href).search,
+		document.currentScript?.src || new URL('src/js/championships.js', window.location.href));
+
+function search_dispose(job) {
+	if (!job) return;
+	job.stopped = true;
+	clearTimeout(job.timer);
+	job.worker?.terminate();
+	job.cancel?.();
+}
+
+function search_worker_window(job) {
+	return new Promise((resolve, reject) => {
+		job.cancel = () => resolve(null);
+		if (typeof Worker !== 'function') throw new Error('Το πρόγραμμα περιήγησης δεν υποστηρίζει αναζήτηση στο παρασκήνιο.');
+		if (!job.worker) job.worker = new Worker(SEARCH_WORKER_URL);
+		job.worker.onerror = event => reject(new Error(event.message || 'Δεν ήταν δυνατή η εκκίνηση της αναζήτησης.'));
+		job.worker.onmessage = ({ data }) => {
+			if (search !== job || job.stopped) { resolve(null); return; }
+			if (data.error) { reject(new Error(data.error)); return; }
+			job.progress = data.progress;
+			const program = data.program;
+			if (program) program.forEach(day => {
+				day.date = new Date(day.date);
+				day.dzones.forEach(zone => zone.rounds.forEach(round => Object.values(round.slots).forEach(slot => {
+					const match = slot.match;
+					if (!match) return;
+					const kn = config.knockouts[match.id];
+					match.sport = (kn || config.groups[match.id]).sport;
+					match.team_home = kn ? kn.home : config.teams.find(t => t.id === match.team_home.id);
+					match.team_away = kn ? kn.away : config.teams.find(t => t.id === match.team_away.id);
+				})));
+			});
+			resolve(program);
+		};
+		job.worker.postMessage({ text: job.text, relaxed: relax_adjacency });
+	});
+}
+
+async function search_window() {
 	if (search === null || search.stopped)
 		return;
+	const job = search;
 	search.windows++;
 	//the adjacent round rules are preferences, so after the first attempts the
 	//search also looks for a program without them. dropping them helps some
@@ -464,14 +505,16 @@ function search_window() {
 	search_report(`Αναζήτηση προγράμματος: προσπάθεια ${search.windows}${relax_adjacency ? ' (χαλαρωμένοι κανόνες)' : ''}… (${search_seconds()} δευτ.)`);
 	let program = null;
 	try {
-		program = search_run_window();
+		program = await search_worker_window(job);
 	} catch (error) {
+		if (search !== job) return;
+		search_dispose(job);
 		search = null;
 		search_report(`Η αναζήτηση σταμάτησε: ${error.message}`, true, 'error');
 		alert(error.toString());
 		return;
 	}
-	if (search === null || search.stopped) //stopped while the window was running
+	if (search !== job || job.stopped) // Ignore a stopped or replaced search.
 		return;
 	if (program === null) {
 		//the time limit was hit, which is not the end any more: say so and try again
@@ -479,13 +522,14 @@ function search_window() {
 			+ search_progress());
 		if (search.windows === 1) //told once, so that a search left alone is not silent
 			search_notify(`Το όριο των ${SEARCH_WINDOW_MS / 1000} δευτ. εξαντλήθηκε. Η αναζήτηση συνεχίζεται μόνη της.`);
-		setTimeout(search_window, SEARCH_PAUSE_MS);
+		job.timer = setTimeout(search_window, SEARCH_PAUSE_MS);
 		return;
 	}
 	//a program found without the adjacent round rules may put a team in the same
 	//sport twice in a row, which the user has to know
 	const text = `Το πρόγραμμα βρέθηκε στην προσπάθεια ${search.windows} (${search_seconds()} δευτ.).`
 		+ (relax_adjacency ? ' Οι κανόνες για δύο συνεχόμενους γύρους ήταν χαλαρωμένοι, οπότε μια ομάδα μπορεί να παίζει το ίδιο άθλημα σε δύο συνεχόμενους γύρους.' : '');
+	search_dispose(job);
 	search = null;
 	search_report(text, true, 'ok');
 	search_notify(text);
@@ -501,14 +545,14 @@ function search_stop() {
 		return;
 	const text = `Η αναζήτηση σταμάτησε μετά από ${search_tries(search.windows)} (${search_seconds()} δευτ.).`
 		+ search_progress();
-	search.stopped = true;
+	search_dispose(search);
 	search = null;
 	search_report(text, true, 'stopped');
 }
 
 function search_start() {
 	if (search !== null) //a submit during a search starts it over
-		search.stopped = true;
+		search_dispose(search);
 	search = null;
 	relax_adjacency = false;
 	schedule_forget_best();
@@ -538,6 +582,7 @@ function search_start() {
 	}
 
 	search = {
+		text: config.text,
 		windows: 0,
 		started: Date.now(),
 		stopped: false,
@@ -548,15 +593,15 @@ function search_start() {
 		Notification.requestPermission();
 	search_report('Αναζήτηση προγράμματος…');
 	//let the page draw before a window takes the browser
-	setTimeout(search_window, 0);
+	search.timer = setTimeout(search_window, 0);
 }
 
-document.addEventListener('championships_config_parsed', () => {
+if (typeof document !== 'undefined') document.addEventListener('championships_config_parsed', () => {
 	console.log('started');
 	search_start();
 })
 
-document.addEventListener('DOMContentLoaded', () => {
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => {
 	const stop = document.getElementById('stop');
 	if (stop !== null)
 		stop.addEventListener('click', search_stop);

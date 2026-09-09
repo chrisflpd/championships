@@ -263,7 +263,45 @@ function wb_history_buttons() {
 	if (redo) redo.disabled = !wb_history.future.length;
 }
 
+// Compare against the previous edit, and clear dependent scores in bracket order.
+// Keeping this inside the edit also makes score invalidation undoable.
+function wb_invalidate_changed_knockouts() {
+	if (!wb_history.current) return;
+	const previous = JSON.parse(wb_history.current);
+	if (previous.sig !== workbook.sig) return;
+	const current = { slots: workbook.slots, results: workbook.results, offered: workbook.offered };
+	let before;
+	try {
+		workbook.offered = previous.plan;
+		workbook.results = previous.results;
+		wb_restore(false);
+		wb_recount();
+		before = Object.fromEntries(Object.values(config.knockouts).map(kn =>
+			[kn.id, [wb_side(kn.home, {}), wb_side(kn.away, {})]]));
+	} finally {
+		Object.assign(workbook, current);
+		wb_recount();
+	}
+	// Numeric IDs may enumerate out of dependency order; repeat until stable.
+	for (let pass = 0; pass < Object.keys(config.knockouts).length; pass++) {
+		let changed = false;
+		for (const kn of Object.values(config.knockouts)) {
+			const sides = [wb_side(kn.home, {}), wb_side(kn.away, {})];
+			if (sides.some((id, i) => id !== before[kn.id][i])) {
+				const result = workbook.results['k:' + kn.id];
+				if (result && (result.sh !== null || result.sa !== null)) {
+					workbook.results['k:' + kn.id] = { ...result, sh: null, sa: null };
+					changed = true;
+				}
+				wb_recount();
+			}
+		}
+		if (!changed) break;
+	}
+}
+
 function wb_save() {
+	wb_invalidate_changed_knockouts();
 	const state = JSON.stringify(wb_snapshot());
 	if (wb_history.current !== null && state !== wb_history.current) {
 		wb_history.past.push(wb_history.current);
@@ -287,7 +325,7 @@ function wb_save() {
  *
  * @returns {string}
  */
-function wb_signature() {
+function wb_legacy_signature() {
 	const parts = [];
 	config.sports.forEach(sport => parts.push('s' + sport.name + ':' + sport.courts.join(',')));
 	config.sports.filter(sport => sport.tiebreakers).forEach(sport =>
@@ -300,6 +338,36 @@ function wb_signature() {
 		+ ':' + (group.matches || []).map(gm => gm.team_home.id + 'v' + gm.team_away.id).join(',')));
 	Object.values(config.knockouts).forEach(kn => parts.push('k' + kn.id + kn.sport.name));
 	return parts.join('|');
+}
+
+
+function wb_signature() {
+	const side = union => union.type === 'fixed' ? ['fixed', union.team.id]
+		: union.type === 'group' ? ['group', union.group.id, union.rank]
+		: ['knockout', union.knockout.id, union.is_winner];
+	return 'v2:' + JSON.stringify({
+		sports: config.sports.map(s => [s.name, s.courts, s.points, tiebreak_order(s)]),
+		zones: config.zones.map(z => z.name),
+		days: config.days.map(d => [wb_iso(d.date), d.dzones.map(z => z.rounds.length)]),
+		teams: config.teams.map(t => [t.id, t.name]),
+		groups: Object.values(config.groups).map(g => [g.id, g.sport.name,
+			g.teams.map(t => t.id), g.matches ? g.matches.map(m => [m.team_home.id, m.team_away.id]) : g.team_matches]),
+		knockouts: Object.values(config.knockouts).map(k => [k.id, k.sport.name, side(k.home), side(k.away)]),
+	});
+}
+
+// Upgrade old snapshots only when their original configuration proves a match.
+function wb_matches_config(stored) {
+	if (!stored) return false;
+	const expected = wb_signature();
+	if (stored.sig === expected) return true;
+	if (!stored.configuration || typeof stored.sig !== 'string' || stored.sig.startsWith('v2:')) return false;
+	const previous = { ...config };
+	try {
+		parse_config(stored.configuration);
+		return stored.sig === wb_legacy_signature() && wb_signature() === expected;
+	} catch (error) { return false; }
+	finally { Object.assign(config, previous); }
 }
 
 
@@ -368,7 +436,7 @@ function wb_build(program) {
 	});
 
 	const stored = wb_stored();
-	const mine = stored !== null && stored.sig === workbook.sig;
+	const mine = wb_matches_config(stored);
 	//a score belongs to the match and not to the slot, so it is put straight back:
 	//wherever this search has placed that match, the result of it is still its own
 	workbook.results = mine && stored.results ? stored.results : {};
@@ -645,15 +713,17 @@ function wb_complaints(key) {
 	const court = parts[3];
 	if (!game.sport.courts.includes(court))
 		said.push(`Το ${court} δεν είναι γήπεδο για ${game.sport.name}`);
-	if (game.kn === null && game.home === game.away)
+	const sides = wb_sides(game);
+	if (sides.home !== null && sides.home === sides.away)
 		said.push('Η ομάδα παίζει με τον εαυτό της');
 	const round_prefix = parts.slice(0, 3).join('|') + '|';
-	const here = [game.home, game.away].filter(id => id !== null);
+	const here = [sides.home, sides.away].filter(id => id !== null);
 	for (const other_key in workbook.slots) {
 		if (other_key === key || other_key.indexOf(round_prefix) !== 0)
 			continue;
 		const other = workbook.slots[other_key];
-		[other.home, other.away].forEach(id => {
+		const otherSides = wb_sides(other);
+		[otherSides.home, otherSides.away].forEach(id => {
 			if (id !== null && here.includes(id))
 				said.push(`Η ${wb_team_name(id)} παίζει ήδη στον ίδιο γύρο`);
 		});

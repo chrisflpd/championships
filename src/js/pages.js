@@ -523,6 +523,12 @@ function pages_refresh_knockouts() {
 		const game = wb_at(row.dataset.key);
 		if (game === null || game.kn === null)
 			return;
+		const result = wb_result(game);
+		for (const which of ['sh', 'sa']) {
+			const input = row.querySelector(`.pages-input[data-which="${which}"]`);
+			if (input) input.value = result[which] === null ? '' : String(result[which]);
+		}
+		row.classList.toggle('pages-played', wb_played(game));
 		const sides = wb_sides(game);
 		[['home', sides.home, sides.home_label], ['away', sides.away, sides.away_label]].forEach(side => {
 			const id = row.querySelector(`.pages-${side[0]}-id`);

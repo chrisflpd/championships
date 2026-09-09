@@ -315,8 +315,19 @@ function hasPairPlayedInZone(dzone, team1Name, team2Name) {
 }
 
 //Here is the scheduling for default structure. It is a recursive function that every time a match is placed in a slot, it calls itself after it pops the match, to schedule the next one until all matches are placed in a slot.
+// Group teams and fixed knockout entrants occupy the round equally, regardless
+// of which match was placed first. Unresolved qualifiers remain unknown here.
+function schedule_known_clash(match, round) {
+	const known = game => [game.team_home, game.team_away]
+		.map(side => side.type === 'fixed' ? side.team.id : side.id)
+		.filter(id => id !== undefined);
+	const teams = known(match);
+	return Object.values(round.slots).some(slot => slot.match &&
+		known(slot.match).some(id => teams.includes(id)));
+}
+
 function ScheduleMatchesDefault(matches,days){
-	if (window.startTime && Date.now() - window.startTime > 3000) {
+	if (globalThis.startTime && Date.now() - globalThis.startTime > 3000) {
 		throw new Error("TIMEOUT");
 	}
 	//nothing below reads these; they only remember how far the search has got
@@ -370,6 +381,7 @@ function ScheduleMatchesDefault(matches,days){
 					}
 					for (let s of courtsToIterate){//for every slot (name of court sorted by need) in this round
 						for (let m = 0; m < matches.length; m++){
+							if (schedule_known_clash(matches[m], days[d].dzones[dz].rounds[r])) continue;
 							//RULES
 							//if this slot is available and the court corresponds to the sport of the match and its not a knockout (1)
 							//console.log(d,days[d].dzones[dz].rounds[r].slots[s],matches[m].id,matches[m].team_home.name,matches[m].team_away.name,matches[m].points,matches[m].sequence,days[d].date,days[d].dzones[dz].rounds[r].rank,days[d].dzones[dz].rounds[r].zone);

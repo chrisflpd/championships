@@ -52,6 +52,7 @@ vc.on('error', (...a) => noise.push('console.error: ' + a.join(' ')));
 async function run(CONFIG, fail) {
 	const port = server.address().port;
 	const dom = await JSDOM.fromURL(`http://127.0.0.1:${port}/index.html`, {
+		beforeParse(window) { window.Worker = require('./worker-adapter').BrowserWorker; },
 		runScripts: 'dangerously',
 		resources: 'usable',
 		pretendToBeVisual: true,

@@ -119,3 +119,13 @@ textarea[name="config"]::placeholder {
 	box-shadow: var(--ring);
 	outline: none;
 }
+
+#save-warning:not([hidden]) {
+	margin: 12px 22px;
+	padding: 14px;
+	border: 2px solid #b42318;
+	border-radius: 8px;
+	background: #fff1f0;
+	color: #7a1710;
+}
+#save-warning .button { margin-left: 12px; }

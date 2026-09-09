@@ -39,6 +39,7 @@ function parse_sport_line(line) {
 		name: sport_name,
 		courts: sport_courts,
 		points_fn: sport_points_fn,
+		points: sport_ma[2] === undefined ? null : sport_ma.slice(2, 5).map(Number),
 	});
 }
 
@@ -188,7 +189,7 @@ function parse_group_line(line) {
 	if (group_ma === null)
 		throw new Error(`parse_group_line ${line}: not valid group line`);
 	const group_id = group_ma[1];
-	if (group_id in config.groups)
+	if (group_id in config.groups || group_id in config.knockouts)
 		throw new Error(`parse_group_line ${line}: duplicate group id ${group_id}`);
 	const group_sport = config.sports.filter(sport => sport.name === group_ma[2])[0];
 	if (group_sport === undefined)
@@ -251,7 +252,7 @@ function parse_knockout_line(line) {
 	if (knockout_ma === null)
 		throw new Error(`parse_knockout_line ${line}: not valid knockout line`);
 	const knockout_id = knockout_ma[1];
-	if (knockout_id in config.knockouts)
+	if (knockout_id in config.knockouts || knockout_id in config.groups)
 		throw new Error(`parse_knockout_line ${line}: duplicate knockout id ${knockout_id}`);
 	const knockout_sport = config.sports.filter(sport => sport.name === knockout_ma[2])[0];
 	if (knockout_sport === undefined)
@@ -327,11 +328,22 @@ function parse_tiebreak_line(line) {
 
 /**
  * Reads the configuration used by scheduling, restored workbooks and links.
- * Throws on invalid input, leaving whatever has been parsed up to that point.
+ * Throws on invalid input without changing the active configuration.
  * @param {string} text
  * @returns {void}
  */
 function parse_config(text) {
+	const previous = { ...config };
+	try {
+		parse_config_into(text);
+	} catch (error) {
+		Object.keys(config).forEach(key => delete config[key]);
+		Object.assign(config, previous);
+		throw error;
+	}
+}
+
+function parse_config_into(text) {
 	config.text = text;
 	config.courts = [];
 	config.sports = [];
@@ -389,7 +401,7 @@ function parse_config(text) {
 }
 
 
-document.addEventListener('DOMContentLoaded', () => {
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => {
 
 	console.log('ready');
 
@@ -403,7 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		else
 			appStorage.removeItem('config');
 	}
-	document.getElementById('save').addEventListener('click', keep_config);
+	document.getElementById('save').addEventListener('click', () => {
+		try { keep_config(); } catch (error) { /* The persistent save notice explains the failure. */ }
+	});
 	document.getElementById('load').addEventListener('click', event => {
 		const value = appStorage.getItem('config');
 		if (value !== null)
@@ -420,10 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		// a configuration that was worth submitting is worth keeping, so that an
 		// edit is not lost to a reload that has only what was last saved by hand
-		keep_config();
-
 		try {
 			parse_config(form['config'].value);
+			try { keep_config(); } catch (error) { /* Continue with the visible unsaved warning. */ }
 			console.log(config);
 			document.dispatchEvent(new Event('championships_config_parsed'));
 		} catch (error) {

@@ -153,3 +153,9 @@ order, direct winners, three-way circular ties, subgroup restarts, missing and
 unbalanced mutual fixtures, provisional rankings, numeric-ID fallback, sport
 scoring and parser errors. The state and sheets suites additionally verify rule
 preservation in backups/links, qualification, FRNK placement and hover explanations.
+
+The page tests run `search-worker.js` in a Node worker thread through
+`worker-adapter.js`, since jsdom has no native Worker API. They exercise the real
+parser and scheduler off the main thread and reconnect the returned matches.
+The state suite also checks save-failure warnings and retry recovery, and controls
+worker replies to test immediate cancellation, replacement and late-result races.

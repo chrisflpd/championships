@@ -32,6 +32,10 @@ taken.
 edits, including scores and referees. A whole-round or whole-zone swap is one
 step. History lasts for the current visit and resets when a championship is
 generated, restored or imported; a new edit after undo discards the redo branch.
+If an edit changes the participants of a knockout, its scores and any affected
+downstream scores are cleared; referee names remain. Undo restores the edit and
+the cleared scores together.
+
 In the plan tab, Ctrl/Cmd+Z undoes and Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redoes.
 These shortcuts leave text editing and the other tabs alone.
 
@@ -145,6 +149,10 @@ Opening somebody else's link leaves your own championship where it is: what
 arrives by link is drawn but not stored, and only a change of your own puts it in
 your browser's place.
 
+The search runs in a Web Worker, including match generation, so the page stays
+responsive during difficult searches. Stop terminates the worker immediately;
+starting another search discards replies from the previous one.
+
 ## what is kept
 
 **Εξαγωγή** in Configuration downloads a `.json` backup of the current workbook
@@ -162,11 +170,21 @@ example, `championships:/championships/:workbook`. This isolates projects hosted
 on the same GitHub Pages origin. Recognized legacy data is copied once without
 overwriting namespaced values or deleting generic keys another app may use.
 
+Saved championship identities include scoring rules, matches per team and every
+knockout selection. Older snapshots are recognized when their original configuration
+confirms an exact match. A rejected configuration submission leaves the active
+championship and saved data untouched.
+
 A championship is kept in the browser between visits, and the page offers it back
 over the head of the configuration, before any search is run: open the page the next
 morning and the whole of yesterday is waiting there to be opened, plan and scores
 and all. It is only offered when what is stored is the championship of the
 configuration in the box, and saying no throws nothing away.
+
+If browser storage is full or blocked, a persistent warning says the changes
+have not been saved. The edits stay in memory; export a JSON backup or use
+**Δοκιμή ξανά** after storage becomes available. The warning disappears only after
+a successful save, and leaving the page while edits remain unsaved prompts you.
 
 The plan and the scores are kept in the browser between visits. The scores are
 kept against the match, so a fresh search that moves a match somewhere else does
@@ -343,7 +361,8 @@ kg  Basketball  : 1v2, 3v4, 1v3, 2v4
 
 A knockout line contains the knockout code, the sport name and two expressions describing the selection algorithm of each opponent.
 
-The knockout code is a single word. Knockouts with the same code are not allowed.
+The knockout code is a single word. Knockouts with the same code are not allowed. A knockout code must also differ
+from every group code.
 
 An expression may take one of the following three forms:
 

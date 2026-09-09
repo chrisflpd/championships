@@ -38,7 +38,7 @@ function saved_stored() {
 		return null;
 	}
 	//a plan only ever goes back on the configuration it was made for
-	return wb_signature() === stored.sig ? stored : null;
+	return wb_matches_config(stored) ? stored : null;
 }
 
 /**

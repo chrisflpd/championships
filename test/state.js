@@ -36,6 +36,7 @@ async function page(url = 'https://example.test/championships/', kept = {}) {
 	vc.on('jsdomError', error => errors.push(error.message));
 	const dom = new JSDOM(html, { url, runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
 	const w = dom.window;
+	w.Worker = require('./worker-adapter').BrowserWorker;
 	for (const link of w.document.querySelectorAll('link[rel="stylesheet"]')) {
 		const style = w.document.createElement('style');
 		style.textContent = fs.readFileSync(path.join(ROOT, link.getAttribute('href').split('?')[0]), 'utf8');
@@ -367,5 +368,175 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(w.excel_filename([{ date: new Date('2006-08-10T00:00:00Z') }]), 'champ06.xlsx');
 	assert.equal(w.excel_filename([{ date: new Date('2025-12-31T00:00:00Z') }, { date: new Date('2026-01-01T00:00:00Z') }]), 'champ25.xlsx');
 	console.log('ok: conditional sport-prefix labels, stable IDs, sentence-case headings, and championship-year filenames');
+	// Regression checks for configuration identity and knockout data integrity.
+	const review = await page();
+	const text = `[sports]
+Soccer 3-1-0: A, B
+[zones]
+Morning
+[days]
+2026-08-10 8
+[teams]
+One
+Two
+Three
+Four
+[groups]
+g Soccer 3: 1-4
+[knockouts]
+30 Soccer 1 2
+20 Soccer 30:W 3
+10 Soccer 20:W 4
+loser Soccer 30:L 4
+`;
+	review.parse_config(text);
+	review.document.forms[0].config.value = text;
+	review.displayer(review.eval('config.days'));
+	const groupMatch = {team_home:{id:1}, team_away:{id:3}};
+	const knockoutMatch = {team_home:{type:'fixed', team:{id:1}}, team_away:{type:'group'}};
+	assert.ok(review.schedule_known_clash(groupMatch, {slots:{A:{match:knockoutMatch}}}), 'group after fixed knockout clashes');
+	assert.ok(review.schedule_known_clash(knockoutMatch, {slots:{A:{match:groupMatch}}}), 'fixed knockout after group clashes');
+	assert.equal(review.schedule_known_clash({team_home:{id:2}, team_away:{id:4}}, {slots:{A:{match:knockoutMatch}}}), false);
+	const signature = review.wb_signature();
+	const legacy = { ...review.wb_snapshot(), sig: review.wb_legacy_signature() };
+	assert.ok(review.wb_matches_config(legacy), 'old snapshots are recognized using their original text');
+	assert.equal(review.backup_validate({format:'championships', version:1, configuration:text, workbook:legacy}).workbook.sig,
+		signature, 'old backup signatures upgrade on import');
+	for (const altered of [text.replace('g Soccer 3:', 'g Soccer 6:'),
+		text.replace('3-1-0', '5-2-1'), text.replace('30 Soccer 1 2', '30 Soccer 2 4')]) {
+		review.parse_config(altered);
+		assert.notEqual(review.wb_signature(), signature);
+		assert.equal(review.wb_matches_config(legacy), false, 'legacy data must not match a different configuration');
+	}
+	review.parse_config(text);
+	const at = (round, court = 'A') => review.wb_key('2026-08-10', 0, round, court);
+	for (const [round, id] of [[0,'30'], [1,'20'], [2,'10'], [3,'loser']]) review.wb_put(at(round), id, null, null);
+	for (const round of [0,1,2,3]) review.wb_set_result(review.wb_at(at(round)), 2, 0, 'Ref');
+	review.wb_history_reset();
+	review.sheets_draw();
+	const input = review.document.querySelector(`[data-key="${at(0)}"] .pages-input[data-which="sa"]`);
+	input.value = '3';
+	input.dispatchEvent(new review.Event('input', { bubbles: true }));
+	for (const round of [1,2,3]) {
+		assert.equal(review.wb_result(review.wb_at(at(round))).sh, null, 'winner, loser and transitive scores clear');
+		assert.equal(review.wb_result(review.wb_at(at(round))).ref, 'Ref');
+		assert.equal(review.document.querySelector(`[data-key="${at(round)}"] .pages-input[data-which="sh"]`).value, '',
+			'cleared results disappear from the score inputs immediately');
+	}
+	review.wb_history_step(false);
+	for (const round of [0,1,2,3]) assert.equal(review.wb_result(review.wb_at(at(round))).sh, 2, 'one undo restores the bracket');
+	review.wb_history_step(true);
+	assert.equal(review.wb_result(review.wb_at(at(1))).sh, null);
+	review.wb_history_step(false);
+	review.wb_set_result(review.wb_at(at(0)), 4, 0, 'Changed ref');
+	assert.equal(review.wb_result(review.wb_at(at(1))).sh, 2, 'unchanged participants retain their score');
+	review.wb_move(at(1), at(5));
+	assert.equal(review.wb_result(review.wb_at(at(5))).sh, 2, 'moving a scored knockout preserves its result');
+	review.wb_put(at(0, 'B'), 'g', 1, 3);
+	assert.ok(review.wb_complaints(at(0)).some(s => s.includes('One')));
+	assert.ok(review.wb_complaints(at(0, 'B')).some(s => s.includes('One')));
+	review.wb_put(at(5, 'B'), 'g', 1, 4);
+	assert.ok(review.wb_complaints(at(5)).some(s => s.includes('One')), 'resolved knockout clashes are detected');
+	review.wb_clear(at(0));
+	assert.equal(review.wb_result(review.wb_at(at(5))).sh, null, 'removing a feeder invalidates dependent results');
+
+	// A failed submit must preserve both active objects and durable values.
+	review.sheets_draw();
+	const beforePlan = plan(review), beforeStorage = stored(review);
+	const activeDays = review.eval('config.days');
+	review.alert = () => {};
+	review.document.forms[0].config.value = '[sports]\nOther\n[days]\nINVALID';
+	review.eval('ui_asked = true');
+	review.document.forms[0].dispatchEvent(new review.Event('submit', {bubbles:true, cancelable:true}));
+	review.eval('ui_asked = false');
+	assert.equal(review.wb_signature(), signature);
+	assert.equal(review.eval('config.days'), activeDays, 'failed parsing preserves existing object references');
+	assert.equal(plan(review), beforePlan);
+	assert.equal(stored(review), beforeStorage);
+	assert.equal(review.document.getElementById('excel').disabled, false);
+	assert.throws(() => review.parse_config(text + 'g Soccer 1 2\n'), /duplicate/);
+	assert.throws(() => review.parse_config(text + '[groups]\n30 Soccer 1: 1-2\n'), /duplicate/);
+	assert.equal(review.wb_signature(), signature, 'ID collision errors are transactional too');
+	const groupText = text.slice(0, text.indexOf('[groups]')) + '[groups]\ng Soccer: 1v2\n[knockouts]\nf Soccer g:1 3\nx Soccer 1 4\n';
+	review.parse_config(groupText);
+	review.displayer(review.eval('config.days'));
+	review.wb_put(at(0), 'g', 1, 2);
+	review.wb_put(at(1), 'f', null, null);
+	review.wb_put(at(1, 'B'), 'x', null, null);
+	review.sheets_draw();
+	review.wb_set_result(review.wb_at(at(0)), 2, 0, '');
+	review.plan_refresh_knockouts();
+	const finalCell = review.document.querySelector(`#sheet-plan [data-key="${at(1)}"]`);
+	assert.ok(finalCell.classList.contains('cell-wrong'), 'qualification immediately marks a knockout clash');
+	review.wb_set_result(review.wb_at(at(1)), 3, 0, 'Final referee');
+	review.wb_set_result(review.wb_at(at(0)), 0, 2, '');
+	assert.equal(review.wb_result(review.wb_at(at(1))).sh, null, 'changed group qualification clears final score');
+	review.plan_refresh_knockouts();
+	assert.equal(finalCell.classList.contains('cell-wrong'), false, 'changed qualification removes the clash');
+	assert.ok(!(finalCell.getAttribute('aria-label') || '').includes('Παραβίαση κανόνα'), 'no stale clash warning remains for screen readers');
+	review.close();
+	console.log('ok: knockout score invalidation, undo, clashes, complete signatures, old backups and atomic submissions');
+
+	const durability = await page();
+	durability.parse_config(configText);
+	durability.displayer(durability.eval('config.days'));
+	const durableKey = durability.share_slots()[0];
+	durability.wb_put(durableKey, 'pg', 1, 2);
+	const storagePrototype = durability.Storage.prototype;
+	const write = storagePrototype.setItem;
+	storagePrototype.setItem = function(key, value) {
+		if (key.endsWith(':workbook')) throw new Error('QuotaExceededError');
+		return write.call(this, key, value);
+	};
+	durability.wb_set_result(durability.wb_at(durableKey), 7, 2, 'Ref');
+	assert.equal(durability.document.getElementById('save-warning').hidden, false);
+	assert.equal(durability.wb_result(durability.wb_at(durableKey)).sh, 7, 'failed saves retain edits in memory');
+	const leaving = new durability.Event('beforeunload', {cancelable:true});
+	durability.dispatchEvent(leaving);
+	assert.ok(leaving.defaultPrevented, 'unsaved edits warn before leaving');
+	durability.document.getElementById('save-retry').click();
+	assert.equal(durability.document.getElementById('save-warning').hidden, false, 'failed retries keep the warning');
+	storagePrototype.setItem = write;
+	durability.document.getElementById('save-retry').click();
+	assert.equal(durability.document.getElementById('save-warning').hidden, true);
+	assert.equal(durability.wb_stored().results[durability.wb_ident(durability.wb_at(durableKey))].sh, 7);
+	durability.close();
+
+	// Hold worker replies to exercise cancellation and replacement races.
+	const asyncPage = await page();
+	const workers = [];
+	asyncPage.Worker = class {
+		constructor() { workers.push(this); }
+		postMessage(data) { this.request = data; }
+		terminate() { this.terminated = true; }
+	};
+	asyncPage.parse_config(configText);
+	asyncPage.search_start();
+	await new Promise(resolve => setTimeout(resolve, 10));
+	assert.equal(workers.length, 1);
+	assert.equal(workers[0].request.text, configText);
+	let responsive = false;
+	await new Promise(resolve => asyncPage.setTimeout(() => { responsive = true; resolve(); }, 0));
+	assert.ok(responsive, 'UI timers run while a worker reply is pending');
+	asyncPage.search_start();
+	assert.ok(workers[0].terminated, 'replacement terminates the previous worker');
+	await new Promise(resolve => setTimeout(resolve, 10));
+	workers[0].onmessage({data:{program:[], progress:'stale'}});
+	assert.equal(asyncPage.document.querySelector('#program .day-list'), null, 'late results cannot redraw the old plan');
+	asyncPage.search_stop();
+	assert.ok(workers[1].terminated, 'Stop terminates the running worker immediately');
+	workers[1].onmessage({data:{program:[], progress:'late'}});
+	await new Promise(resolve => setTimeout(resolve, 0));
+	assert.ok(asyncPage.document.getElementById('search').classList.contains('is-stopped'));
+	asyncPage.search_start();
+	await new Promise(resolve => setTimeout(resolve, 10));
+	asyncPage.alert = () => {};
+	workers[2].onerror({message:'worker unavailable'});
+	await new Promise(resolve => setTimeout(resolve, 0));
+	assert.ok(workers[2].terminated);
+	assert.ok(asyncPage.document.getElementById('search').classList.contains('is-error'));
+	asyncPage.close();
+	console.log('ok: persistent save warnings, retry recovery, responsive search and worker cancellation/error races');
+
 	for (const page of [w, other, reloaded, migrated, isolated]) page.close();
 })().catch(error => { console.error(error); process.exitCode = 1; });

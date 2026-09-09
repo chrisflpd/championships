@@ -52,7 +52,7 @@ function championship_validate(text, stored, shared) {
 			});
 			stored = { sig: workbook.sig, plan, results: shared.r };
 		}
-		if (!object(stored) || stored.sig !== workbook.sig || !object(stored.plan) || !object(stored.results)) bad();
+		if (!object(stored) || !wb_matches_config({ ...stored, configuration: text }) || !object(stored.plan) || !object(stored.results)) bad();
 		const teams = new Set(config.teams.map(team => team.id));
 		Object.entries(stored.plan).forEach(([key, game]) => {
 			if (!allowed.has(key) || !object(game)) bad();
@@ -66,7 +66,7 @@ function championship_validate(text, stored, shared) {
 			if (['__proto__', 'constructor', 'prototype'].includes(key) || !object(result) || typeof result.ref !== 'string' ||
 				![result.sh, result.sa].every(n => n === null || (Number.isSafeInteger(n) && n >= 0))) bad();
 		});
-		return JSON.parse(JSON.stringify({ ...stored, configuration: text }));
+		return JSON.parse(JSON.stringify({ ...stored, sig: workbook.sig, configuration: text }));
 	} finally {
 		Object.keys(config).forEach(key => delete config[key]);
 		Object.assign(config, oldConfig);

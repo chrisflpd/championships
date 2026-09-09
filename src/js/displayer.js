@@ -316,13 +316,19 @@ function plan_draw(sheet) {
 //A score can fill the sides of later knockout matches without redrawing the
 //whole editable plan and stealing focus from the score box being typed in.
 function plan_refresh_knockouts() {
+	wb_recount();
+	plan_warning_close();
 	document.querySelectorAll('#sheet-plan td.cell-match[data-key]').forEach(cell => {
-		const game = wb_at(cell.dataset.key);
-		if (game === null || game.kn === null)
-			return;
-		cell.textContent = wb_plan_label(game);
-		const parts = cell.dataset.key.split('|');
-		cell.title = plan_title(game, parts[3] || '');
+		const key = cell.dataset.key;
+		const game = wb_at(key);
+		if (game === null) return;
+		if (game.kn !== null) {
+			cell.textContent = wb_plan_label(game);
+			cell.title = plan_title(game, key.split('|')[3] || '');
+		}
+		// Qualification can introduce or remove a clash with a group match too.
+		plan_mark(cell, plan_shows_rules() ? wb_complaints(key) : [],
+			plan_shows_cautions() ? wb_cautions(key) : []);
 	});
 }
 
@@ -399,6 +405,7 @@ function plan_mark(cell, said, careful) {
 		delete cell.dataset.caution;
 	if (said.length === 0 && mind.length === 0) {
 		cell.removeAttribute('aria-describedby');
+		cell.removeAttribute('aria-label');
 		return;
 	}
 	//said aloud as well, since the panels are only drawn for the eye

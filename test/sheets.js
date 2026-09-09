@@ -62,6 +62,7 @@ async function second(port, kept, before, check) {
 		pretendToBeVisual: true,
 		virtualConsole: vc,
 		beforeParse(window) {
+			window.Worker = require('./worker-adapter').BrowserWorker;
 			//what the first visit left, there before a line of the page has run
 			Object.keys(kept).forEach(key => window.localStorage.setItem(key, kept[key]));
 		},
@@ -111,6 +112,7 @@ async function second(port, kept, before, check) {
  */
 async function shared(port, link, before, check) {
 	const dom = await JSDOM.fromURL(link.replace(/^[^#]*/, `http://127.0.0.1:${port}/index.html`), {
+		beforeParse(window) { window.Worker = require('./worker-adapter').BrowserWorker; },
 		runScripts: 'dangerously',
 		resources: 'usable',
 		pretendToBeVisual: true,
@@ -139,6 +141,7 @@ async function shared(port, link, before, check) {
 async function run(CONFIG, fail) {
 	const port = server.address().port;
 	const dom = await JSDOM.fromURL(`http://127.0.0.1:${port}/index.html`, {
+		beforeParse(window) { window.Worker = require('./worker-adapter').BrowserWorker; },
 		runScripts: 'dangerously',
 		resources: 'usable',
 		pretendToBeVisual: true,
