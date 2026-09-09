@@ -270,8 +270,8 @@ async function run(CONFIG, fail) {
 		const printed = [...cell.querySelectorAll('.pages-free-print-text')].map(line => line.textContent);
 		return JSON.stringify(shown) === JSON.stringify(teams.map(team => ({
 			id: String(team.id), name: team.name,
-		}))) && printed.join(', ') === teams.map(team => team.id).join(', ')
-			&& printed.every(line => line.split(', ').length <= 4);
+		}))) && printed.join(' ') === teams.map(team => team.id).join(' ')
+			&& printed.every(line => line.split(' ').length <= 4);
 	}), 'free teams are listed by ID and name on screen, and by ID only on paper');
 	check(freeCells.every(cell => {
 		const hasMatch = window.eval('wb_round_keys')(cell.dataset.iso,
@@ -283,7 +283,7 @@ async function run(CONFIG, fail) {
 	check(freeCells.some(cell => cell.querySelectorAll('.pages-free-print-text').length > 1),
 		'long printed ID lists split across short vertical lines');
 	check(freeCells.some(cell => [...cell.querySelectorAll('.pages-free-print-text')]
-		.some(line => line.textContent.split(', ').length === 4)),
+		.some(line => line.textContent.split(' ').length === 4)),
 		'four team IDs fit together on one printed line');
 	check(window.getComputedStyle(freeCells[0]).verticalAlign === 'middle',
 		'the free-team list is vertically centred in its merged cell');

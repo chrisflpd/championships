@@ -83,7 +83,7 @@ function pages_free_teams(iso, zone_rank, round_rank) {
 function pages_free_chunks(teams) {
 	const chunks = [];
 	for (let at = 0; at < teams.length; at += 4)
-		chunks.push(teams.slice(at, at + 4).map(team => team.id).join(', '));
+		chunks.push(teams.slice(at, at + 4).map(team => team.id).join(' '));
 	return chunks;
 }
 
