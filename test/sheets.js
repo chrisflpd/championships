@@ -343,15 +343,15 @@ async function run(CONFIG, fail) {
 	const printCss = fs.readFileSync(path.join(ROOT, 'src/css/sheets.css'), 'utf8');
 	// the block, the row and the type, measured off a page printed out of the real
 	// workbook: its original nine columns remain 174.19mm wide, with a narrow
-	// 8mm strip added from the page margin, on 15.3pt rows in 11.9pt type
-	check(/width:\s*182\.19mm/.test(printCss) && /height:\s*113\.4mm/.test(printCss)
+	// 12mm strip added from the page margin, on 15.3pt rows in 11.9pt type
+	check(/width:\s*186\.19mm/.test(printCss) && /height:\s*113\.4mm/.test(printCss)
 		&& /height:\s*5\.4mm/.test(printCss) && /font-size:\s*11\.9pt/.test(printCss),
 		'the paper keeps the measured row height and type size with a narrow free-team strip');
 	check(/col:nth-child\(1\)\s*{\s*width:\s*7\.780mm !important/.test(printCss)
 		&& /col:nth-child\(2\)\s*{\s*width:\s*30\.533mm !important/.test(printCss)
 		&& /col:nth-child\(9\)\s*{\s*width:\s*39\.310mm !important/.test(printCss)
-		&& /col:nth-child\(10\)\s*{\s*width:\s*8mm !important/.test(printCss),
-		'the original printed columns keep their widths and Ελεύθερες alone takes 8mm');
+		&& /col:nth-child\(10\)\s*{\s*width:\s*12mm !important/.test(printCss),
+		'the original printed columns keep their widths and Ελεύθερες alone takes 12mm');
 	// dotted between the fields of a round, solid between the rounds, double
 	// between the zones, and the medium frame around the day. the three are
 	// declared once and drawn in whichever measures the side asks for, so the

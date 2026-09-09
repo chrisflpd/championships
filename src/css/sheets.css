@@ -1032,8 +1032,8 @@
 		overflow: hidden;
 		page-break-inside: avoid;
 		/* The original nine columns still occupy their measured 174.19mm. The
-		   narrow 8mm free-team strip uses some of the former A4 side margin. */
-		width: 182.19mm;
+		   12mm free-team strip uses some of the former A4 side margin. */
+		width: 186.19mm;
 	}
 
 	/* the two blocks of a sheet stand in the middle of it, as Excel centred them */
@@ -1115,7 +1115,7 @@
 	body.is-printing .pages-table col:nth-child(7) { width: 11.170mm !important; }
 	body.is-printing .pages-table col:nth-child(8) { width: 11.170mm !important; }
 	body.is-printing .pages-table col:nth-child(9) { width: 39.310mm !important; }
-	body.is-printing .pages-table col:nth-child(10) { width: 8mm !important; }
+	body.is-printing .pages-table col:nth-child(10) { width: 12mm !important; }
 
 	/* the printed sheet names no columns: the camp knows what they are */
 	body.is-printing .pages-table thead {
