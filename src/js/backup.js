@@ -112,6 +112,7 @@ function backup_apply(data) {
 	share_close();
 	parse_config(checked.configuration);
 	document.forms[0]['config'].value = checked.configuration;
+	if (typeof config_editor_refresh === 'function') config_editor_refresh();
 	if (checked.workbook) {
 		displayer(config.days);
 		workbook.offered = checked.workbook.plan;

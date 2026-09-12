@@ -113,6 +113,7 @@ function share_open(data) {
 	const form = document.forms[0];
 	if (form !== undefined && form['config'])
 		form['config'].value = data.c;
+	if (typeof config_editor_refresh === 'function') config_editor_refresh();
 
 	displayer(config.days);
 

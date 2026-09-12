@@ -424,6 +424,7 @@ if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded
 			form['config'].value = value;
 		else
 			form['config'].value = '';
+		if (typeof config_editor_refresh === 'function') config_editor_refresh();
 	});
 	document.getElementById('load').dispatchEvent(new Event('click'));
 

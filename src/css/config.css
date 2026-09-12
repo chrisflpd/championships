@@ -129,3 +129,204 @@ textarea[name="config"]::placeholder {
 	color: #7a1710;
 }
 #save-warning .button { margin-left: 12px; }
+
+/* Two editors, one configuration. All guided controls follow the app theme. */
+#config-guided[hidden], #config-text[hidden], #config-feedback[hidden] { display: none; }
+.config-intro { display: flex; align-items: center; padding: 6px 0 18px; }
+.config-eyebrow { color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: .12em; margin: 0 0 9px; }
+.config-modes { display: flex; padding: 5px; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; flex-shrink: 0; }
+.config-modes button { border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; padding: 10px 14px; text-align: left; }
+.config-modes button span { margin-right: 5px; color: var(--accent); }
+.config-modes button[aria-pressed="true"] { background: var(--surface); color: var(--text); border-color: var(--border); box-shadow: var(--shadow-sm); }
+.config-modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.config-message { border: 1px solid var(--border); background: var(--accent-soft); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 13px; overflow-wrap: anywhere; }
+.config-message.is-error { background: var(--danger-soft); color: var(--danger); }
+.config-text-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 650; }
+.config-text-head span { color: var(--muted); font-weight: 400; }
+.ce-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 640px; border: 1px solid var(--border); border-radius: 12px; overflow: clip; }
+.ce-nav { background: var(--surface-2); border-right: 1px solid var(--border); padding: 22px 12px; }
+.ce-nav-label { color: var(--muted); font-size: 10px; letter-spacing: .14em; font-weight: 700; margin: 2px 10px 18px; }
+.ce-step.button { width: 100%; display: flex; align-items: center; gap: 10px; background: transparent; border-color: transparent; padding: 12px 9px; margin: 0 0 7px; border-radius: 8px; text-align: left; white-space: normal; }
+.ce-step.button:hover { background: var(--surface); border-color: var(--border); }
+.ce-step.button.is-current { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow-sm); }
+.ce-step-number { color: var(--muted); font: 11px var(--mono); }
+.ce-step.is-current .ce-step-number { color: var(--accent); }
+.ce-step-label { flex: 1; min-width: 0; }
+.ce-step-label strong { display: block; font-size: 13px; font-weight: 650; }
+.ce-step-label small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; margin-top: 5px; }
+.ce-step.is-current .ce-step-label strong { color: var(--accent); }
+.ce-count { background: var(--surface-2); border-radius: 5px; padding: 3px 5px; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.ce-history { display: flex; gap: 4px; margin-top: 18px; }
+.ce-history .button { padding: 8px; font-size: 12px; }
+.ce-main { padding: 27px 30px 0; min-width: 0; display: flex; flex-direction: column; }
+.ce-heading { font-size: 22px; letter-spacing: -.025em; font-weight: 650; margin: 0 0 8px; line-height: 1.35; outline: none; }
+.ce-description { font-size: 12.5px; color: var(--muted); line-height: 1.7; margin: 0; max-width: 780px; }
+.ce-section-head { margin-bottom: 25px; }
+.ce-content { flex: 1; min-width: 0; padding-bottom: 24px; }
+.ce-content h4 { font-size: 13px; margin: 0 0 12px; font-weight: 650; }
+.ce-content > .ce-card { margin-bottom: 16px; }
+.ce-card { padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.ce-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ce-field { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; }
+.ce-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+.ce-input { background: var(--surface); color: var(--text); font: inherit; font-size: 13px; line-height: 1.4; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 6px; min-width: 0; width: 100%; transition: border-color .12s; }
+.ce-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.ce-input::placeholder { color: var(--muted); opacity: .75; }
+textarea.ce-input { resize: vertical; }
+.ce-help { color: var(--muted); font-size: 11px; }
+.ce-input[type="number"] { font-variant-numeric: tabular-nums; }
+.ce-remove.button { width: 30px; height: 32px; padding: 0; border-color: transparent; background: transparent; font-size: 22px; font-weight: 400; color: var(--muted); flex-shrink: 0; }
+.ce-row > .ce-remove { align-self: flex-end; margin-bottom: 4px; }
+.ce-remove.button:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.ce-icon-button.button { width: 32px; min-height: 34px; padding: 6px; flex-shrink: 0; background: transparent; font-size: 16px; }
+.ce-add.button { margin-top: 18px; border-style: dashed; border-color: var(--border-strong); background: var(--surface-2); color: var(--accent); width: 100%; padding: 13px 16px; font-size: 12px; }
+.ce-add-inline.button { color: var(--accent); border-color: transparent; background: transparent; font-size: 11px; padding: 8px 0; white-space: normal; text-align: left; }
+.ce-add-inline.button:hover:not(:disabled) { text-decoration: underline; background: transparent; border-color: transparent; }
+.ce-sports-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ce-sport { border-top: 3px solid var(--ce-sport); }
+.ce-sport > .ce-row { align-items: flex-end; }
+.ce-sport-icon { font-size: 24px; flex-shrink: 0; line-height: 38px; }
+.ce-courts { margin: 18px 0 0; }
+.ce-courts > .ce-row + .ce-row { margin-top: 9px; }
+.ce-shared { font-size: 10px; color: var(--muted); display: block; margin: 5px 0 10px; }
+.ce-details { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 10px; }
+.ce-details summary { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.ce-details[open] summary { margin-bottom: 12px; }
+.ce-details > .ce-row, .ce-details > .ce-field { margin-top: 12px; }
+.ce-note { font-size: 11px; color: var(--muted); line-height: 1.65; margin: 10px 0; }
+.ce-footer { border-top: 1px solid var(--border); padding: 18px 0; display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.ce-footer .button { font-size: 12px; }
+.ce-overview { flex: 1; color: var(--muted); text-align: center; font-size: 10px; }
+.ce-zone-list { max-width: 760px; }
+.ce-zone { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.ce-zone-number { color: var(--accent); font: 18px var(--mono); padding: 0 6px; }
+.ce-zone .ce-icon-button, .ce-zone .ce-remove { margin-top: 20px; }
+.ce-calendar-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 22px; }
+.ce-calendar { align-self: start; }
+.ce-calendar > .ce-row { align-items: flex-end; }
+.ce-calendar > .ce-row .ce-icon-button { margin-bottom: 2px; }
+.ce-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding-top: 18px; }
+.ce-weekday { font-size: 10px; color: var(--muted); text-align: center; padding-bottom: 8px; }
+.ce-calendar-day.button { border: 1px solid transparent; font-size: 12px; font-weight: 500; padding: 0; aspect-ratio: 1; border-radius: 7px; }
+.ce-calendar-day[aria-current="date"] { border-color: var(--accent); color: var(--accent); }
+.ce-calendar-day[aria-pressed="true"], .ce-calendar-day[aria-pressed="true"]:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.ce-bulk-rounds { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--border); }
+.ce-bulk-rounds .ce-field { margin-top: 10px; }
+.ce-day { margin-bottom: 10px; padding: 12px 14px; }
+.ce-day > .ce-row + .ce-row { margin-top: 8px; flex-wrap: wrap; }
+.ce-day .ce-field { flex: 1 1 85px; }
+.ce-day-title { flex: 1; font-size: 12px; font-weight: 650; }
+.ce-selected-days { min-width: 0; }
+.ce-teams-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ce-team { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.ce-team > .ce-team-id { margin-top: 18px; }
+.ce-team > .ce-remove { margin-top: 18px; }
+.ce-team-id { font: 11px var(--mono); color: var(--accent); flex-shrink: 0; }
+.ce-bulk-teams { margin-top: 24px; }
+.ce-empty { background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: 10px; padding: 35px 24px; text-align: center; }
+.ce-empty strong { font-size: 14px; font-weight: 600; }
+.ce-empty p { font-size: 12px; color: var(--muted); max-width: 460px; margin: 8px auto 0; }
+.ce-group > .ce-field, .ce-group > .ce-row, .ce-knockout > .ce-row { margin-bottom: 16px; }
+.ce-group > .ce-row > strong { flex: 1; font-size: 12px; }
+.ce-team-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 8px; margin: 12px 0 18px; }
+.ce-team-choice { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; cursor: pointer; font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.ce-team-choice:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+.ce-team-choice input, .ce-check input { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; margin: 0; }
+.ce-check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; }
+.ce-match-number { font: 11px var(--mono); color: var(--muted); flex-shrink: 0; }
+.ce-vs { font-size: 11px; color: var(--muted); align-self: flex-end; padding-bottom: 12px; }
+.ce-bracket-builder { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 0 0 20px; }
+.ce-bracket-builder summary { color: var(--text); }
+.ce-sport-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.ce-sport-tabs .button { font-size: 12px; }
+.ce-sport-tabs [aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.ce-rules { padding: 0; margin: 20px 0 16px; list-style: none; }
+.ce-rule { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 9px; padding: 13px 14px; margin-bottom: 8px; background: var(--surface); }
+.ce-rule[draggable="true"] { cursor: grab; }
+.ce-rule.is-dragging { opacity: .4; }
+.ce-rule.is-drop-target { border-color: var(--accent); box-shadow: var(--ring); }
+.ce-grip { color: var(--faint); font-size: 18px; }
+.ce-rule-rank { font: 11px var(--mono); color: var(--accent); }
+.ce-rule-label { flex: 1; min-width: 0; }
+.ce-rule-label strong { display: block; font-size: 12px; font-weight: 600; }
+.ce-rule-label small { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; }
+.ce-rule[data-rule="id"] { background: var(--surface-2); }
+.ce-inactive-rules { padding: 14px; background: var(--surface-2); border-radius: 8px; margin-bottom: 14px; }
+.ce-inactive-rules .button { display: block; }
+.ce-issues { margin-top: 18px; background: var(--warn-soft); border: 1px solid var(--border); border-radius: 10px; padding: 18px; font-size: 13px; }
+.ce-issues ul { padding-left: 18px; margin-bottom: 0; }
+.ce-issues.is-ready { background: var(--ok-soft); color: var(--ok); }
+.ce-issues p { margin-bottom: 0; font-size: 12px; }
+.ce-issue-link.button { color: var(--text); text-align: left; border: 0; background: transparent; white-space: normal; font-size: 12px; font-weight: 400; line-height: 1.5; padding: 4px 0; }
+.ce-issue-link:hover { text-decoration: underline; }
+@media (min-width: 1600px) {
+	.ce-main { padding-inline: 40px; }
+	.ce-sports-grid { gap: 22px; }
+	.ce-calendar-layout { grid-template-columns: 340px minmax(0, 1fr); }
+	.ce-teams-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+	.ce-shell { grid-template-columns: 185px minmax(0, 1fr); }
+	.ce-main { padding: 24px 20px 0; }
+	.ce-step.button { gap: 7px; padding-inline: 5px; }
+	.ce-calendar-layout { grid-template-columns: 280px minmax(0, 1fr); gap: 14px; }
+	.ce-sport { padding: 14px; }
+	.ce-sport-icon { display: none; }
+	.ce-overview { font-size: 9px; }
+}
+@media (max-width: 850px) {
+	.ce-shell { display: block; }
+	.ce-nav { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); gap: 7px; padding: 10px; }
+	.ce-nav-label, .ce-step-label small, .ce-count { display: none; }
+	.ce-step.button { width: auto; flex-shrink: 0; padding: 9px; margin: 0; }
+	.ce-step-label strong { font-size: 11px; }
+	.ce-history { flex-shrink: 0; margin: 0; }
+	.ce-overview { display: none; }
+	.ce-footer { justify-content: space-between; }
+}
+@media (max-width: 600px) {
+	.config-intro { padding: 4px 0 14px; }
+	.config-modes { width: 100%; }
+	.config-modes button { flex: 1; padding: 10px 7px; font-size: 10px; }
+	.ce-main { padding: 22px 12px 0; }
+	.ce-heading { font-size: 20px; }
+	.ce-sports-grid, .ce-teams-grid, .ce-calendar-layout { grid-template-columns: minmax(0, 1fr); }
+	.ce-calendar { max-width: 380px; width: 100%; justify-self: center; }
+	.ce-sport-icon { display: block; }
+	.ce-rule { gap: 6px; padding: 11px 8px; flex-wrap: wrap; }
+	.ce-rule-label { flex-basis: calc(100% - 65px); }
+	.ce-rule .ce-icon-button { width: 42px; min-height: 36px; }
+	.ce-rule .ce-icon-button:first-of-type { margin-left: auto; }
+	.ce-zone { gap: 6px; padding: 12px 8px; }
+	.ce-zone-number { font-size: 13px; padding: 0; }
+	.ce-group > .ce-row, .ce-knockout > .ce-row, .ce-bracket-builder > .ce-row { flex-wrap: wrap; }
+	.ce-group .ce-row .ce-field, .ce-knockout .ce-row .ce-field, .ce-bracket-builder .ce-row .ce-field { flex: 1 1 120px; }
+	.ce-group .ce-row .ce-match-number { display: none; }
+	.ce-team-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.ce-team-choice { padding: 8px 6px; gap: 5px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	#config-guided *, .config-modes * { scroll-behavior: auto; transition: none; }
+}
+
+/* Hidden explanations must not create horizontal scrolling at any width. */
+.panel-config .toolbar button[data-tooltip]::after { display: none; }
+.panel-config .toolbar button[data-tooltip]:hover::after,
+.panel-config .toolbar button[data-tooltip]:focus-visible::after { display: block; }
+
+.ce-selected-dot { color: var(--accent); }
+.ce-calendar-grid { touch-action: none; user-select: none; -webkit-user-select: none; }
+.ce-month-control { position: relative; }
+.ce-month-trigger.button { padding: 9px 7px; font-size: 12px; font-weight: 500; text-align: center; text-transform: capitalize; }
+.ce-month-picker[hidden] { display: none; }
+.ce-month-picker { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: min(290px, calc(100vw - 104px)); padding: 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); z-index: 4; }
+.ce-month-columns { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+.ce-year-list { position: relative; height: 184px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border-strong) var(--surface-2); border-right: 1px solid var(--border); padding-right: 5px; }
+.ce-year-choice.button { display: block; width: 100%; height: 30px; padding: 4px 2px; font-size: 11px; border: 0; font-variant-numeric: tabular-nums; }
+.ce-month-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; align-content: start; }
+.ce-month-choice.button { min-width: 0; padding: 10px 2px; font-size: 11px; border: 0; }
+.ce-year-choice[aria-pressed="true"], .ce-month-choice[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.ce-bracket-builder > .ce-field { margin-top: 12px; }
+.ce-bracket-preview { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 12px; margin-top: 14px; }
+.ce-bracket-preview h4 { margin-bottom: 8px; }
+.ce-bracket-preview p { font-size: 12px; margin: 6px 0; }

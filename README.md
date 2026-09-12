@@ -225,6 +225,34 @@ the export.
 
 ## configuration
 
+The Configuration tab offers two interchangeable editors. **Οδηγός διαμόρφωσης**
+opens a seven-step visual editor; **Επεξεργασία κειμένου** keeps the original
+configuration format, with all six required section headings ready to fill in.
+Existing configurations open without being rewritten. An invalid text input stays
+in text mode with an explanation; unfinished guided edits survive mode switches.
+
+The guide starts with the four camp sports and their historical courts, plus
+Πρωί and Απόγευμα. It includes a multi-date calendar with rounds per zone, bulk
+team entry and automatic IDs, round-robin or explicit-match groups, opponent
+selectors for knockouts, and a finals generator for 2, 4 or 8 qualifiers (with an
+optional third-place match). The generator can take one group or cross two groups
+of the same sport: two qualifiers from each group pair first against second and
+second against first, then feed the winners into the final. The first round is
+previewed before creation. Calendar days can be selected or removed by dragging
+across a range; the month picker includes a scrollable year list and direct year
+entry. Tie-breakers use the same Greek labels as the points
+tab and can be dragged or moved with arrow buttons independently per sport. Rules
+can be disabled and restored; the team ID fallback always remains last.
+
+Edits update the underlying text. Save/load, backups, and shared links continue to
+use that format. Renaming sports or stage codes updates dependent references;
+removing a used item explains its effects first. **Undo** and **Redo** keep up to
+30 guided edits, treating a dragged date range or generated bracket as one edit.
+Changing an editor section or browsing the calendar preserves redo; a new edit
+after undo replaces the redo branch. Loading another configuration resets history.
+Validation blocks incomplete guided configurations before a running program can
+be replaced. Text mode continues to use the original parser directly.
+
 A configuration string is provided through a `textarea` element.
 
 A word in square brackets defines the type of the following lines.
