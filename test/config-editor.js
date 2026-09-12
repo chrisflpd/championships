@@ -164,7 +164,10 @@ async function page(text) {
 	const q = await page();
 	assert.equal(q.doc.querySelector('.config-intro h3'), null);
 	assert.equal(q.doc.querySelector('.config-modes small'), null);
+	assert.equal(q.doc.querySelector('.ce-sport-icon'), null, 'sport cards have no decorative emoji');
+	assert.equal(q.doc.querySelector('.ce-step-label small'), null, 'navigation shows only section names');
 	q.step(1); assert.equal(q.doc.querySelector('.ce-heading').textContent, 'Ορίστε τις ζώνες κάθε ημέρας.');
+	assert.equal(q.doc.querySelector('.ce-footer button').textContent, '← Αθλήματα'); assert.ok(q.doc.querySelector('.ce-footer button').classList.contains('button-primary'));
 	q.step(2); assert.equal(q.doc.querySelector('.ce-heading').textContent, 'Ορίστε τις ημερομηνίες της κατασκήνωσης.');
 	const pointer = (node, type) => {
 		const event = new q.w.MouseEvent(type, {bubbles: true, cancelable: true, button: 0});
@@ -199,9 +202,25 @@ async function page(text) {
 	q.doc.querySelector('.ce-calendar-day').click(); assert.equal(q.doc.querySelector('.ce-redo').disabled, true, 'a new edit replaces the redo branch');
 	const afterNewDay = q.read(); q.click('↶ Undo'); q.click('↷ Redo'); assert.deepEqual(q.read(), afterNewDay);
 	q.step(3); assert.equal(q.doc.querySelector('.ce-heading').textContent, 'Ορίστε τα ονόματα των ομάδων.');
+	assert.ok(q.doc.querySelector('.ce-content').firstElementChild.classList.contains('ce-bulk-teams'), 'bulk team entry is first');
 	assert.equal(q.doc.querySelector('.ce-bulk-teams textarea').placeholder, 'π.χ. Ομολογητές\nΜαχητές\nΠιστοί\n...');
 	assert.deepEqual(q.errors, []); q.w.close();
 	console.log('ok: requested copy, range selection/removal/cancellation, one-step undo/redo, month navigation and redo branching');
+
+	const prefixes = await page(`[sports]\nΠοδόσφαιρο\nΜπάσκετ\nΒόλεϊ\nΜπέιζμπολ\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\nC\nD\n[groups]\n[knockouts]\n`);
+	prefixes.step(4); prefixes.click('+ Προσθήκη ομίλου'); assert.equal(prefixes.read().groups[0].id, 'pg1');
+	const teamChoices = prefixes.doc.querySelectorAll('.ce-team-choice');
+	const beforeTeamDrag = prefixes.input.value;
+	pointer(teamChoices[0], 'pointerdown'); pointer(teamChoices[1], 'pointermove');
+	assert.equal(prefixes.input.value, beforeTeamDrag, 'team drag previews before committing');
+	assert.deepEqual([...prefixes.doc.querySelectorAll('.ce-team-choice input')].map(input => input.checked), [false, false, true, true]);
+	pointer(teamChoices[1], 'pointerup'); assert.deepEqual(prefixes.read().groups[0].teams, [3, 4]);
+	prefixes.click('↶ Undo'); assert.deepEqual(prefixes.read().groups[0].teams, [1, 2, 3, 4]);
+	for (const [sport, id] of [['Μπάσκετ', 'kg1'], ['Βόλεϊ', 'vg1'], ['Μπέιζμπολ', 'bg1']]) {
+		prefixes.click(sport); prefixes.click('+ Προσθήκη ομίλου'); assert.equal(prefixes.read().groups.at(-1).id, id);
+	}
+	assert.deepEqual(prefixes.errors, []); prefixes.w.close();
+	console.log('ok: drag selection commits once and default sports receive their familiar group prefixes');
 
 	const filtered = await page(`[sports]\nΠοδόσφαιρο\nΜπάσκετ\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\nC\nD\n[groups]\npg Ποδόσφαιρο 3: 1-4\nbg Μπάσκετ 3: 1-4\n[knockouts]\npf Ποδόσφαιρο 1 2\nbf Μπάσκετ 3 4\n`);
 	filtered.step(4);
@@ -238,7 +257,8 @@ async function page(text) {
 	crossed.click('↶ Undo'); crossed.change(crossed.doc.querySelectorAll('.ce-bracket-builder select')[3], '4');
 	crossed.click('+ Δημιουργία τελικής φάσης'); assert.equal(crossed.read().knockouts.length, 8, 'four qualifiers per group create quarterfinals, semis, final and bronze');
 	assert.equal(crossed.w.config_draft_issues(crossed.w.config_read_draft(crossed.input.value)).length, 0);
-	crossed.step(6); assert.equal(crossed.doc.querySelector('.ce-fixed'), null); assert.equal(crossed.read().sports[0].rules.at(-1), 'id');
+	crossed.step(6); assert.equal(crossed.doc.querySelector('.ce-heading').textContent, 'Ορίστε τους κανόνες ισοβαθμιών.');
+	assert.equal(crossed.doc.querySelector('.ce-fixed'), null); assert.equal(crossed.read().sports[0].rules.at(-1), 'id');
 	crossed.input.value = sample; crossed.w.config_editor_refresh();
 	assert.equal(crossed.doc.querySelector('.ce-undo').disabled, true); assert.equal(crossed.doc.querySelector('.ce-redo').disabled, true);
 	assert.deepEqual(crossed.errors, []); crossed.w.close();
