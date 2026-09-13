@@ -34,9 +34,11 @@ async function page(text) {
 	assert.equal(doc.getElementById('config-guided').hidden, false);
 	assert.deepEqual([...input.value.matchAll(/^\[(.+)\]$/gm)].map(m => m[1]), ['sports', 'zones', 'days', 'teams', 'groups', 'knockouts']);
 	assert.deepEqual(read().sports.map(s => s.name), ['Ποδόσφαιρο', 'Μπάσκετ', 'Βόλεϊ', 'Μπέιζμπολ']);
+	assert.deepEqual(read().sports.map(s => s.id), ['p', 'k', 'v', 'b']);
 	assert.deepEqual(read().sports[0].courts, ['Π Ποδόσφαιρο', 'Κ Ποδόσφαιρο']);
 	assert.deepEqual(read().sports[3].courts, ['Π Ποδόσφαιρο']);
 	assert.deepEqual(read().zones, ['Πρωί', 'Απόγευμα']);
+	step(4); assert.ok(![...doc.querySelectorAll('button')].some(button => button.textContent.includes('Μετάβαση στις ομάδες'))); step(0);
 	let submissions = 0; doc.addEventListener('championships_config_parsed', () => submissions++);
 	doc.forms[0].dispatchEvent(new w.Event('submit', {bubbles: true, cancelable: true}));
 	assert.equal(submissions, 0); assert.ok(doc.querySelector('.ce-issues').textContent.includes('ημέρα'));
@@ -72,14 +74,14 @@ async function page(text) {
 	console.log('ok: mode switches, step navigation, month selection and bracket options preserve the original text');
 
 	step(0);
-	change(doc.querySelector('.ce-sport input'), 'Football');
+	change(doc.querySelectorAll('.ce-sport input')[1], 'Football');
 	assert.equal(read().groups[0].sport, 'Football'); assert.equal(read().knockouts[0].sport, 'Football');
 	assert.equal(w.eval('config.sports'), originalSports, 'editing a draft does not change the championship');
 	click('↶ Undo'); assert.equal(read().sports[0].name, 'Ποδόσφαιρο');
 	click('+ Προσθήκη αθλήματος');
 	click('↶ Undo'); assert.equal(read().sports.length, 4, 'focus after adding does not consume an undo');
 	click('+ Προσθήκη αθλήματος');
-	const last = doc.querySelector('.ce-sport:last-child'); change(last.querySelector('input'), 'Handball'); change(last.querySelector('.ce-courts input'), 'Shared Court');
+	const last = doc.querySelector('.ce-sport:last-child'); change(last.querySelectorAll('input')[1], 'Handball'); change(last.querySelector('.ce-courts input'), 'Shared Court');
 	assert.equal(read().sports.at(-1).name, 'Handball');
 	click('Αφαίρεση αθλήματος Handball');
 	step(1); const roundsBefore = read().days.map(d => d.rounds);
@@ -123,8 +125,11 @@ async function page(text) {
 	assert.equal(read().sports[0].rules[2], 'μεταξύ_τους_διαφορά');
 	click('Επαναφορά προεπιλεγμένης σειράς'); assert.equal(read().sports[0].customRules, false);
 	change(doc.querySelector('.ce-final-rule select'), 'τυχαία'); assert.equal(read().sports[0].rules.at(-1), 'τυχαία'); assert.equal(read().sports[0].customRules, true);
+	assert.equal(doc.querySelectorAll('.ce-rule.is-final').length, 1); assert.ok(!doc.querySelector('.ce-inactive-rules')?.textContent.includes('Μικρότερο ID ομάδας'));
 	change(doc.querySelector('.ce-final-rule select'), 'επιλογή_χρήστη'); assert.equal(read().sports[0].rules.at(-1), 'επιλογή_χρήστη');
+	assert.equal(doc.querySelectorAll('.ce-rule.is-final').length, 1);
 	change(doc.querySelector('.ce-final-rule select'), 'id'); assert.equal(read().sports[0].customRules, false);
+	assert.equal(w.config_repair_final_tiebreaks('[tiebreakers]\nΠοδόσφαιρο: συνολικές_νίκες, τυχαία, τυχαία'), '[tiebreakers]\nΠοδόσφαιρο: συνολικές_νίκες, τυχαία');
 	console.log('ok: exact Greek labels, arrows and drag-and-drop, per-sport order, optional rules and fixed final ID');
 
 	// Create a complete championship entirely through the new controls.
@@ -141,7 +146,7 @@ async function page(text) {
 	click('↶ Undo'); assert.deepEqual(read().groups[0].teams, [1, 2, 3, 4]);
 	assert.equal(read().groups[0].count, 3); assert.deepEqual(read().groups[0].teams, [1, 2, 3, 4]);
 	step(5); click('+ Δημιουργία τελικής φάσης');
-	assert.equal(read().knockouts.length, 3); assert.equal(read().knockouts[2].home, 'sf1:W');
+	assert.equal(read().knockouts.length, 3); assert.equal(read().knockouts[2].id, 'pf'); assert.equal(read().knockouts[2].home, 'ps1:W');
 	assert.equal(w.config_draft_issues(w.config_read_draft(input.value)).length, 0);
 	step(6); click('Έλεγχος διαμόρφωσης ✓'); assert.ok(doc.querySelector('.ce-issues.is-ready'));
 	click('save'); assert.equal(w.eval("appStorage.getItem('config')"), input.value);
@@ -206,7 +211,8 @@ async function page(text) {
 	const afterNewDay = q.read(); q.click('↶ Undo'); q.click('↷ Redo'); assert.deepEqual(q.read(), afterNewDay);
 	q.step(3); assert.equal(q.doc.querySelector('.ce-heading').textContent, 'Ορίστε τα ονόματα των ομάδων.');
 	assert.ok(q.doc.querySelector('.ce-content').firstElementChild.classList.contains('ce-bulk-teams'), 'bulk team entry is first');
-	assert.equal(q.doc.querySelector('.ce-bulk-teams textarea').placeholder, 'π.χ. Ομολογητές\nΜαχητές\nΠιστοί\n...');
+	assert.equal(q.doc.querySelector('.ce-bulk-teams textarea').placeholder, 'Ομολογητές\nΜαχητές\nΠιστοί\n...');
+	assert.equal(q.doc.querySelector('.ce-individual-teams').tagName, 'SECTION');
 	assert.deepEqual(q.errors, []); q.w.close();
 	console.log('ok: requested copy, range selection/removal/cancellation, one-step undo/redo, month navigation and redo branching');
 
@@ -225,6 +231,11 @@ async function page(text) {
 	assert.deepEqual(prefixes.errors, []); prefixes.w.close();
 	console.log('ok: drag selection commits once and default sports receive their familiar group prefixes');
 
+	const customId = await page(`[sports]\nΧάντμπολ @h\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\n[groups]\n[knockouts]\n`);
+	customId.step(4); customId.click('+ Προσθήκη ομίλου'); assert.equal(customId.read().groups[0].id, 'hg1');
+	customId.step(5); customId.click('+ Προσθήκη αγώνα νοκ άουτ'); assert.equal(customId.doc.querySelector('.ce-knockout input').value, 'hn1');
+	assert.deepEqual(customId.errors, []); customId.w.close();
+
 	const filtered = await page(`[sports]\nΠοδόσφαιρο\nΜπάσκετ\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\nC\nD\n[groups]\npg Ποδόσφαιρο 3: 1-4\nbg Μπάσκετ 3: 1-4\n[knockouts]\npf Ποδόσφαιρο 1 2\nbf Μπάσκετ 3 4\n`);
 	filtered.step(4);
 	assert.equal(filtered.doc.querySelector('[aria-label="Άθλημα ομίλων"] [aria-pressed="true"]').textContent, 'Ποδόσφαιρο');
@@ -238,6 +249,7 @@ async function page(text) {
 	const addedKnockout = filtered.doc.querySelector('.ce-knockout:last-of-type'), addedOpponents = addedKnockout.querySelectorAll('select');
 	filtered.change(addedOpponents[0], '1'); filtered.change(filtered.doc.querySelector('.ce-knockout:last-of-type').querySelectorAll('select')[1], '2');
 	assert.equal(filtered.read().knockouts.at(-1).sport, 'Μπάσκετ');
+	assert.equal(filtered.read().knockouts.at(-1).id, 'kn1');
 	assert.deepEqual(filtered.errors, []); filtered.w.close();
 	console.log('ok: groups and knockouts are filtered and created independently through the sport tabs');
 
@@ -250,7 +262,7 @@ async function page(text) {
 	assert.ok(crossed.doc.querySelector('.ce-bracket-preview').textContent.includes('2η θέση · pg1  ↔  1η θέση · pg2'));
 	const beforeBracket = crossed.read(); crossed.doc.querySelector('.ce-bracket-builder input[type="checkbox"]').click();
 	crossed.click('+ Δημιουργία τελικής φάσης');
-	assert.deepEqual(crossed.read().knockouts.map(k => [k.home, k.away]), [['pg1:1', 'pg2:2'], ['pg1:2', 'pg2:1'], ['sf1:W', 'sf2:W'], ['sf1:L', 'sf2:L']]);
+	assert.deepEqual(crossed.read().knockouts.map(k => [k.id, k.home, k.away]), [['ps1', 'pg1:1', 'pg2:2'], ['ps2', 'pg1:2', 'pg2:1'], ['pf', 'ps1:W', 'ps2:W'], ['pb', 'ps1:L', 'ps2:L']]);
 	const bracket = crossed.read(); crossed.click('↶ Undo'); assert.deepEqual(crossed.read(), beforeBracket);
 	crossed.click('↷ Redo'); assert.deepEqual(crossed.read(), bracket);
 	crossed.doc.querySelector('.ce-bracket-builder').open = true;

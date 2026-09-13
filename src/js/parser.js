@@ -6,18 +6,21 @@ function parse_sport_line(line) {
 	//a sport may say what a win, a draw and a loss are worth in it, as in
 	//"Χάντμπολ 3-1-0: Γήπεδο 1". a sport that says nothing keeps the points of
 	//its own name where the program knows it, and otherwise scores 3, 1 and 0.
-	const sport_ma = line.match(/^\s*([^\s:,]+)(?:\s+(\d+)-(\d+)-(\d+))?\s*(:.*)?$/);
+	const sport_ma = line.match(/^\s*([^\s:,]+)(?:\s+@([^\s:,]+))?(?:\s+(\d+)-(\d+)-(\d+))?\s*(:.*)?$/);
 	if (sport_ma === null)
 		throw new Error(`parse_sport_line ${line}: not valid sport line`);
 	const sport_name = sport_ma[1];
+	const sport_id = sport_ma[2] || null;
 	if (config.sports.filter(sport => sport.name === sport_name).length)
 		throw new Error(`parse_sport_line ${line}: duplicate sport name ${sport_name}`);
-	const sport_points_fn = sport_ma[2] !== undefined
-		? wdl_points_fn(parseInt(sport_ma[2]), parseInt(sport_ma[3]), parseInt(sport_ma[4]))
+	if (sport_id !== null && config.sports.some(sport => sport.id === sport_id))
+		throw new Error(`parse_sport_line ${line}: duplicate sport id ${sport_id}`);
+	const sport_points_fn = sport_ma[3] !== undefined
+		? wdl_points_fn(parseInt(sport_ma[3]), parseInt(sport_ma[4]), parseInt(sport_ma[5]))
 		: (sport_name in points_fn_obj ? points_fn_obj[sport_name] : wdl_points_fn(3, 1, 0));
 	const sport_courts = [];
-	if (sport_ma[5] !== undefined) {
-		sport_ma[5].slice(1).split(',').forEach(court_name => {
+	if (sport_ma[6] !== undefined) {
+		sport_ma[6].slice(1).split(',').forEach(court_name => {
 			const court_ma = court_name.match(/^([^:,]*)$/);
 			if (court_ma === null)
 				throw new Error(`parse_sport_line ${line}: not valid sport courts`);
@@ -37,6 +40,7 @@ function parse_sport_line(line) {
 	});
 	config.sports.push({
 		name: sport_name,
+		id: sport_id,
 		courts: sport_courts,
 		points_fn: sport_points_fn,
 		points: sport_ma[2] === undefined ? null : sport_ma.slice(2, 5).map(Number),

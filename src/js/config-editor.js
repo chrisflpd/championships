@@ -26,13 +26,32 @@ const CONFIG_RULE_HELP = {
 	'επιλογή_χρήστη': 'Όταν ολοκληρωθεί ο όμιλος, ζητείται η σειρά των ισόβαθμων ομάδων από τον χρήστη.',
 };
 
+// Versions that briefly exposed final fallbacks as ordinary inactive rules
+// could save more than one at the end. Repair only that generated suffix;
+// other malformed hand-written rule lists remain parser errors.
+function config_repair_final_tiebreaks(text) {
+	let section = '', changed = false;
+	const lines = text.replace(/\r\n?/g, '\n').split('\n').map(line => {
+		if (/^\s*\[.*\]\s*$/.test(line)) { section = line.trim().slice(1, -1).toLowerCase(); return line; }
+		if (section !== 'tiebreakers' || line.trim().startsWith('#')) return line;
+		const colon = line.indexOf(':');
+		if (colon < 0) return line;
+		const rules = line.slice(colon + 1).split(',').map(rule => rule.trim()).filter(Boolean);
+		const firstFinal = rules.findIndex(rule => FINAL_TIEBREAKERS.includes(rule));
+		if (firstFinal < 0 || rules.length - firstFinal < 2 || !rules.slice(firstFinal).every(rule => FINAL_TIEBREAKERS.includes(rule))) return line;
+		changed = true;
+		return line.slice(0, colon + 1) + ' ' + [...rules.slice(0, firstFinal), rules.at(-1)].join(', ');
+	});
+	return changed ? lines.join('\n') : text;
+}
+
 function config_defaults() {
 	return {
 		sports: [
-			{name: 'Ποδόσφαιρο', courts: ['Π Ποδόσφαιρο', 'Κ Ποδόσφαιρο'], points: null},
-			{name: 'Μπάσκετ', courts: ['Μπάσκετ'], points: null},
-			{name: 'Βόλεϊ', courts: ['Βόλεϊ'], points: null},
-			{name: 'Μπέιζμπολ', courts: ['Π Ποδόσφαιρο'], points: null},
+			{id: 'p', name: 'Ποδόσφαιρο', courts: ['Π Ποδόσφαιρο', 'Κ Ποδόσφαιρο'], points: null},
+			{id: 'k', name: 'Μπάσκετ', courts: ['Μπάσκετ'], points: null},
+			{id: 'v', name: 'Βόλεϊ', courts: ['Βόλεϊ'], points: null},
+			{id: 'b', name: 'Μπέιζμπολ', courts: ['Π Ποδόσφαιρο'], points: null},
 		].map(sport => ({...sport, rules: [...DEFAULT_TIEBREAK_ORDER], customRules: false})),
 		zones: ['Πρωί', 'Απόγευμα'], days: [], teams: [], groups: [], knockouts: [], comments: [],
 	};
@@ -51,14 +70,22 @@ function config_read_draft(text) {
 			if (![...CONFIG_SECTIONS, 'tiebreakers'].includes(section))
 				throw new Error('Υπάρχει κείμενο εκτός των γνωστών ενοτήτων. Κρατήστε το στην επεξεργασία κειμένου ή μεταφέρετέ το σε σχόλιο με #.');
 			if (section === 'sports') {
-				const match = line.match(/^\s*([^\s:,]+)(?:\s+(\d+)-(\d+)-(\d+))?/);
-				points.set(match[1], match[2] === undefined ? null : match.slice(2, 5));
+				const match = line.match(/^\s*([^\s:,]+)(?:\s+@([^\s:,]+))?(?:\s+(\d+)-(\d+)-(\d+))?/);
+				points.set(match[1], match[3] === undefined ? null : match.slice(3, 6));
 			}
 		});
+		const usedIds = new Set();
+		const inferredId = (sport, index) => {
+			const familiar = {Ποδόσφαιρο: 'p', Μπάσκετ: 'k', Βόλεϊ: 'v', Μπέιζμπολ: 'b'}[sport.name];
+			const base = sport.id || familiar || `a${index + 1}`;
+			let id = base, suffix = 2;
+			while (usedIds.has(id)) id = base + suffix++;
+			usedIds.add(id); return id;
+		};
 		const opponent = one => one.type === 'fixed' ? String(one.team.id)
 			: one.type === 'group' ? `${one.group.id}:${one.rank}` : `${one.knockout.id}:${one.is_winner ? 'W' : 'L'}`;
 		return {
-			sports: config.sports.map(s => ({name: s.name, courts: [...s.courts], points: points.get(s.name), rules: [...tiebreak_order(s)], customRules: !!s.tiebreakers})),
+			sports: config.sports.map((s, index) => ({id: inferredId(s, index), name: s.name, courts: [...s.courts], points: points.get(s.name), rules: [...tiebreak_order(s)], customRules: !!s.tiebreakers})),
 			zones: config.zones.map(z => z.name),
 			days: config.days.map(d => ({date: d.date.toISOString().slice(0, 10), rounds: d.dzones.map(z => z.rounds.length)})),
 			teams: config.teams.map(t => t.name),
@@ -75,7 +102,7 @@ function config_read_draft(text) {
 function config_write_draft(draft) {
 	const section = (name, lines) => `[${name}]\n${lines.join('\n')}\n`;
 	const text = [
-		section('sports', draft.sports.map(s => `${s.name}${s.points ? ' ' + s.points.join('-') : ''}${s.courts.length ? ': ' + s.courts.join(', ') : ''}`)),
+		section('sports', draft.sports.map(s => `${s.name} @${s.id}${s.points ? ' ' + s.points.join('-') : ''}${s.courts.length ? ': ' + s.courts.join(', ') : ''}`)),
 		section('zones', draft.zones.filter(z => z !== null)),
 		section('days', draft.days.map(d => `${d.date} ${d.rounds.join(' ')}`)),
 		section('teams', draft.teams),
@@ -91,6 +118,7 @@ function config_write_draft(draft) {
 function config_draft_issues(d) {
 	const issues = [], add = (step, message) => issues.push({step, message});
 	const word = value => typeof value === 'string' && /^[^\s:,#[\]]+$/.test(value);
+	const sportId = value => typeof value === 'string' && /^[^\s:,@#[\]]+$/.test(value);
 	const name = value => typeof value === 'string' && value.trim() && !/[:,\r\n]/.test(value) && !/^[#[]/.test(value);
 	const integer = (n, min) => String(n).trim() !== '' && Number.isSafeInteger(Number(n)) && Number(n) >= min;
 	const duplicates = (items, step, label) => {
@@ -103,8 +131,10 @@ function config_draft_issues(d) {
 	};
 	if (!d.sports.length) add(0, 'Προσθέστε τουλάχιστον ένα άθλημα.');
 	duplicates(d.sports.map(s => s.name), 0, 'Αθλήματα');
+	duplicates(d.sports.map(s => s.id), 0, 'ID αθλημάτων');
 	d.sports.forEach((s, i) => {
 		if (!word(s.name)) add(0, `Άθλημα ${i + 1}: συμπληρώστε ένα όνομα χωρίς κενά ή σημεία στίξης (: , # [ ]).`);
+		if (!sportId(s.id)) add(0, `Άθλημα ${i + 1}: συμπληρώστε ένα μοναδικό ID χωρίς κενά ή σημεία στίξης.`);
 		if (!s.courts.length || s.courts.some(c => !name(c))) add(0, `${s.name || 'Άθλημα ' + (i + 1)}: συμπληρώστε τα ονόματα των γηπέδων, χωρίς : ή κόμμα.`);
 		duplicates(s.courts, 0, s.name || 'Γήπεδα');
 		if (s.points && s.points.some(n => !integer(n, 0))) add(0, `${s.name}: οι βαθμοί πρέπει να είναι ακέραιοι, από 0 και πάνω.`);
@@ -260,7 +290,13 @@ document.addEventListener('DOMContentLoaded', () => {
 		const ids = [...draft.groups, ...draft.knockouts].map(g => g.id);
 		let n = 1; while (ids.includes(prefix + n)) n++; return prefix + n;
 	};
-	const uniqueGroupCode = sport => uniqueCode({Ποδόσφαιρο: 'pg', Μπάσκετ: 'kg', Βόλεϊ: 'vg', Μπέιζμπολ: 'bg'}[sport] || 'g');
+	const uniqueGroupCode = sport => uniqueCode(sport.id + 'g');
+	const uniqueSportId = () => { let n = 1; while (draft.sports.some(s => s.id === `a${n}`)) n++; return `a${n}`; };
+	const uniqueStageCode = (sport, stage, plain = false) => {
+		const prefix = sport.id + stage;
+		if (plain && ![...draft.groups, ...draft.knockouts].some(g => g.id === prefix)) return prefix;
+		return uniqueCode(prefix);
+	};
 	const empty = (parent, title, help) => { const box = el('div', 'ce-empty'); box.append(el('strong', '', title), el('p', '', help)); parent.append(box); };
 	const row = (...children) => { const box = el('div', 'ce-row'); box.append(...children); return box; };
 	const note = text => el('p', 'ce-note', text);
@@ -360,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		body.append(suggestions, list);
 		draft.sports.forEach((s, index) => {
 			const card = el('article', 'ce-card ce-sport'); card.style.setProperty('--ce-sport', `var(--sport-${index % 6 + 1})`);
-			card.append(row(field('Όνομα αθλήματος', s.name, value => {
+			card.append(row(field('ID αθλήματος', s.id, value => { s.id = value; }, {placeholder: 'p'}), field('Όνομα αθλήματος', s.name, value => {
 				const old = s.name; s.name = value;
 				[...draft.groups, ...draft.knockouts].forEach(g => { if (g.sport === old) g.sport = value; });
 			}), remove(`Αφαίρεση αθλήματος ${s.name || index + 1}`, () => {
@@ -389,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			card.append(scoring); list.append(card);
 		});
 		if (!draft.sports.length) empty(body, 'Προσθέστε το πρώτο άθλημα', 'Μπορείτε να ορίσετε όσα αθλήματα και γήπεδα χρειάζεστε.');
-		body.append(button('+ Προσθήκη αθλήματος', () => mutate(() => draft.sports.push({name: '', courts: [''], points: null, rules: [...DEFAULT_TIEBREAK_ORDER], customRules: false}), '.ce-sport:last-child input'), 'ce-add'));
+		body.append(button('+ Προσθήκη αθλήματος', () => mutate(() => draft.sports.push({id: uniqueSportId(), name: '', courts: [''], points: null, rules: [...DEFAULT_TIEBREAK_ORDER], customRules: false}), '.ce-sport:last-child input'), 'ce-add'));
 	}
 	function renderZones(body) {
 		const list = el('div', 'ce-zone-list'); body.append(list);
@@ -589,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const bulk = el('section', 'ce-card ce-bulk-teams');
 		bulk.append(el('h4', '', 'Προσθήκη πολλών ομάδων μαζί'));
 		const label = el('label', 'ce-field'); label.append(el('span', 'ce-label', 'Ένα όνομα σε κάθε γραμμή'));
-		const names = el('textarea', 'ce-input'); names.rows = 6; names.value = bulkTeams; names.placeholder = 'π.χ. Ομολογητές\nΜαχητές\nΠιστοί\n...'; names.addEventListener('input', () => bulkTeams = names.value); label.append(names); bulk.append(label);
+		const names = el('textarea', 'ce-input'); names.rows = 6; names.value = bulkTeams; names.placeholder = 'Ομολογητές\nΜαχητές\nΠιστοί\n...'; names.addEventListener('input', () => bulkTeams = names.value); label.append(names); bulk.append(label);
 		bulk.append(button('Προσθήκη λίστας', () => {
 			const values = bulkTeams.split(/\r?\n/).map(t => t.trim().replace(/\s+/g, ' ')).filter(Boolean);
 			if (!values.length) { say('Γράψτε τουλάχιστον ένα όνομα ομάδας.', true); return; }
@@ -597,8 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (new Set(combined).size !== combined.length || values.some(t => /[:,]/.test(t) || /^[#[]/.test(t))) { say('Χρησιμοποιήστε διαφορετικά ονόματα ομάδων, χωρίς : ή κόμμα και χωρίς # ή [ στην αρχή.', true); return; }
 			mutate(() => { draft.teams.push(...values); bulkTeams = ''; }); say(`Προστέθηκαν ${values.length} ομάδες με αυτόματα ID.`);
 		}, 'button-primary ce-bulk-submit')); body.append(bulk);
-		const individual = el('details', 'ce-details ce-individual-teams');
-		individual.append(el('summary', '', `Προσθήκη / επεξεργασία ομάδων μία μία (${draft.teams.length})`));
+		const individual = el('section', 'ce-individual-teams');
+		individual.append(el('h4', '', `Προσθήκη / επεξεργασία ομάδων μία μία (${draft.teams.length})`));
 		const list = el('div', 'ce-teams-grid'); individual.append(list);
 		draft.teams.forEach((name, i) => {
 			const card = el('div', 'ce-team');
@@ -672,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!draft.sports.length) { empty(body, 'Χρειάζεται τουλάχιστον ένα άθλημα.', 'Προσθέστε ένα άθλημα πριν φτιάξετε ομίλους.'); return; }
 		groupSport = Math.min(groupSport, draft.sports.length - 1);
 		body.append(sportTabs(groupSport, value => groupSport = value, 'Άθλημα ομίλων'));
-		if (draft.teams.length < 2) { empty(body, 'Χρειάζονται τουλάχιστον δύο ομάδες.', 'Προσθέστε ομάδες για να φτιάξετε όμιλο στο επιλεγμένο άθλημα.'); body.append(button('Μετάβαση στις ομάδες →', () => go(3))); return; }
+		if (draft.teams.length < 2) { empty(body, 'Χρειάζονται τουλάχιστον δύο ομάδες.', 'Προσθέστε ομάδες για να φτιάξετε όμιλο στο επιλεγμένο άθλημα.'); return; }
 		const sport = draft.sports[groupSport], groups = draft.groups.map((g, index) => ({g, index})).filter(one => one.g.sport === sport.name);
 		if (!groups.length) empty(body, `Δεν υπάρχουν ακόμη όμιλοι για ${sport.name}.`, 'Προσθέστε τον πρώτο όμιλο για αυτό το άθλημα ή επιλέξτε άλλο άθλημα παραπάνω.');
 		groups.forEach(({g, index}) => {
@@ -707,7 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 			body.append(card);
 		});
-		body.append(button('+ Προσθήκη ομίλου', () => mutate(() => draft.groups.push({id: uniqueGroupCode(sport.name), sport: sport.name, mode: 'all', count: 1, teams: draft.teams.map((_, i) => i + 1), matches: []}), '.ce-group:last-of-type input'), 'ce-add'));
+		body.append(button('+ Προσθήκη ομίλου', () => mutate(() => draft.groups.push({id: uniqueGroupCode(sport), sport: sport.name, mode: 'all', count: 1, teams: draft.teams.map((_, i) => i + 1), matches: []}), '.ce-group:last-of-type input'), 'ce-add'));
 	}
 	function renderKnockouts(body) {
 		if (!draft.sports.length) { empty(body, 'Χρειάζεται τουλάχιστον ένα άθλημα.', 'Προσθέστε ένα άθλημα πριν φτιάξετε αγώνες νοκ άουτ.'); return; }
@@ -767,12 +803,12 @@ document.addEventListener('DOMContentLoaded', () => {
 					while (sources.length > 1) {
 						const next = [], round = sources.length;
 						for (let i = 0; i < sources.length; i += 2) {
-							const id = uniqueCode(round === 8 ? 'qf' : round === 4 ? 'sf' : 'f');
+							const id = round === 8 ? uniqueStageCode(sport, 'q') : round === 4 ? uniqueStageCode(sport, 's') : uniqueStageCode(sport, 'f', true);
 							draft.knockouts.push({id, sport: group.sport, home: sources[i], away: sources[i + 1]}); next.push(id + ':W'); if (round === 4) semis.push(id);
 						}
 						sources = next;
 					}
-					if (bracketBronze && semis.length === 2) draft.knockouts.push({id: uniqueCode('bronze'), sport: group.sport, home: semis[0] + ':L', away: semis[1] + ':L'});
+					if (bracketBronze && semis.length === 2) draft.knockouts.push({id: uniqueStageCode(sport, 'b', true), sport: group.sport, home: semis[0] + ':L', away: semis[1] + ':L'});
 				}); say('Η τελική φάση προστέθηκε. Μπορείτε να επεξεργαστείτε κάθε αγώνα παρακάτω.');
 			}, 'ce-add-inline')); body.append(quick);
 		}
@@ -789,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			card.append(row(select('Αντίπαλος Α', k.home, options, value => k.home = value), el('span', 'ce-vs', 'vs'), select('Αντίπαλος Β', k.away, options, value => k.away = value)));
 			body.append(card);
 		});
-		body.append(button('+ Προσθήκη αγώνα νοκ άουτ', () => mutate(() => draft.knockouts.push({id: uniqueCode('k'), sport: sport.name, home: '', away: ''})), 'ce-add'));
+		body.append(button('+ Προσθήκη αγώνα νοκ άουτ', () => mutate(() => draft.knockouts.push({id: uniqueStageCode(sport, 'n'), sport: sport.name, home: '', away: ''})), 'ce-add'));
 	}
 	function renderRules(body) {
 		if (!draft.sports.length) { empty(body, 'Προσθέστε ένα άθλημα για να ορίσετε τα κριτήριά του.', 'Κάθε άθλημα έχει ανεξάρτητη σειρά ισοβαθμιών.'); return; }
@@ -814,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					{value: 'τυχαία', label: 'Τυχαία ομάδα'},
 					{value: 'επιλογή_χρήστη', label: 'Επιλογή χρήστη'},
 				], value => {
-					sport.rules[i] = value;
+					sport.rules = [...sport.rules.filter(existing => !FINAL_TIEBREAKERS.includes(existing)), value];
 					sport.customRules = sport.rules.join(',') !== DEFAULT_TIEBREAK_ORDER.join(',');
 				});
 				finalChoice.classList.add('ce-final-rule'); item.append(finalChoice);
@@ -830,7 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 			list.append(item);
 		}); body.append(list);
-		const inactive = DEFAULT_TIEBREAK_ORDER.filter(rule => !sport.rules.includes(rule));
+		const inactive = DEFAULT_TIEBREAK_ORDER.filter(rule => !FINAL_TIEBREAKERS.includes(rule) && !sport.rules.includes(rule));
 		if (inactive.length) {
 			const disabled = el('div', 'ce-inactive-rules'); disabled.append(el('h4', '', 'Ανενεργά κριτήρια'));
 			inactive.forEach(rule => disabled.append(button('+ ' + TIEBREAK_CRITERIA[rule], () => mutate(() => { sport.rules.splice(-1, 0, rule); sport.customRules = true; }), 'ce-add-inline'))); body.append(disabled);
@@ -848,6 +884,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 	function receive() {
 		history = []; future = []; bracketOpen = null; showIssues = false; say('');
+		const repaired = config_repair_final_tiebreaks(input.value);
+		if (repaired !== input.value) { input.value = repaired; input.dispatchEvent(new Event('input', {bubbles: true})); }
 		if (!input.value.trim()) {
 			draft = config_defaults(); input.value = config_write_draft(draft); source = input.value;
 		} else {
