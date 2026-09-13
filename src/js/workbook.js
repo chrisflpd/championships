@@ -23,6 +23,7 @@ const workbook = {
 	cols: [],       // one entry per sport and court pair: the columns of the plan
 	slots: {},      // slot key -> game, holding only the slots that carry one
 	results: {},    // match identity -> the score and the referee
+	tiebreaks: {},  // stable random draws and completed user tie-break choices
 	offered: null,  // a plan a previous visit left, waiting to be asked for
 };
 
@@ -230,7 +231,7 @@ function wb_snapshot() {
 			occ: game.occ,
 		};
 	}
-	return { sig: workbook.sig, configuration: workbook.configuration, plan, results: workbook.results };
+	return { sig: workbook.sig, configuration: workbook.configuration, plan, results: workbook.results, tiebreaks: workbook.tiebreaks };
 }
 
 // History stores plain data, never live game objects. One swap of a round or
@@ -251,6 +252,7 @@ function wb_history_step(redo) {
 	const saved = JSON.parse(state);
 	workbook.offered = saved.plan;
 	workbook.results = saved.results;
+	workbook.tiebreaks = saved.tiebreaks || {};
 	wb_restore(false);
 	wb_history.current = state;
 	wb_save();
@@ -440,6 +442,7 @@ function wb_build(program) {
 	//a score belongs to the match and not to the slot, so it is put straight back:
 	//wherever this search has placed that match, the result of it is still its own
 	workbook.results = mine && stored.results ? stored.results : {};
+	workbook.tiebreaks = mine && stored.tiebreaks ? stored.tiebreaks : {};
 	//a plan is not, though. the search was asked for a new program and it found
 	//one, so that is what is drawn; the plan the camp left is offered instead of
 	//being forced back over it.
@@ -1125,6 +1128,39 @@ function wb_final_ranks(group, rows) {
 	const rules = tiebreak_order(group.sport);
 	const fixtures = wb_placed().filter(p => p.game.kn === null && p.game.id === group.id).map(p => p.game);
 	const complete = fixtures.length > 0 && fixtures.every(game => wb_played(game));
+	function finalOrder(tied, rule, path) {
+		const ids = tied.map(row => row.team.id).sort((a, b) => a - b);
+		const results = fixtures.map(game => {
+			const result = wb_result(game);
+			return `${game.home}-${game.away}:${result.sh}-${result.sa}`;
+		}).sort().join(';');
+		const key = `${group.id}|${rule}|${ids.join(',')}|${path.join('>')}|${results}`;
+		const saved = workbook.tiebreaks[key];
+		if (Array.isArray(saved) && saved.length === ids.length && saved.every(id => ids.includes(id)) && new Set(saved).size === ids.length)
+			return saved;
+		let order = [...ids], keep = rule === 'τυχαία';
+		if (rule === 'τυχαία') {
+			for (let i = order.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[order[i], order[j]] = [order[j], order[i]];
+			}
+		} else {
+			const names = tied.slice().sort((a, b) => a.team.id - b.team.id).map(row => `#${row.team.id} ${row.team.name}`).join(', ');
+			let answer = null;
+			try {
+				if (typeof prompt === 'function') answer = prompt(`Ισοβαθμία στον όμιλο ${group.id}.\nΓράψτε τα ID με τη σειρά κατάταξης, χωρισμένα με κόμμα.\n${names}`, ids.join(', '));
+			} catch (error) { answer = null; }
+			const chosen = String(answer ?? '').split(',').map(value => Number(value.trim())).filter(Number.isInteger);
+			if (chosen.length === ids.length && chosen.every(id => ids.includes(id)) && new Set(chosen).size === ids.length) {
+				order = chosen; keep = true;
+			}
+		}
+		if (keep) {
+			workbook.tiebreaks[key] = order;
+			wb_save();
+		}
+		return order;
+	}
 	function resolve(tied, path) {
 		if (tied.length === 1) {
 			tied[0].rank_reason = path.join(' → ');
@@ -1135,6 +1171,7 @@ function wb_final_ranks(group, rows) {
 			if (rule.startsWith('μεταξύ_τους') && mini === null) {
 				continue;
 			}
+			const final = FINAL_TIEBREAKERS.includes(rule) && rule !== 'id' && complete ? finalOrder(tied, rule, path) : null;
 			const value = row => {
 				switch (rule) {
 					case 'μεταξύ_τους': return mini.get(row.team.id)[tied.length === 2 ? 'w' : 'pts'];
@@ -1146,6 +1183,8 @@ function wb_final_ranks(group, rows) {
 					case 'συνολικές_νίκες': return row.w;
 					case 'συνολικά_κατά': return -row.ga;
 					case 'id': return -row.team.id;
+					case 'τυχαία':
+					case 'επιλογή_χρήστη': return final === null ? -row.team.id : -final.indexOf(row.team.id);
 				}
 			};
 			const buckets = new Map();
@@ -1160,7 +1199,7 @@ function wb_final_ranks(group, rows) {
 			return [...buckets].sort((a, b) => b[0] - a[0]).flatMap(([score, subset]) =>
 				resolve(subset, path.concat(TIEBREAK_CRITERIA[rule])));
 		}
-		throw new Error('Λείπει το τελικό κριτήριο id.');
+		throw new Error('Λείπει τελικό κριτήριο ισοβαθμίας.');
 	}
 	const buckets = new Map();
 	for (const row of rows) {

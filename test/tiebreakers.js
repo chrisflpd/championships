@@ -78,6 +78,19 @@ const mini = wb_mini_table(tbConfig.groups.g, ranks(), wb_placed().map(p=>p.game
 assert.equal(mini.get(1).w, mini.get(2).w);
 assert.deepEqual(order(), [2,1], 'split direct wins fall through to mutual score difference');
 
+setup('τυχαία', [[1,2,0,0]], 'Ποδόσφαιρο', 2);
+const randomOrder = order();
+assert.deepEqual([...randomOrder].sort((a, b) => a - b), [1,2]);
+wb_recount(); assert.deepEqual(order(), randomOrder, 'a random draw stays stable when standings refresh');
+assert.ok(ranks().every(row => row.rank_reason === 'Τυχαία ομάδα'));
+let asked = 0; global.prompt = () => { asked++; return '2, 1'; };
+setup('επιλογή_χρήστη', [[1,2,0,0]], 'Ποδόσφαιρο', 2);
+assert.deepEqual(order(), [2,1], 'the user can set the final order of tied teams');
+wb_recount(); assert.deepEqual(order(), [2,1]); assert.equal(asked, 1, 'a saved choice is not requested repeatedly for the same tie');
+setup('επιλογή_χρήστη', [[1,2,null,null]], 'Ποδόσφαιρο', 2);
+assert.deepEqual(order(), [1,2]); assert.equal(asked, 1, 'an unfinished group does not ask for a final decision');
+delete global.prompt;
+
 for (const sport of ['Μπάσκετ','Μπέιζμπολ']) {
 	setup(rules, twoTied, sport);
 	assert.deepEqual(order(), [4,2,1,3], `${sport}: direct winner breaks tie`);
@@ -103,10 +116,14 @@ assert.deepEqual(order(), [2,1], 'mutual against prefers the team that conceded 
 
 const text = setup(rules, twoTied);
 assert.deepEqual(tbConfig.sports[0].tiebreakers, ['μεταξύ_τους','συνολική_διαφορά','συνολικά_υπέρ','id']);
-for (const invalid of ['', 'τυπογραφικό', 'id, συνολικές_νίκες', 'συνολικές_νίκες, συνολικές_νίκες', 'συνολικές_νίκες,', 'νίκες', 'λιγότερα_κατά'])
+for (const invalid of ['', 'τυπογραφικό', 'id, συνολικές_νίκες', 'τυχαία, id', 'id, επιλογή_χρήστη', 'συνολικές_νίκες, συνολικές_νίκες', 'συνολικές_νίκες,', 'νίκες', 'λιγότερα_κατά'])
 	assert.throws(() => parse_config(text.replace(rules, invalid)), /Ισοβαθμίες/);
 assert.throws(() => parse_config(text + 'Ποδόσφαιρο: id\n'), /δύο φορές/);
 assert.throws(() => parse_config(text + 'Άγνωστο: id\n'), /άγνωστο άθλημα/);
 parse_config('[tiebreakers]\nΠοδόσφαιρο: id\n' + text.split('[tiebreakers]')[0]);
 assert.deepEqual(tbConfig.sports[0].tiebreakers, ['id'], 'section can precede sports');
+parse_config(text.replace(rules, 'συνολικές_νίκες, τυχαία'));
+assert.deepEqual(tbConfig.sports[0].tiebreakers, ['συνολικές_νίκες', 'τυχαία']);
+parse_config(text.replace(rules, 'επιλογή_χρήστη'));
+assert.deepEqual(tbConfig.sports[0].tiebreakers, ['επιλογή_χρήστη']);
 console.log('ok: configurable tie-breakers, FRNK, direct results, mini-tables, subgroup restart, fallbacks and parser validation');

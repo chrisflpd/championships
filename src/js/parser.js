@@ -307,7 +307,7 @@ function parse_knockout_line(line) {
 }
 
 
-// Parse an ordered sport-specific list, with a mandatory final numeric fallback.
+// Parse an ordered sport-specific list, with exactly one final fallback.
 function parse_tiebreak_line(line) {
 	const colon = line.indexOf(':');
 	const name = line.slice(0, colon).trim();
@@ -321,9 +321,10 @@ function parse_tiebreak_line(line) {
 		throw new Error(`Ισοβαθμίες (${name}): άγνωστο ή κενό κριτήριο. Διαθέσιμα: ${Object.keys(TIEBREAK_CRITERIA).join(', ')}.`);
 	if (new Set(rules).size !== rules.length)
 		throw new Error(`Ισοβαθμίες (${name}): κάθε κριτήριο δηλώνεται μόνο μία φορά.`);
-	if (rules.includes('id') && rules.at(-1) !== 'id')
-		throw new Error(`Ισοβαθμίες (${name}): το id πρέπει να είναι το τελευταίο κριτήριο.`);
-	sport.tiebreakers = rules.includes('id') ? rules : rules.concat('id');
+	const finals = rules.filter(rule => FINAL_TIEBREAKERS.includes(rule));
+	if (finals.length > 1 || (finals.length === 1 && rules.at(-1) !== finals[0]))
+		throw new Error(`Ισοβαθμίες (${name}): επιλέξτε ένα μόνο τελικό κριτήριο και τοποθετήστε το τελευταίο.`);
+	sport.tiebreakers = finals.length ? rules : rules.concat('id');
 }
 
 /**

@@ -50,10 +50,17 @@ function championship_validate(text, stored, shared) {
 				plan[key] = { sport: (kn ? config.knockouts[id] : group).sport.name,
 					id, kn: kn ? id : null, home: kn ? null : one[2], away: kn ? null : one[3], occ: one[4] };
 			});
-			stored = { sig: workbook.sig, plan, results: shared.r };
+			stored = { sig: workbook.sig, plan, results: shared.r, tiebreaks: shared.t || {} };
 		}
 		if (!object(stored) || !wb_matches_config({ ...stored, configuration: text }) || !object(stored.plan) || !object(stored.results)) bad();
 		const teams = new Set(config.teams.map(team => team.id));
+		if (stored.tiebreaks !== undefined) {
+			if (!object(stored.tiebreaks)) bad();
+			Object.entries(stored.tiebreaks).forEach(([key, order]) => {
+				if (['__proto__', 'constructor', 'prototype'].includes(key) || key.length > 10000 || !Array.isArray(order) ||
+					order.length > config.teams.length || new Set(order).size !== order.length || order.some(id => !teams.has(id))) bad();
+			});
+		}
 		Object.entries(stored.plan).forEach(([key, game]) => {
 			if (!allowed.has(key) || !object(game)) bad();
 			const kn = Object.hasOwn(config.knockouts, game.id);
@@ -117,6 +124,7 @@ function backup_apply(data) {
 		displayer(config.days);
 		workbook.offered = checked.workbook.plan;
 		workbook.results = checked.workbook.results;
+		workbook.tiebreaks = checked.workbook.tiebreaks || {};
 		wb_restore();
 		sheets_draw();
 	} else {
@@ -129,6 +137,7 @@ function backup_apply(data) {
 		workbook.calendar = [];
 		workbook.slots = {};
 		workbook.results = {};
+		workbook.tiebreaks = {};
 		workbook.offered = null;
 		wb_history_reset();
 		document.getElementById('excel').disabled = true;

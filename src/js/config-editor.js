@@ -4,11 +4,11 @@
 const CONFIG_SECTIONS = ['sports', 'zones', 'days', 'teams', 'groups', 'knockouts'];
 const CONFIG_TEMPLATE = CONFIG_SECTIONS.map(name => `[${name}]\n`).join('\n') + '\n';
 const CONFIG_STEPS = [
-	['Αθλήματα', 'Διαλέξτε τα αθλήματα του πρωταθλήματος.', 'Προσθέστε τα γήπεδα κάθε αθλήματος. Το ίδιο όνομα δηλώνει κοινό γήπεδο.'],
+	['Αθλήματα', 'Ορίστε τα αθλήματα του πρωταθλήματος.', 'Προσθέστε τα γήπεδα κάθε αθλήματος. Το ίδιο όνομα δηλώνει κοινό γήπεδο.'],
 	['Ζώνες', 'Ορίστε τις ζώνες κάθε ημέρας.', 'Οι ζώνες παίζονται με τη σειρά που τις βλέπετε. Μπορείτε να τις μετονομάσετε ή να αλλάξετε τη σειρά τους.'],
 	['Ημέρες', 'Ορίστε τις ημερομηνίες της κατασκήνωσης.', 'Επιλέξτε ημέρες στο ημερολόγιο και ορίστε τους γύρους κάθε ζώνης. Το 0 σημαίνει ότι η ζώνη δεν χρησιμοποιείται εκείνη την ημέρα.'],
 	['Ομάδες', 'Ορίστε τα ονόματα των ομάδων.', 'Γράψτε τα ονόματα των ομάδων. Τα ID συμπληρώνονται αυτόματα και χρησιμοποιούνται στους ομίλους και στα νοκ άουτ.'],
-	['Όμιλοι', 'Φτιάξτε τους ομίλους.', 'Επιλέξτε άθλημα παραπάνω και διαχειριστείτε μόνο τους ομίλους του. Παίξτε όλοι με όλους, ορίστε αγώνες ανά ομάδα ή διαλέξτε συγκεκριμένα ζευγάρια.'],
+	['Όμιλοι', 'Ορίστε τους ομίλους.', 'Επιλέξτε άθλημα παραπάνω και διαχειριστείτε μόνο τους ομίλους του. Παίξτε όλοι με όλους, ορίστε αγώνες ανά ομάδα ή διαλέξτε συγκεκριμένα ζευγάρια.'],
 	['Νοκ άουτ', 'Ορίστε τους αγώνες νοκ αουτ.', 'Επιλέξτε άθλημα παραπάνω και διαχειριστείτε μόνο τη δική του τελική φάση. Διαλέξτε ομάδες, θέσεις ομίλων ή αποτελέσματα προηγούμενων αγώνων.'],
 	['Ισοβαθμίες', 'Ορίστε τους κανόνες ισοβαθμιών.', 'Σύρετε τα κριτήρια ή χρησιμοποιήστε τα βέλη. Η σειρά εφαρμόζεται ξεχωριστά σε κάθε άθλημα, μετά τους βαθμούς κατάταξης.'],
 ];
@@ -22,6 +22,8 @@ const CONFIG_RULE_HELP = {
 	'συνολικά_υπέρ': 'Περισσότερα υπέρ σε όλους τους αγώνες του ομίλου.',
 	'συνολικά_κατά': 'Λιγότερα κατά σε όλους τους αγώνες του ομίλου.',
 	'id': 'Τελικό κριτήριο για μοναδική τελική θέση κάθε ομάδας.',
+	'τυχαία': 'Οι ισόβαθμες ομάδες μπαίνουν σε τυχαία σειρά, η οποία παραμένει σταθερή για αυτό το αποτέλεσμα.',
+	'επιλογή_χρήστη': 'Όταν ολοκληρωθεί ο όμιλος, ζητείται η σειρά των ισόβαθμων ομάδων από τον χρήστη.',
 };
 
 function config_defaults() {
@@ -574,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			mutate(() => draft.days.forEach(d => { d.rounds = draft.zones.map((_, i) => bulkRounds[i] ?? 2); })); say('Οι γύροι εφαρμόστηκαν σε όλες τις επιλεγμένες ημέρες.');
 		}, 'ce-add-inline')); calendar.append(bulk);
 		const selected = el('div', 'ce-selected-days'); selected.append(el('h4', '', `Επιλεγμένες ημέρες (${draft.days.length})`));
-		if (!draft.days.length) empty(selected, 'Το ημερολόγιό σας είναι ανοιχτό.', 'Πατήστε όσες ημέρες θέλετε. Μπορείτε να επιλέξετε ημέρες από διαφορετικούς μήνες.');
+		if (!draft.days.length) empty(selected, 'Το ημερολόγιό σας είναι άδειο.', 'Πατήστε όσες ημέρες θέλετε. Μπορείτε να επιλέξετε ημέρες από διαφορετικούς μήνες.');
 		draft.days.forEach((d, index) => {
 			const card = el('div', 'ce-card ce-day');
 			const date = new Date(d.date + 'T12:00:00'), label = date.toLocaleDateString('el-GR', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
@@ -584,18 +586,20 @@ document.addEventListener('DOMContentLoaded', () => {
 		layout.append(calendar, selected); body.append(layout);
 	}
 	function renderTeams(body) {
-		const bulk = el('details', 'ce-details ce-bulk-teams'); bulk.open = !draft.teams.length;
-		bulk.append(el('summary', '', 'Προσθήκη πολλών ομάδων μαζί'));
+		const bulk = el('section', 'ce-card ce-bulk-teams');
+		bulk.append(el('h4', '', 'Προσθήκη πολλών ομάδων μαζί'));
 		const label = el('label', 'ce-field'); label.append(el('span', 'ce-label', 'Ένα όνομα σε κάθε γραμμή'));
-		const names = el('textarea', 'ce-input'); names.rows = 4; names.value = bulkTeams; names.placeholder = 'π.χ. Ομολογητές\nΜαχητές\nΠιστοί\n...'; names.addEventListener('input', () => bulkTeams = names.value); label.append(names); bulk.append(label);
+		const names = el('textarea', 'ce-input'); names.rows = 6; names.value = bulkTeams; names.placeholder = 'π.χ. Ομολογητές\nΜαχητές\nΠιστοί\n...'; names.addEventListener('input', () => bulkTeams = names.value); label.append(names); bulk.append(label);
 		bulk.append(button('Προσθήκη λίστας', () => {
 			const values = bulkTeams.split(/\r?\n/).map(t => t.trim().replace(/\s+/g, ' ')).filter(Boolean);
 			if (!values.length) { say('Γράψτε τουλάχιστον ένα όνομα ομάδας.', true); return; }
 			const combined = [...draft.teams, ...values].map(t => t.trim().replace(/\s+/g, ' '));
 			if (new Set(combined).size !== combined.length || values.some(t => /[:,]/.test(t) || /^[#[]/.test(t))) { say('Χρησιμοποιήστε διαφορετικά ονόματα ομάδων, χωρίς : ή κόμμα και χωρίς # ή [ στην αρχή.', true); return; }
 			mutate(() => { draft.teams.push(...values); bulkTeams = ''; }); say(`Προστέθηκαν ${values.length} ομάδες με αυτόματα ID.`);
-		}, 'ce-add-inline')); body.append(bulk);
-		const list = el('div', 'ce-teams-grid'); body.append(list);
+		}, 'button-primary ce-bulk-submit')); body.append(bulk);
+		const individual = el('details', 'ce-details ce-individual-teams');
+		individual.append(el('summary', '', `Προσθήκη / επεξεργασία ομάδων μία μία (${draft.teams.length})`));
+		const list = el('div', 'ce-teams-grid'); individual.append(list);
 		draft.teams.forEach((name, i) => {
 			const card = el('div', 'ce-team');
 			card.append(el('span', 'ce-team-id', `#${i + 1}`), field(`Ομάδα ${i + 1}`, name, value => draft.teams[i] = value, {placeholder: 'Όνομα ομάδας'}), remove(`Αφαίρεση ομάδας ${i + 1}`, () => {
@@ -611,8 +615,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			}));
 			list.append(card);
 		});
-		if (!draft.teams.length) empty(body, 'Η πρώτη ομάδα περιμένει το όνομά της.', 'Προσθέστε ομάδες μία μία ή επικολλήστε ολόκληρη τη λίστα παρακάτω.');
-		body.append(button('+ Προσθήκη ομάδας', () => mutate(() => draft.teams.push(''), '.ce-team:last-child input'), 'ce-add'));
+		if (!draft.teams.length) empty(individual, 'Δεν υπάρχουν ακόμη ομάδες.', 'Ανοίξτε αυτήν την ενότητα όταν θέλετε να προσθέσετε ομάδες μία μία.');
+		individual.append(button('+ Προσθήκη ομάδας', () => mutate(() => draft.teams.push(''), '.ce-team:last-child input'), 'ce-add'));
+		body.append(individual);
 	}
 
 	function wireTeamSelection(choices, group) {
@@ -800,10 +805,20 @@ document.addEventListener('DOMContentLoaded', () => {
 			root.querySelectorAll('.ce-rule')[to]?.querySelector('button')?.focus();
 		};
 		sport.rules.forEach((rule, i) => {
-			const item = el('li', 'ce-rule'); const fixed = rule === 'id'; item.draggable = !fixed; item.dataset.rule = rule;
+			const item = el('li', 'ce-rule'); const fixed = FINAL_TIEBREAKERS.includes(rule); item.draggable = !fixed; item.dataset.rule = rule; item.classList.toggle('is-final', fixed);
 			item.append(el('span', 'ce-grip', fixed ? '◆' : '⠿'), el('span', 'ce-rule-rank', String(i + 1).padStart(2, '0')));
 			const label = el('div', 'ce-rule-label'); label.append(el('strong', '', TIEBREAK_CRITERIA[rule]), el('small', '', CONFIG_RULE_HELP[rule])); item.append(label);
-			if (!fixed) {
+			if (fixed) {
+				const finalChoice = select('Τελικό κριτήριο', rule, [
+					{value: 'id', label: 'Μικρότερο ID ομάδας'},
+					{value: 'τυχαία', label: 'Τυχαία ομάδα'},
+					{value: 'επιλογή_χρήστη', label: 'Επιλογή χρήστη'},
+				], value => {
+					sport.rules[i] = value;
+					sport.customRules = sport.rules.join(',') !== DEFAULT_TIEBREAK_ORDER.join(',');
+				});
+				finalChoice.classList.add('ce-final-rule'); item.append(finalChoice);
+			} else {
 				const up = button('↑', () => move(i, i - 1), 'ce-icon-button'); up.disabled = i === 0; up.setAttribute('aria-label', `Μετακίνηση πάνω: ${TIEBREAK_CRITERIA[rule]}`);
 				const down = button('↓', () => move(i, i + 1), 'ce-icon-button'); down.disabled = i === sport.rules.length - 2; down.setAttribute('aria-label', `Μετακίνηση κάτω: ${TIEBREAK_CRITERIA[rule]}`);
 				item.append(up, down, remove(`Απενεργοποίηση: ${TIEBREAK_CRITERIA[rule]}`, () => mutate(() => { sport.rules.splice(i, 1); sport.customRules = true; })));

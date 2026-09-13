@@ -120,6 +120,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	w.wb_put(keys[8], 'bg', 1, 3);
 	w.wb_put(keys[16], 'pf', null, null);
 	w.wb_set_result(w.wb_at(keys[0]), 3, 1, 'Διαιτητής Α');
+	w.eval("workbook.tiebreaks = {'test-decision':[2,1]}");
 	w.wb_history_reset();
 	w.sheets_draw();
 	const initial = plan(w);
@@ -209,6 +210,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 
 	const backup = JSON.parse(JSON.stringify(w.backup_data()));
 	assert.ok(backup.configuration.includes('[tiebreakers]'), 'backups carry the ordered rules in configuration');
+	assert.deepEqual(backup.workbook.tiebreaks['test-decision'], [2,1], 'backups carry resolved final tie-break choices');
 	const storageBefore = stored(w), historyBefore = w.eval('JSON.stringify(wb_history)');
 	const invalid = [
 		{ ...backup, version: 99 }, { ...backup, configuration: 'bad' },
@@ -290,6 +292,8 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 			w.eval('JSON.stringify(config.sports.map(s => tiebreak_order(s)))'), 'compressed and legacy links retain criterion order');
 		assert.equal(other.eval('JSON.stringify(wb_standings(config.groups.pg))'),
 			w.eval('JSON.stringify(wb_standings(config.groups.pg))'), 'shared ranks and explanations match the source');
+		assert.equal(other.eval('JSON.stringify(workbook.tiebreaks)'), w.eval('JSON.stringify(workbook.tiebreaks)'),
+			'shared championships retain resolved final tie-break choices');
 		assert.equal(stored(other), before, 'viewing a link does not overwrite storage');
 	}
 	const lengths = new Set();

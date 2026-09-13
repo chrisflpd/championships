@@ -51,7 +51,7 @@ function share_data(text) {
 		plan.push([at[key], game.id, game.home, game.away, game.occ || 0]);
 	}
 	plan.sort((one, other) => one[0] - other[0]);
-	return { v: 1, c: text, p: plan, r: workbook.results };
+	return { v: 1, c: text, p: plan, r: workbook.results, t: workbook.tiebreaks };
 }
 
 //base64 the way a link takes it, without the characters a link would eat
@@ -91,7 +91,7 @@ async function share_link(text) {
 		return [delta, ids.indexOf(one[1]), one[2] || 0, one[3] || 0, one[4]];
 	});
 	const zip = new JSZip();
-	zip.file('p', JSON.stringify({ v: 2, c: data.c, p: plan, r: data.r }), { date: new Date('2000-01-01T00:00:00Z') });
+	zip.file('p', JSON.stringify({ v: 2, c: data.c, p: plan, r: data.r, t: data.t }), { date: new Date('2000-01-01T00:00:00Z') });
 	const code = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 	return where.origin + where.pathname + SHARE_MARK + '2.' + code.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -119,6 +119,7 @@ function share_open(data) {
 
 	workbook.offered = saved.plan;
 	workbook.results = saved.results;
+	workbook.tiebreaks = saved.tiebreaks || {};
 	if (!wb_restore())
 		return false;
 	sheets_draw();

@@ -122,6 +122,9 @@ async function page(text) {
 	items[2].dispatchEvent(new w.Event('drop', {bubbles: true, cancelable: true}));
 	assert.equal(read().sports[0].rules[2], 'μεταξύ_τους_διαφορά');
 	click('Επαναφορά προεπιλεγμένης σειράς'); assert.equal(read().sports[0].customRules, false);
+	change(doc.querySelector('.ce-final-rule select'), 'τυχαία'); assert.equal(read().sports[0].rules.at(-1), 'τυχαία'); assert.equal(read().sports[0].customRules, true);
+	change(doc.querySelector('.ce-final-rule select'), 'επιλογή_χρήστη'); assert.equal(read().sports[0].rules.at(-1), 'επιλογή_χρήστη');
+	change(doc.querySelector('.ce-final-rule select'), 'id'); assert.equal(read().sports[0].customRules, false);
 	console.log('ok: exact Greek labels, arrows and drag-and-drop, per-sport order, optional rules and fixed final ID');
 
 	// Create a complete championship entirely through the new controls.
