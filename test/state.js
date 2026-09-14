@@ -93,7 +93,11 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const cellHint = tooltipRules.find(rule => rule.selectorText === '.points-table td[data-tooltip]::after');
 	const toolbarHint = tooltipRules.find(rule => rule.selectorText === '.toolbar button[data-tooltip]::after');
 	assert.equal(cellHint.style.width, 'max-content', 'standings explanations use only the width their text needs');
-	assert.equal(toolbarHint.style.width, 'max-content', 'configuration explanations use only the width their text needs');
+	assert.equal(toolbarHint.style.width, 'max-content', 'shared configuration tooltip styling starts at content width');
+	const compactToolbarHint = tooltipRules.find(rule => rule.selectorText === '.panel-config .toolbar button[data-tooltip]::after' && rule.style.width);
+	assert.equal(compactToolbarHint.style.width, '280px', 'configuration explanations wrap into a compact multi-line box');
+	assert.match(compactToolbarHint.style.maxWidth, /280px/, 'compact explanations still fit narrow screens');
+	assert.equal(compactToolbarHint.style.bottom, 'calc(100% + 7px)', 'bottom toolbar explanations open upward and remain visible');
 	const plainFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk');
 	const explainedFrnk = tooltipRules.find(rule => rule.selectorText === '.points-frnk[data-tooltip]');
 	const provisionalFrnk = tooltipRules.find(rule =>

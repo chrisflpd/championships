@@ -331,7 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			const b = card.querySelector('.ce-row > .ce-remove');
 			if (b) { b.title = `Αφαίρεση αθλήματος ${draft.sports[i].name || i + 1}`; b.setAttribute('aria-label', b.title); }
 		});
-		const counts = [draft.sports.length, draft.zones.length, draft.days.length, draft.teams.length, draft.groups.length, draft.knockouts.length, draft.sports.length];
+		const selectedRuleCount = draft.sports[Math.min(ruleSport, Math.max(0, draft.sports.length - 1))]?.rules.length || 0;
+		const counts = [draft.sports.length, draft.zones.length, draft.days.length, draft.teams.length, draft.groups.length, draft.knockouts.length, selectedRuleCount];
 		root.querySelectorAll('[data-count]').forEach(node => { node.textContent = counts[Number(node.dataset.count)]; });
 		const summary = root.querySelector('.ce-overview');
 		if (summary) summary.textContent = `${draft.sports.length} αθλήματα · ${draft.teams.length} ομάδες · ${draft.days.length} ημέρες · ${draft.days.reduce((n, d) => n + d.rounds.reduce((s, r) => s + (Number(r) || 0), 0), 0)} γύροι`;
@@ -713,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!groups.length) empty(body, `Δεν υπάρχουν ακόμη όμιλοι για ${sport.name}.`, 'Προσθέστε τον πρώτο όμιλο για αυτό το άθλημα ή επιλέξτε άλλο άθλημα παραπάνω.');
 		groups.forEach(({g, index}) => {
 			const card = el('article', 'ce-card ce-group');
-			const head = row(field('Κωδικός ομίλου', g.id, value => { const old = g.id; g.id = value; renameRef(old, value); }),
+			const head = row(field('ID ομίλου', g.id, value => { const old = g.id; g.id = value; renameRef(old, value); }),
 				remove(`Αφαίρεση ομίλου ${g.id}`, () => {
 					const action = () => { draft.groups.splice(index, 1); removeRefs([g.id]); };
 					if (draft.knockouts.some(k => [k.home, k.away].some(ref => ref.startsWith(g.id + ':')))) confirmRemove(`Αφαίρεση ομίλου ${g.id};`, 'Θα αφαιρεθούν και οι αγώνες νοκ άουτ που εξαρτώνται από αυτόν τον όμιλο, μαζί με τις επόμενες προκρίσεις τους.', action);
@@ -816,7 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!knockouts.length) empty(body, `Δεν υπάρχουν ακόμη νοκ άουτ για ${sport.name}.`, 'Προσθέστε τελική φάση, έναν μεμονωμένο αγώνα ή επιλέξτε άλλο άθλημα παραπάνω.');
 		knockouts.forEach(({k, index}, position) => {
 			const card = el('article', 'ce-card ce-knockout');
-			card.append(row(el('span', 'ce-match-number', String(position + 1).padStart(2, '0')), field('Κωδικός αγώνα', k.id, value => { const old = k.id; k.id = value; renameRef(old, value); }), remove(`Αφαίρεση αγώνα ${k.id}`, () => {
+			card.append(row(el('span', 'ce-match-number', String(position + 1).padStart(2, '0')), field('ID αγώνα νοκ αουτ', k.id, value => { const old = k.id; k.id = value; renameRef(old, value); }), remove(`Αφαίρεση αγώνα ${k.id}`, () => {
 				const action = () => removeRefs([k.id]);
 				if (draft.knockouts.some(other => [other.home, other.away].some(ref => ref.startsWith(k.id + ':')))) confirmRemove(`Αφαίρεση αγώνα ${k.id};`, 'Θα αφαιρεθούν και οι επόμενοι αγώνες που χρησιμοποιούν τον νικητή ή τον ηττημένο του.', action);
 				else mutate(action);

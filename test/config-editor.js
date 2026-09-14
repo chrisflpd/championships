@@ -110,6 +110,7 @@ async function page(text) {
 	console.log('ok: team removal is confirmed, IDs and explicit matches remap, bulk names receive consecutive IDs');
 
 	input.value = sample; w.config_editor_refresh(); step(6);
+	assert.equal(doc.querySelector('[data-count="6"]').textContent, '9', 'tiebreak navigation counts the selected sport rules, not sports');
 	const labels = [...doc.querySelectorAll('.ce-rule-label strong')].map(n => n.textContent);
 	assert.deepEqual(labels, ['Αποτελέσματα στους μεταξύ τους αγώνες', 'Διαφορά στους μεταξύ τους αγώνες', 'Υπέρ στους μεταξύ τους αγώνες', 'Λιγότερα κατά στους μεταξύ τους αγώνες', 'Συνολικές νίκες', 'Συνολική διαφορά', 'Συνολικά υπέρ', 'Λιγότερα συνολικά κατά', 'Μικρότερο ID ομάδας']);
 	click('Μετακίνηση κάτω: Αποτελέσματα στους μεταξύ τους αγώνες');
@@ -117,7 +118,9 @@ async function page(text) {
 	assert.equal(doc.querySelector('.ce-rule:last-child').draggable, false);
 	assert.equal(doc.querySelector('.ce-rule:last-child button'), null);
 	click('Απενεργοποίηση: Συνολικά υπέρ'); assert.ok(!read().sports[0].rules.includes('συνολικά_υπέρ'));
+	assert.equal(doc.querySelector('[data-count="6"]').textContent, '8');
 	click('+ Συνολικά υπέρ'); assert.equal(read().sports[0].rules.at(-2), 'συνολικά_υπέρ'); assert.equal(read().sports[0].rules.at(-1), 'id');
+	assert.equal(doc.querySelector('[data-count="6"]').textContent, '9');
 	// Drag-and-drop runs through the same ordered data, and is independent per sport.
 	const items = doc.querySelectorAll('.ce-rule'), transfer = {setData() {}, effectAllowed: ''};
 	const start = new w.Event('dragstart', {bubbles: true}); Object.defineProperty(start, 'dataTransfer', {value: transfer}); items[0].dispatchEvent(start);
@@ -141,11 +144,13 @@ async function page(text) {
 	change(doc.querySelector('.ce-day input'), '3'); assert.equal(read().days[0].rounds[0], 3);
 	step(3); change(doc.querySelector('.ce-bulk-teams textarea'), 'One\nTwo\nThree\nFour'); click('Προσθήκη λίστας');
 	step(4); click('+ Προσθήκη ομίλου');
+	assert.equal(doc.querySelector('.ce-group .ce-label').textContent, 'ID ομίλου');
 	const membership = doc.querySelector('.ce-team-choice input'); membership.focus(); membership.checked = false; membership.dispatchEvent(new w.Event('change', {bubbles: true}));
 	assert.equal(doc.activeElement.id, 'ce-group-0-team-0', 'keyboard focus remains on the changed team checkbox');
 	click('↶ Undo'); assert.deepEqual(read().groups[0].teams, [1, 2, 3, 4]);
 	assert.equal(read().groups[0].count, 3); assert.deepEqual(read().groups[0].teams, [1, 2, 3, 4]);
 	step(5); click('+ Δημιουργία τελικής φάσης');
+	assert.equal(doc.querySelector('.ce-knockout .ce-label').textContent, 'ID αγώνα νοκ αουτ');
 	assert.equal(read().knockouts.length, 3); assert.equal(read().knockouts[2].id, 'pf'); assert.equal(read().knockouts[2].home, 'ps1:W');
 	assert.equal(w.config_draft_issues(w.config_read_draft(input.value)).length, 0);
 	step(6); click('Έλεγχος διαμόρφωσης ✓'); assert.ok(doc.querySelector('.ce-issues.is-ready'));
