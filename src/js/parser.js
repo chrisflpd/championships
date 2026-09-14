@@ -43,7 +43,7 @@ function parse_sport_line(line) {
 		id: sport_id,
 		courts: sport_courts,
 		points_fn: sport_points_fn,
-		points: sport_ma[2] === undefined ? null : sport_ma.slice(2, 5).map(Number),
+		points: sport_ma[3] === undefined ? null : sport_ma.slice(3, 6).map(Number),
 	});
 }
 

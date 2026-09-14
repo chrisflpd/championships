@@ -37,6 +37,8 @@ async function page(text) {
 	assert.deepEqual(read().sports.map(s => s.id), ['p', 'k', 'v', 'b']);
 	assert.deepEqual(read().sports[0].courts, ['Π Ποδόσφαιρο', 'Κ Ποδόσφαιρο']);
 	assert.deepEqual(read().sports[3].courts, ['Π Ποδόσφαιρο']);
+	assert.equal(doc.querySelector('.ce-sports-grid datalist'), null, 'prefilled court names are ordinary editable text without suggestions');
+	assert.ok([...doc.querySelectorAll('.ce-courts input')].every(input => !input.hasAttribute('list')));
 	assert.deepEqual(read().zones, ['Πρωί', 'Απόγευμα']);
 	assert.ok(!doc.querySelector('.ce-footer button')?.textContent.includes('Αρχή'), 'the first step has no permanently disabled back button');
 	const firstScoring = doc.querySelector('.ce-sport .ce-details'); firstScoring.open = true;
@@ -119,6 +121,7 @@ async function page(text) {
 	assert.equal(doc.querySelector('[data-count="6"]').textContent, '9', 'tiebreak navigation counts the selected sport rules, not sports');
 	const labels = [...doc.querySelectorAll('.ce-rule-label strong')].map(n => n.textContent);
 	assert.deepEqual(labels, ['Αποτελέσματα στους μεταξύ τους αγώνες', 'Διαφορά στους μεταξύ τους αγώνες', 'Υπέρ στους μεταξύ τους αγώνες', 'Λιγότερα κατά στους μεταξύ τους αγώνες', 'Συνολικές νίκες', 'Συνολική διαφορά', 'Συνολικά υπέρ', 'Λιγότερα συνολικά κατά', 'Μικρότερο ID ομάδας']);
+	assert.equal(doc.querySelector('.ce-rule.is-final .ce-rule-label small').textContent, 'Η ομάδα με το μικρότερο αριθμητικά ID προκρίνεται.');
 	click('Μετακίνηση κάτω: Αποτελέσματα στους μεταξύ τους αγώνες');
 	assert.equal(read().sports[0].rules[1], 'μεταξύ_τους'); assert.equal(read().sports[1].customRules, false);
 	assert.equal(doc.querySelector('.ce-rule:last-child').draggable, false);

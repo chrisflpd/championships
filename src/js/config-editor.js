@@ -21,7 +21,7 @@ const CONFIG_RULE_HELP = {
 	'συνολική_διαφορά': 'Συνολικά υπέρ μείον συνολικά κατά σε όλους τους αγώνες του ομίλου.',
 	'συνολικά_υπέρ': 'Περισσότερα υπέρ σε όλους τους αγώνες του ομίλου.',
 	'συνολικά_κατά': 'Λιγότερα κατά σε όλους τους αγώνες του ομίλου.',
-	'id': 'Τελικό κριτήριο για μοναδική τελική θέση κάθε ομάδας.',
+	'id': 'Η ομάδα με το μικρότερο αριθμητικά ID προκρίνεται.',
 	'τυχαία': 'Οι ισόβαθμες ομάδες μπαίνουν σε τυχαία σειρά, η οποία παραμένει σταθερή για αυτό το αποτέλεσμα.',
 	'επιλογή_χρήστη': 'Όταν ολοκληρωθεί ο όμιλος, ζητείται η σειρά των ισόβαθμων ομάδων από τον χρήστη.',
 };
@@ -257,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		control.type = options.type || 'text'; control.value = value ?? ''; control.id = `ce-field-${++fieldId}`;
 		if (options.placeholder) control.placeholder = options.placeholder;
 		if (options.type === 'number') { control.min = options.min ?? 0; control.step = 1; control.inputMode = 'numeric'; }
-		if (options.list) control.setAttribute('list', options.list);
 		control.autocomplete = 'off';
 		let editing = false;
 		control.addEventListener('blur', () => { editing = false; });
@@ -434,9 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	function renderSports(body) {
 		const list = el('div', 'ce-sports-grid');
-		const suggestions = el('datalist'); suggestions.id = 'ce-courts';
-		[...new Set(draft.sports.flatMap(s => s.courts).filter(Boolean))].forEach(c => { const o = el('option'); o.value = c; suggestions.append(o); });
-		body.append(suggestions, list);
+		body.append(list);
 		draft.sports.forEach((s, index) => {
 			const card = el('article', 'ce-card ce-sport'); card.style.setProperty('--ce-sport', `var(--sport-${index % 6 + 1})`);
 			card.append(row(field('ID αθλήματος', s.id, value => { s.id = value; }, {placeholder: 'p'}), field('Όνομα αθλήματος', s.name, value => {
@@ -451,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			const courts = el('div', 'ce-courts');
 			s.courts.forEach((c, ci) => {
 				const shared = draft.sports.some(other => other !== s && other.courts.includes(c));
-				const line = row(field(`Γήπεδο ${ci + 1}`, c, value => { s.courts[ci] = value; }, {list: 'ce-courts'}), remove(`Αφαίρεση γηπέδου ${c || ci + 1}`, () => mutate(() => s.courts.splice(ci, 1))));
+				const line = row(field(`Γήπεδο ${ci + 1}`, c, value => { s.courts[ci] = value; }), remove(`Αφαίρεση γηπέδου ${c || ci + 1}`, () => mutate(() => s.courts.splice(ci, 1))));
 				courts.append(line); if (shared) courts.append(el('small', 'ce-shared', '↔ Κοινό γήπεδο με άλλο άθλημα'));
 			});
 			courts.append(button('+ Προσθήκη γηπέδου', () => mutate(() => s.courts.push(''), `.ce-sport:nth-child(${index + 1}) .ce-courts .ce-row:last-of-type input`), 'ce-add-inline'));
@@ -917,12 +914,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		body.append(button('Επαναφορά προεπιλεγμένης σειράς', () => mutate(() => { sport.rules = [...DEFAULT_TIEBREAK_ORDER]; sport.customRules = false; }), 'button-quiet'));
 	}
 
-	function setMode(next) {
+	function setMode(next, persist = true) {
 		mode = next;
 		root.hidden = next !== 'guided'; document.getElementById('config-text').hidden = next !== 'text';
 		document.getElementById('config-mode-guided').setAttribute('aria-pressed', String(next === 'guided'));
 		document.getElementById('config-mode-text').setAttribute('aria-pressed', String(next === 'text'));
-		ui_store('config-mode', next);
+		if (persist) ui_store('config-mode', next);
 		if (next === 'guided') render();
 	}
 	function receive() {
@@ -957,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Programmatic text assignments (including legacy integrations) stay text-first.
 	window.addEventListener('submit', event => {
 		if (event.target !== input.form) return;
-		if (mode === 'guided' && input.value !== source) setMode('text');
+		if (mode === 'guided' && input.value !== source) setMode('text', false);
 		if (mode === 'guided' && !validate()) {
 			event.preventDefault(); event.stopImmediatePropagation();
 			ui_collapse(document.querySelector('.panel-config'), document.getElementById('collapse'), false, false);

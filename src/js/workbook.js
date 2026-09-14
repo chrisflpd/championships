@@ -1221,8 +1221,15 @@ let wb_standings_cache = null;
 function wb_standings_of(group) {
 	if (wb_standings_cache === null)
 		wb_standings_cache = {};
-	if (!(group.id in wb_standings_cache))
-		wb_standings_cache[group.id] = wb_standings(group);
+	if (!(group.id in wb_standings_cache)) {
+		const standings = wb_standings(group);
+		// A newly chosen final tie-break is saved while standings are being
+		// calculated. Saving recounts the workbook and clears this cache, so
+		// restore it before retaining the result of the current calculation.
+		if (wb_standings_cache === null)
+			wb_standings_cache = {};
+		wb_standings_cache[group.id] = standings;
+	}
 	return wb_standings_cache[group.id];
 }
 
