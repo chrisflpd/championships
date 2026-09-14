@@ -271,8 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		return wrap;
 	};
 	const select = (label, value, options, change, viewOnly = false) => {
-		const wrap = el('label', 'ce-field'); wrap.append(el('span', 'ce-label', label));
-		const control = el('select', 'ce-input'); control.id = `ce-field-${++fieldId}`; let group = '', parent = control;
+		const wrap = el('div', 'ce-field'), labelNode = el('span', 'ce-label', label);
+		const control = el('select', 'ce-native-select'); control.id = `ce-field-${++fieldId}`; labelNode.id = control.id + '-label';
+		let group = '', parent = control;
 		options.forEach(option => {
 			if (option.group && option.group !== group) { group = option.group; parent = el('optgroup'); parent.label = group; control.append(parent); }
 			if (!option.group) parent = control;
@@ -283,7 +284,48 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (viewOnly) { const id = control.id; change(control.value); render(); document.getElementById(id)?.focus({preventScroll: true}); }
 			else mutate(() => change(control.value));
 		});
-		wrap.append(control); return wrap;
+		control.tabIndex = -1; control.setAttribute('aria-hidden', 'true');
+		const custom = el('div', 'ce-select'), trigger = button('', () => toggle(), 'ce-select-trigger');
+		const selected = options.find(option => String(option.value) === String(control.value)) || options[0];
+		trigger.append(el('span', 'ce-select-value', selected?.label || ''), el('span', 'ce-select-chevron', '⌄'));
+		trigger.setAttribute('aria-labelledby', `${labelNode.id} ${control.id}-value`); trigger.setAttribute('aria-haspopup', 'listbox'); trigger.setAttribute('aria-expanded', 'false');
+		trigger.querySelector('.ce-select-value').id = control.id + '-value';
+		const menu = el('div', 'ce-select-menu'); menu.id = control.id + '-menu'; menu.setAttribute('role', 'listbox'); menu.setAttribute('aria-labelledby', labelNode.id); menu.hidden = true; trigger.setAttribute('aria-controls', menu.id);
+		let currentGroup = null;
+		const choices = [];
+		options.forEach(option => {
+			if (option.group && option.group !== currentGroup) { currentGroup = option.group; menu.append(el('div', 'ce-select-group', currentGroup)); }
+			if (!option.group) currentGroup = null;
+			const choice = button(option.label, () => choose(option), 'ce-select-option'); choice.setAttribute('role', 'option');
+			choice.setAttribute('aria-selected', String(String(option.value) === String(control.value))); choice.dataset.value = option.value; choices.push(choice); menu.append(choice);
+		});
+		const close = (focus = false) => {
+			if (menu.hidden) return;
+			menu.hidden = true; custom.classList.remove('is-open', 'opens-up'); trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside);
+			if (focus) trigger.focus({preventScroll: true});
+		};
+		const outside = event => { if (!custom.contains(event.target)) close(); };
+		const open = (focusChoice = false, last = false) => {
+			root.querySelectorAll('.ce-select.is-open').forEach(other => { if (other !== custom) other.dispatchEvent(new Event('ce-close-select')); });
+			menu.hidden = false; custom.classList.add('is-open'); trigger.setAttribute('aria-expanded', 'true');
+			const rect = custom.getBoundingClientRect(); custom.classList.toggle('opens-up', innerHeight - rect.bottom < Math.min(menu.scrollHeight + 12, 280) && rect.top > menu.scrollHeight);
+			document.addEventListener('pointerdown', outside);
+			if (focusChoice) (last ? choices.at(-1) : choices.find(choice => choice.getAttribute('aria-selected') === 'true') || choices[0])?.focus({preventScroll: true});
+		};
+		const toggle = () => menu.hidden ? open() : close();
+		const choose = option => { close(); control.value = option.value; control.dispatchEvent(new Event('change', {bubbles: true})); };
+		custom.addEventListener('ce-close-select', () => close());
+		trigger.addEventListener('keydown', event => {
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (menu.hidden) open(true, event.key === 'ArrowUp'); }
+			else if (event.key === 'Escape') close(true);
+		});
+		menu.addEventListener('keydown', event => {
+			const index = choices.indexOf(document.activeElement);
+			if (event.key === 'Escape') { event.preventDefault(); close(true); }
+			else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); choices[(index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus(); }
+			else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); choices[event.key === 'Home' ? 0 : choices.length - 1]?.focus(); }
+		});
+		custom.append(trigger, menu); wrap.append(labelNode, control, custom); return wrap;
 	};
 	const teamOptions = () => [{value: '', label: 'Επιλέξτε ομάδα'}, ...draft.teams.map((t, i) => ({value: String(i + 1), label: `#${i + 1} · ${t || 'Χωρίς όνομα'}`}))];
 	const uniqueCode = prefix => {
@@ -363,8 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
 		const body = el('div', 'ce-content'); main.append(body);
 		[renderSports, renderZones, renderDays, renderTeams, renderGroups, renderKnockouts, renderRules][step](body);
 		const foot = el('div', 'ce-footer');
-		const prev = button(step ? `← ${CONFIG_STEPS[step - 1][0]}` : '← Αρχή', () => go(step - 1), 'button-primary'); prev.disabled = step === 0;
-		foot.append(prev, el('span', 'ce-overview'));
+		if (step) foot.append(button(`← ${CONFIG_STEPS[step - 1][0]}`, () => go(step - 1), 'button-primary'));
+		foot.append(el('span', 'ce-overview'));
 		foot.append(step === 6 ? button('Έλεγχος διαμόρφωσης ✓', validate, 'button-primary') : button(`${CONFIG_STEPS[step + 1][0]} →`, () => go(step + 1), 'button-primary'));
 		main.append(foot); shell.append(nav, main); root.append(shell);
 		if (showIssues) renderIssues(); updateOverview();

@@ -38,6 +38,12 @@ async function page(text) {
 	assert.deepEqual(read().sports[0].courts, ['Π Ποδόσφαιρο', 'Κ Ποδόσφαιρο']);
 	assert.deepEqual(read().sports[3].courts, ['Π Ποδόσφαιρο']);
 	assert.deepEqual(read().zones, ['Πρωί', 'Απόγευμα']);
+	assert.ok(!doc.querySelector('.ce-footer button')?.textContent.includes('Αρχή'), 'the first step has no permanently disabled back button');
+	const firstScoring = doc.querySelector('.ce-sport .ce-details'); firstScoring.open = true;
+	firstScoring.querySelector('.ce-select-trigger').click();
+	assert.equal(firstScoring.querySelector('.ce-select-menu').hidden, false, 'guide dropdowns open a custom menu');
+	assert.equal(firstScoring.querySelectorAll('.ce-select-option').length, 2);
+	assert.equal(firstScoring.querySelector('.ce-select-option[aria-selected="true"]').textContent, 'Προεπιλογή αθλήματος');
 	step(4); assert.ok(![...doc.querySelectorAll('button')].some(button => button.textContent.includes('Μετάβαση στις ομάδες'))); step(0);
 	let submissions = 0; doc.addEventListener('championships_config_parsed', () => submissions++);
 	doc.forms[0].dispatchEvent(new w.Event('submit', {bubbles: true, cancelable: true}));
@@ -116,7 +122,7 @@ async function page(text) {
 	click('Μετακίνηση κάτω: Αποτελέσματα στους μεταξύ τους αγώνες');
 	assert.equal(read().sports[0].rules[1], 'μεταξύ_τους'); assert.equal(read().sports[1].customRules, false);
 	assert.equal(doc.querySelector('.ce-rule:last-child').draggable, false);
-	assert.equal(doc.querySelector('.ce-rule:last-child button'), null);
+	assert.equal(doc.querySelector('.ce-rule:last-child .ce-icon-button'), null);
 	click('Απενεργοποίηση: Συνολικά υπέρ'); assert.ok(!read().sports[0].rules.includes('συνολικά_υπέρ'));
 	assert.equal(doc.querySelector('[data-count="6"]').textContent, '8');
 	click('+ Συνολικά υπέρ'); assert.equal(read().sports[0].rules.at(-2), 'συνολικά_υπέρ'); assert.equal(read().sports[0].rules.at(-1), 'id');
