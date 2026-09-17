@@ -325,6 +325,28 @@ h2 {
 	margin-top: 16px;
 }
 
+.ui-tiebreak-dialog {
+	max-height: min(78vh, 680px);
+	overflow: auto;
+	top: 10vh;
+	width: 560px;
+}
+
+.ui-tiebreak-dialog .ui-ask-title { color: var(--text); font-size: 20px; }
+.ui-tiebreak-list { display: grid; gap: 8px; list-style: none; margin: 18px 0; padding: 0; }
+.ui-tiebreak-team { align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 10px; grid-template-columns: auto auto minmax(0, 1fr) auto auto; min-height: 54px; padding: 8px 10px; }
+.ui-tiebreak-team.is-dragging { opacity: .45; }
+.ui-tiebreak-team.is-drop-target { border-color: var(--accent); box-shadow: var(--ring); }
+.ui-tiebreak-grip { color: var(--faint); cursor: grab; font-size: 20px; }
+.ui-tiebreak-rank { color: var(--accent); font: 12px var(--mono); }
+.ui-tiebreak-team strong { font-size: 14px; overflow-wrap: anywhere; }
+.ui-tiebreak-move.button { font-size: 17px; height: 36px; padding: 0; width: 36px; }
+
+@media (max-width: 600px) {
+	.ui-tiebreak-dialog { top: 5vh; }
+	.ui-tiebreak-team { gap: 6px; padding-inline: 7px; }
+}
+
 /*
  * the slider between the light and the dark. the knob sits over the sun on the
  * one side and over the moon on the other, so the side it is not on is the one

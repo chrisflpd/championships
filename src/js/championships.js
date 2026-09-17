@@ -570,6 +570,7 @@ function search_start() {
 	const excel_button = document.getElementById('excel');
 	if (excel_button !== null)
 		excel_button.disabled = true;
+	if (typeof wb_refresh_button === 'function') wb_refresh_button(false);
 
 	//what is worth knowing about the configuration but does not stop it
 	config_report(config_notices());

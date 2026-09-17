@@ -358,6 +358,113 @@ function wb_signature() {
 	});
 }
 
+// A refresh may change labels and ranking rules, but never the pieces which
+// determined where a match could be scheduled. IDs are compared by position so
+// that group and knockout codes can be renamed safely.
+function wb_config_shape() {
+	const groups = Object.values(config.groups), knockouts = Object.values(config.knockouts);
+	const groupAt = Object.fromEntries(groups.map((group, index) => [group.id, index]));
+	const knockoutAt = Object.fromEntries(knockouts.map((knockout, index) => [knockout.id, index]));
+	const side = union => union.type === 'fixed' ? ['fixed', union.team.id]
+		: union.type === 'group' ? ['group', groupAt[union.group.id], union.rank]
+		: ['knockout', knockoutAt[union.knockout.id], union.is_winner];
+	return {
+		sports: config.sports.map(sport => [sport.name, [...sport.courts]]),
+		zones: config.zones.map(zone => zone.name),
+		days: config.days.map(day => [wb_iso(day.date), day.dzones.map(dzone => dzone.rounds.length)]),
+		teams: config.teams.map(team => team.id),
+		groups: groups.map(group => [group.sport.name, group.teams.map(team => team.id), group.team_matches,
+			group.matches ? group.matches.map(match => [match.team_home.id, match.team_away.id]) : null]),
+		knockouts: knockouts.map(knockout => [knockout.sport.name, side(knockout.home), side(knockout.away)]),
+	};
+}
+
+function wb_refresh_button(visible) {
+	const button = typeof document === 'undefined' ? null : document.getElementById('refresh-config');
+	if (button) button.hidden = !visible;
+}
+
+function wb_refresh_message(text, error = false) {
+	const box = document.getElementById('config-feedback');
+	if (!box) return;
+	box.hidden = false;
+	box.className = 'config-message' + (error ? ' is-error' : '');
+	box.textContent = text;
+}
+
+// A tie-break has already affected the plan when a completed group contains
+// two teams on the same points, even if its final criterion was deterministic
+// and therefore did not need an entry in workbook.tiebreaks.
+function wb_has_applied_tiebreaks() {
+	if (Object.keys(workbook.tiebreaks).length) return true;
+	return Object.values(config.groups).some(group => {
+		const points = Object.fromEntries(group.teams.map(team => [team.id, 0]));
+		const games = wb_placed().filter(placed => placed.game.kn === null && placed.game.id === group.id).map(placed => placed.game);
+		const expected = group.matches ? group.matches.length : group.team_matches * group.teams.length / 2;
+		if (!games.length || games.length < expected) return false;
+		for (const game of games) {
+			const result = wb_result(game);
+			if (result.sh === null || result.sa === null) return false;
+			let awarded;
+			try { awarded = game.sport.points_fn(result.sh, result.sa); }
+			catch (error) { awarded = [0, 0]; }
+			points[game.home] += awarded[0]; points[game.away] += awarded[1];
+		}
+		const totals = Object.values(points);
+		return new Set(totals).size < totals.length;
+	});
+}
+
+function wb_refresh_configuration(text, clearTiebreaks = false) {
+	if (!workbook.sig || !workbook.configuration)
+		throw new Error('Δεν υπάρχει ακόμη πρόγραμμα για ανανέωση.');
+	const previousText = workbook.configuration;
+	const previousShape = wb_config_shape();
+	const oldGroups = Object.values(config.groups).map(group => group.id);
+	const oldKnockouts = Object.values(config.knockouts).map(knockout => knockout.id);
+	try {
+		parse_config(text);
+		if (JSON.stringify(wb_config_shape()) !== JSON.stringify(previousShape))
+			throw new Error('Αυτή η αλλαγή επηρεάζει τους αγώνες, τα γήπεδα ή τις διαθέσιμες ώρες. Χρησιμοποιήστε «Υποβολή» για νέα δημιουργία προγράμματος.');
+		const newGroups = Object.values(config.groups).map(group => group.id);
+		const newKnockouts = Object.values(config.knockouts).map(knockout => knockout.id);
+		const groupIds = Object.fromEntries(oldGroups.map((id, index) => [id, newGroups[index]]));
+		const knockoutIds = Object.fromEntries(oldKnockouts.map((id, index) => [id, newKnockouts[index]]));
+		for (const game of Object.values(workbook.slots)) {
+			game.sport = wb_sport(game.sport.name);
+			if (game.kn === null) game.id = groupIds[game.id];
+			else { game.id = knockoutIds[game.id]; game.kn = knockoutIds[game.kn]; }
+		}
+		const results = {};
+		for (const [id, result] of Object.entries(workbook.results)) {
+			const group = id.match(/^g:([^:]+):(.*)$/), knockout = id.match(/^k:(.*)$/);
+			const next = group ? `g:${groupIds[group[1]]}:${group[2]}` : knockout ? `k:${knockoutIds[knockout[1]]}` : id;
+			results[next] = result;
+		}
+		workbook.results = results;
+		workbook.cols = config.sports.flatMap(sport => sport.courts.map(court => ({sport, court})));
+		workbook.calendar.forEach(day => day.dzones.forEach(dzone => { dzone.zone = config.zones[dzone.zone.rank]; }));
+		workbook.configuration = config.text;
+		workbook.sig = wb_signature();
+		if (clearTiebreaks) workbook.tiebreaks = {};
+		else {
+			workbook.tiebreaks = Object.fromEntries(Object.entries(workbook.tiebreaks).map(([key, order]) => {
+				const split = key.indexOf('|'), group = split < 0 ? key : key.slice(0, split);
+				return [(groupIds[group] || group) + (split < 0 ? '' : key.slice(split)), order];
+			}));
+		}
+		wb_recount();
+		wb_history_reset();
+		wb_save();
+		sheets_draw();
+		wb_refresh_button(true);
+		return true;
+	} catch (error) {
+		parse_config(previousText);
+		throw error;
+	}
+}
+
 // Upgrade old snapshots only when their original configuration proves a match.
 function wb_matches_config(stored) {
 	if (!stored) return false;
@@ -448,6 +555,7 @@ function wb_build(program) {
 	//being forced back over it.
 	workbook.offered = mine && stored.plan && Object.keys(stored.plan).length ? stored.plan : null;
 	wb_history_reset();
+	wb_refresh_button(true);
 }
 
 /**
@@ -1124,6 +1232,58 @@ function wb_mini_table(group, rows, fixtures) {
 	return stat;
 }
 
+let wb_tiebreak_dialog = null;
+
+function wb_close_tiebreak_dialog() {
+	if (wb_tiebreak_dialog?.close) wb_tiebreak_dialog.close();
+}
+
+function wb_request_user_tiebreak(group, tied, key, ids) {
+	if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') return false;
+	if (wb_tiebreak_dialog !== null) return true;
+	let order = [...ids];
+	const veil = document.createElement('div'); veil.className = 'ui-veil';
+	const box = document.createElement('section'); box.className = 'ui-ask ui-tiebreak-dialog';
+	box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'ui-tiebreak-title');
+	const title = document.createElement('h2'); title.className = 'ui-ask-title'; title.id = 'ui-tiebreak-title'; title.textContent = 'Κατάταξη ισόβαθμων ομάδων';
+	const help = document.createElement('p'); help.className = 'ui-ask-body'; help.textContent = `Σύρετε τις ομάδες του ομίλου ${group.id} στη σειρά που θέλετε να προκριθούν.`;
+	const list = document.createElement('ol'); list.className = 'ui-tiebreak-list';
+	const close = () => { veil.remove(); box.remove(); wb_tiebreak_dialog = null; };
+	const draw = () => {
+		list.replaceChildren();
+		order.forEach((id, index) => {
+			const team = tied.find(row => row.team.id === id)?.team;
+			const item = document.createElement('li'); item.className = 'ui-tiebreak-team'; item.draggable = true; item.dataset.index = index;
+			const grip = document.createElement('span'); grip.className = 'ui-tiebreak-grip'; grip.textContent = '⠿'; grip.setAttribute('aria-hidden', 'true');
+			const rank = document.createElement('span'); rank.className = 'ui-tiebreak-rank'; rank.textContent = String(index + 1).padStart(2, '0');
+			const name = document.createElement('strong'); name.textContent = `#${id} · ${team?.name || ''}`;
+			const move = (label, direction) => {
+				const button = document.createElement('button'); button.type = 'button'; button.className = 'button ui-tiebreak-move'; button.textContent = direction < 0 ? '↑' : '↓'; button.setAttribute('aria-label', label);
+				button.disabled = direction < 0 ? index === 0 : index === order.length - 1;
+				button.addEventListener('click', () => { const to = index + direction; [order[index], order[to]] = [order[to], order[index]]; draw(); list.children[to]?.querySelector('button:not(:disabled)')?.focus(); });
+				return button;
+			};
+			item.append(grip, rank, name, move(`Μετακίνηση πάνω: ${team?.name || id}`, -1), move(`Μετακίνηση κάτω: ${team?.name || id}`, 1));
+			item.addEventListener('dragstart', event => { event.dataTransfer?.setData('text/plain', String(index)); item.classList.add('is-dragging'); });
+			item.addEventListener('dragend', () => item.classList.remove('is-dragging'));
+			item.addEventListener('dragover', event => { event.preventDefault(); item.classList.add('is-drop-target'); });
+			item.addEventListener('dragleave', () => item.classList.remove('is-drop-target'));
+			item.addEventListener('drop', event => {
+				event.preventDefault(); const from = Number(event.dataTransfer?.getData('text/plain'));
+				if (Number.isInteger(from) && from !== index) { const [id] = order.splice(from, 1); order.splice(index, 0, id); draw(); }
+			});
+			list.append(item);
+		});
+	};
+	const bar = document.createElement('div'); bar.className = 'ui-ask-bar';
+	const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'button button-quiet'; cancel.textContent = 'Αργότερα'; cancel.addEventListener('click', close);
+	const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'button button-primary'; accept.textContent = 'Εφαρμογή σειράς';
+	accept.addEventListener('click', () => { workbook.tiebreaks[key] = [...order]; close(); wb_save(); sheets_draw(); });
+	bar.append(cancel, accept); box.append(title, help, list, bar); document.body.append(veil, box); wb_tiebreak_dialog = {key, box, close}; draw(); cancel.focus();
+	veil.addEventListener('click', close); box.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+	return true;
+}
+
 function wb_final_ranks(group, rows) {
 	const rules = tiebreak_order(group.sport);
 	const fixtures = wb_placed().filter(p => p.game.kn === null && p.game.id === group.id).map(p => p.game);
@@ -1144,7 +1304,7 @@ function wb_final_ranks(group, rows) {
 				const j = Math.floor(Math.random() * (i + 1));
 				[order[i], order[j]] = [order[j], order[i]];
 			}
-		} else {
+		} else if (!wb_request_user_tiebreak(group, tied, key, ids)) {
 			const names = tied.slice().sort((a, b) => a.team.id - b.team.id).map(row => `#${row.team.id} ${row.team.name}`).join(', ');
 			let answer = null;
 			try {
@@ -1378,3 +1538,29 @@ function wb_recount() {
 	wb_place_cache = null;
 	wb_plan_cache = null;
 }
+
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => {
+	const button = document.getElementById('refresh-config');
+	const input = document.getElementById('config-input');
+	if (!button || !input) return;
+	button.addEventListener('click', () => {
+		const hadTiebreaks = wb_has_applied_tiebreaks();
+		const apply = () => {
+			try {
+				wb_refresh_configuration(input.value, hadTiebreaks);
+				wb_refresh_message('Οι ασφαλείς αλλαγές εφαρμόστηκαν στο υπάρχον πρόγραμμα.');
+			} catch (error) {
+				wb_refresh_message(error.message || String(error), true);
+			}
+		};
+		if (!hadTiebreaks) { apply(); return; }
+		ui_confirm({
+			title: 'Υπάρχουν ήδη αποφάσεις ισοβαθμίας',
+			body: [
+				'Η ανανέωση μπορεί να αλλάξει ονόματα ή κανόνες που χρησιμοποιήθηκαν σε ολοκληρωμένη ισοβαθμία.',
+				'Οι προηγούμενες αποφάσεις ισοβαθμίας θα μηδενιστούν και, όπου χρειάζεται, θα σας ζητηθούν ξανά.',
+			],
+			ok: 'Ανανέωση', cancel: 'Ακύρωση',
+		}, apply);
+	});
+});

@@ -182,13 +182,14 @@ function config_group_teams(g) {
 	return g.mode === 'manual' ? [...new Set(g.matches.flat().filter(Boolean).map(Number))] : g.teams;
 }
 function config_opponents(d, sport, before) {
-	const options = d.teams.map((name, i) => ({value: String(i + 1), label: `#${i + 1} · ${name || 'Χωρίς όνομα'}`, group: 'Συγκεκριμένη ομάδα'}));
+	const options = [];
 	d.groups.filter(g => g.sport === sport).forEach(g => {
 		config_group_teams(g).forEach((_, rank) => options.push({value: `${g.id}:${rank + 1}`, label: `${rank + 1}η θέση · ${g.id}`, group: 'Θέση ομίλου'}));
 	});
 	d.knockouts.slice(0, before).filter(k => k.sport === sport).forEach(k => {
 		options.push({value: `${k.id}:W`, label: `Νικητής · ${k.id}`, group: 'Προηγούμενος αγώνας'}, {value: `${k.id}:L`, label: `Ηττημένος · ${k.id}`, group: 'Προηγούμενος αγώνας'});
 	});
+	d.teams.forEach((name, i) => options.push({value: String(i + 1), label: `#${i + 1} · ${name || 'Χωρίς όνομα'}`, group: 'Συγκεκριμένη ομάδα'}));
 	return options;
 }
 
@@ -205,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	const feedback = document.getElementById('config-feedback');
 	let draft, mode = 'text', step = 0, source = null, showIssues = false, groupSport = 0, knockoutSport = 0, ruleSport = 0, dragRule = null;
 	let month = new Date(); month = new Date(month.getFullYear(), month.getMonth(), 1);
-	let bulkTeams = '', bulkRounds = [], bracketGroup = '', bracketSize = '4', bracketBronze = false, bracketMode = 'single', bracketOther = '', bracketQualifiers = '2';
+	let bulkTeams = '', bulkRounds = [], bracketGroup = '', bracketSize = '4', bracketBronze = false, bracketMode = null, bracketModeSport = null, bracketOther = '', bracketQualifiers = '2';
 	let fieldId = 0, history = [], future = [];
 	let bracketOpen = null;
 	let closeMonthPicker = () => {};
@@ -265,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			change(control.value);
 			if (options.draft !== false) update();
 		});
+		control.addEventListener('dblclick', () => control.select());
 		wrap.append(control);
 		if (options.hint) wrap.append(el('small', 'ce-help', options.hint));
 		return wrap;
@@ -300,14 +302,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 		const close = (focus = false) => {
 			if (menu.hidden) return;
-			menu.hidden = true; custom.classList.remove('is-open', 'opens-up'); trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside);
+			menu.hidden = true; custom.classList.remove('is-open'); trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside);
 			if (focus) trigger.focus({preventScroll: true});
 		};
 		const outside = event => { if (!custom.contains(event.target)) close(); };
 		const open = (focusChoice = false, last = false) => {
 			root.querySelectorAll('.ce-select.is-open').forEach(other => { if (other !== custom) other.dispatchEvent(new Event('ce-close-select')); });
 			menu.hidden = false; custom.classList.add('is-open'); trigger.setAttribute('aria-expanded', 'true');
-			const rect = custom.getBoundingClientRect(); custom.classList.toggle('opens-up', innerHeight - rect.bottom < Math.min(menu.scrollHeight + 12, 280) && rect.top > menu.scrollHeight);
+			menu.scrollTop = 0;
 			document.addEventListener('pointerdown', outside);
 			if (focusChoice) (last ? choices.at(-1) : choices.find(choice => choice.getAttribute('aria-selected') === 'true') || choices[0])?.focus({preventScroll: true});
 		};
@@ -460,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				'Μπέιζμπολ': 'Νίκη 2 · Ήττα 1 · Χωρίς ισοπαλία', 'Βόλεϊ': 'Βαθμοί βάσει σετ, όπως στη Βαθμολογία. Χωρίς ισοπαλία.',
 			}[s.name] || 'Νίκη 3 · Ισοπαλία 1 · Ήττα 0';
 			scoring.append(note(standard));
-			scoring.append(select('Τρόπος βαθμολόγησης', s.points ? 'custom' : 'default', [{value: 'default', label: 'Προεπιλογή αθλήματος'}, {value: 'custom', label: 'Δικοί μου βαθμοί νίκης / ισοπαλίας / ήττας'}], value => { s.points = value === 'custom' ? ['3', '1', '0'] : null; }));
+			scoring.append(select('Τρόπος βαθμολόγησης', s.points ? 'custom' : 'default', [{value: 'default', label: `Προεπιλογή αθλήματος (${standard})`}, {value: 'custom', label: 'Δικοί μου βαθμοί νίκης / ισοπαλίας / ήττας'}], value => { s.points = value === 'custom' ? ['3', '1', '0'] : null; }));
 			if (s.points) scoring.append(row(...['Νίκη', 'Ισοπαλία', 'Ήττα'].map((label, i) => field(label, s.points[i], value => s.points[i] = value, {type: 'number'}))));
 			card.append(scoring); list.append(card);
 		});
@@ -566,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			const [first, last] = [start, end].sort();
 			if (!selected) draft.days = draft.days.filter(d => d.date < first || d.date > last);
 			else {
+				const wasEmpty = draft.days.length === 0;
 				const cursor = new Date(first + 'T12:00:00');
 				while (dateISO(cursor) <= last) {
 					const date = dateISO(cursor);
@@ -573,6 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
 					cursor.setDate(cursor.getDate() + 1);
 				}
 				draft.days.sort((a, b) => a.date.localeCompare(b.date));
+				if (wasEmpty && draft.days.length && draft.days[0].rounds.length)
+					draft.days[0].rounds[0] = Math.max(0, Number(draft.days[0].rounds[0]) - 1);
 			}
 		};
 		const preview = () => {
@@ -649,7 +654,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 		bulk.append(button('Εφαρμογή σε όλες', () => {
 			if (draft.zones.some((_, i) => !/^\d+$/.test(String(bulkRounds[i] ?? 2)))) { say('Οι γύροι πρέπει να είναι ακέραιοι, από 0 και πάνω.', true); return; }
-			mutate(() => draft.days.forEach(d => { d.rounds = draft.zones.map((_, i) => bulkRounds[i] ?? 2); })); say('Οι γύροι εφαρμόστηκαν σε όλες τις επιλεγμένες ημέρες.');
+			mutate(() => draft.days.forEach((d, dayIndex) => {
+				d.rounds = draft.zones.map((_, i) => {
+					const rounds = Number(bulkRounds[i] ?? 2);
+					return dayIndex === 0 && i === 0 ? Math.max(0, rounds - 1) : rounds;
+				});
+			})); say('Οι γύροι εφαρμόστηκαν σε όλες τις επιλεγμένες ημέρες.');
 		}, 'ce-add-inline')); calendar.append(bulk);
 		const selected = el('div', 'ce-selected-days'); selected.append(el('h4', '', `Επιλεγμένες ημέρες (${draft.days.length})`));
 		if (!draft.days.length) empty(selected, 'Το ημερολόγιό σας είναι άδειο.', 'Πατήστε όσες ημέρες θέλετε. Μπορείτε να επιλέξετε ημέρες από διαφορετικούς μήνες.');
@@ -778,12 +788,12 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (g.mode === 'count') card.append(field('Αγώνες ανά ομάδα', g.count, value => g.count = value, {type: 'number', min: 1, hint: 'Με μονό αριθμό ομάδων χρειάζεται ζυγός αριθμός αγώνων ανά ομάδα.'}));
 				else card.append(note(`${g.teams.length} ομάδες · ${Math.max(0, g.teams.length - 1)} αγώνες ανά ομάδα · ${g.teams.length * Math.max(0, g.teams.length - 1) / 2} αγώνες συνολικά`));
 			} else {
-				g.matches.forEach((pair, i) => card.append(row(el('span', 'ce-match-number', String(i + 1)), select('Γηπεδούχος', String(pair[0] || ''), teamOptions(), value => pair[0] = Number(value) || ''), el('span', 'ce-vs', 'vs'), select('Φιλοξενούμενος', String(pair[1] || ''), teamOptions(), value => pair[1] = Number(value) || ''), remove(`Αφαίρεση ζευγαριού ${i + 1}`, () => mutate(() => g.matches.splice(i, 1))))));
+				g.matches.forEach((pair, i) => card.append(row(el('span', 'ce-match-number', String(i + 1)), select('Γηπεδούχος', String(pair[0] || ''), teamOptions(), value => pair[0] = Number(value) || ''), el('span', 'ce-vs', 'vs'), select('Φιλοξενούμενη', String(pair[1] || ''), teamOptions(), value => pair[1] = Number(value) || ''), remove(`Αφαίρεση ζευγαριού ${i + 1}`, () => mutate(() => g.matches.splice(i, 1))))));
 				card.append(button('+ Προσθήκη ζευγαριού', () => mutate(() => g.matches.push(['', ''])), 'ce-add-inline'));
 			}
 			body.append(card);
 		});
-		body.append(button('+ Προσθήκη ομίλου', () => mutate(() => draft.groups.push({id: uniqueGroupCode(sport), sport: sport.name, mode: 'all', count: 1, teams: draft.teams.map((_, i) => i + 1), matches: []}), '.ce-group:last-of-type input'), 'ce-add'));
+		body.append(button('+ Προσθήκη ομίλου', () => mutate(() => draft.groups.push({id: uniqueGroupCode(sport), sport: sport.name, mode: 'all', count: 1, teams: [], matches: []}), '.ce-group:last-of-type input'), 'ce-add'));
 	}
 	function renderKnockouts(body) {
 		if (!draft.sports.length) { empty(body, 'Χρειάζεται τουλάχιστον ένα άθλημα.', 'Προσθέστε ένα άθλημα πριν φτιάξετε αγώνες νοκ άουτ.'); return; }
@@ -793,6 +803,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		const sport = draft.sports[knockoutSport];
 		const eligible = draft.groups.filter(g => g.sport === sport.name && config_group_teams(g).length >= 2);
 		if (eligible.length) {
+			if (bracketModeSport !== sport.name) {
+				bracketModeSport = sport.name;
+				bracketMode = eligible.length > 1 ? 'cross' : 'single';
+			}
+			if (bracketMode === 'cross' && eligible.length < 2) bracketMode = 'single';
 			const quick = el('details', 'ce-details ce-bracket-builder'); quick.open = bracketOpen ?? !draft.knockouts.length; quick.append(el('summary', '', 'Γρήγορη δημιουργία τελικής φάσης'));
 			if (!eligible.some(g => g.id === bracketGroup)) bracketGroup = eligible[0].id;
 			quick.append(select('Προκρίσεις από', bracketMode, [
@@ -862,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				else mutate(action);
 			})));
 			const options = [{value: '', label: 'Επιλέξτε ομάδα ή πρόκριση'}, ...config_opponents(draft, k.sport, index)];
-			card.append(row(select('Αντίπαλος Α', k.home, options, value => k.home = value), el('span', 'ce-vs', 'vs'), select('Αντίπαλος Β', k.away, options, value => k.away = value)));
+			card.append(row(select('Γηπεδούχος', k.home, options, value => k.home = value), el('span', 'ce-vs', 'vs'), select('Φιλοξενούμενη', k.away, options, value => k.away = value)));
 			body.append(card);
 		});
 		body.append(button('+ Προσθήκη αγώνα νοκ άουτ', () => mutate(() => draft.knockouts.push({id: uniqueStageCode(sport, 'n'), sport: sport.name, home: '', away: ''})), 'ce-add'));
@@ -923,7 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (next === 'guided') render();
 	}
 	function receive() {
-		history = []; future = []; bracketOpen = null; showIssues = false; say('');
+		history = []; future = []; bracketOpen = null; bracketMode = null; bracketModeSport = null; showIssues = false; say('');
 		const repaired = config_repair_final_tiebreaks(input.value);
 		if (repaired !== input.value) { input.value = repaired; input.dispatchEvent(new Event('input', {bubbles: true})); }
 		if (!input.value.trim()) {

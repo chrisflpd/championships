@@ -64,7 +64,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const optionalTiebreakers = [...w.document.querySelectorAll('.hint code')]
 		.find(code => code.textContent.includes('[tiebreakers]'));
 	assert.equal(optionalTiebreakers.textContent, '[tiebreakers] (προαιρετικά)');
-	assert.equal(hints.length, 7);
+	assert.equal(hints.length, 8);
 	assert.ok(hints.every(button => button.dataset.tooltip.length > 25 && !button.hasAttribute('title')),
 		'every configuration action uses the quick custom tooltip, not a delayed native title');
 	assert.ok(hints.every(button => !button.dataset.tooltip.endsWith('.')),
@@ -114,6 +114,50 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 		'completed-match green styling cannot include the referee cell');
 	assert.equal(w.getComputedStyle(w.document.getElementById('excel')).opacity, '1',
 		'disabled buttons do not fade the dark tooltip');
+	assert.equal(w.document.getElementById('refresh-config').hidden, true, 'refresh is hidden before a program exists');
+
+	const refresh = await page();
+	refresh.parse_config(configText); refresh.document.forms[0].config.value = configText; refresh.displayer(refresh.eval('config.days'));
+	assert.equal(refresh.document.getElementById('refresh-config').hidden, false, 'refresh appears once a program exists');
+	const refreshKey = refresh.share_slots()[0]; refresh.wb_put(refreshKey, 'pg', 1, 2);
+	refresh.wb_set_result(refresh.wb_at(refreshKey), 2, 1, 'Ref');
+	refresh.eval("workbook.tiebreaks = {'pg|επιλογή_χρήστη|1,2||1-2:2-1':[2,1]}");
+	const safeText = configText.replace('Πρώτη', 'Νέα Πρώτη').replace(/\bpg\b/g, 'gx')
+		.replace('μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ', 'συνολικές_νίκες, id');
+	refresh.document.forms[0].config.value = safeText; refresh.document.getElementById('refresh-config').click();
+	assert.match(refresh.document.querySelector('.ui-ask-title').textContent, /αποφάσεις ισοβαθμίας/);
+	[...refresh.document.querySelectorAll('.ui-ask button')].find(button => button.textContent === 'Ακύρωση').click();
+	assert.ok(refresh.eval('config.groups.pg'), 'cancelling the warning preserves the active configuration');
+	refresh.document.getElementById('refresh-config').click();
+	[...refresh.document.querySelectorAll('.ui-ask button')].find(button => button.textContent === 'Ανανέωση').click();
+	assert.equal(refresh.eval('config.teams[0].name'), 'Νέα Πρώτη');
+	assert.ok(refresh.eval('config.groups.gx')); assert.equal(refresh.wb_at(refreshKey).id, 'gx');
+	assert.equal(refresh.wb_result(refresh.wb_at(refreshKey)).sh, 2, 'safe refresh preserves scores while remapping group IDs');
+	assert.equal(refresh.eval('JSON.stringify(workbook.tiebreaks)'), '{}', 'accepted refresh resets completed tie-break decisions');
+	const unsafeText = safeText.replace('Ποδόσφαιρο: Α, Β', 'Ποδόσφαιρο: Νέο, Β');
+	refresh.document.forms[0].config.value = unsafeText; refresh.document.getElementById('refresh-config').click();
+	assert.match(refresh.document.getElementById('config-feedback').textContent, /Χρησιμοποιήστε «Υποβολή»/);
+	assert.equal(refresh.eval('config.sports[0].courts[0]'), 'Α', 'unsafe refresh restores the active configuration');
+	refresh.close();
+	console.log('ok: safe refresh renames teams and group IDs, preserves the plan, warns after tie-breaks and rejects structural edits');
+
+	const deterministicText = `[sports]\nΠοδόσφαιρο: Α\n[zones]\nΠρωί\n[days]\n2026-08-10 1\n[teams]\nOne\nTwo\n[groups]\ng Ποδόσφαιρο 1: 1-2\n[knockouts]\n[tiebreakers]\nΠοδόσφαιρο: id\n`;
+	const deterministic = await page(); deterministic.parse_config(deterministicText); deterministic.document.forms[0].config.value = deterministicText; deterministic.displayer(deterministic.eval('config.days'));
+	const deterministicKey = deterministic.share_slots()[0]; deterministic.wb_put(deterministicKey, 'g', 1, 2); deterministic.wb_set_result(deterministic.wb_at(deterministicKey), 0, 0, '');
+	deterministic.document.forms[0].config.value = deterministicText.replace('One', 'Renamed'); deterministic.document.getElementById('refresh-config').click();
+	assert.match(deterministic.document.querySelector('.ui-ask-title').textContent, /αποφάσεις ισοβαθμίας/, 'a completed deterministic tie also requires confirmation');
+	deterministic.close();
+
+	const chooserText = `[sports]\nΠοδόσφαιρο: Α\n[zones]\nΠρωί\n[days]\n2026-08-10 1\n[teams]\nOne\nTwo\n[groups]\ng Ποδόσφαιρο 1: 1-2\n[knockouts]\n[tiebreakers]\nΠοδόσφαιρο: επιλογή_χρήστη\n`;
+	const chooser = await page(); chooser.parse_config(chooserText); chooser.document.forms[0].config.value = chooserText; chooser.displayer(chooser.eval('config.days'));
+	const chooserKey = chooser.share_slots()[0]; chooser.wb_put(chooserKey, 'g', 1, 2); chooser.wb_set_result(chooser.wb_at(chooserKey), 1, 1, ''); chooser.sheets_draw();
+	assert.equal(chooser.document.querySelectorAll('.ui-tiebreak-team').length, 2, 'a user tie-break opens an ordering dialog with team blocks');
+	[...chooser.document.querySelectorAll('.ui-tiebreak-team')][0].querySelector('[aria-label^="Μετακίνηση κάτω"]').click();
+	chooser.document.querySelector('.ui-tiebreak-dialog .button-primary').click();
+	assert.equal(chooser.eval('JSON.stringify(Object.values(workbook.tiebreaks)[0])'), '[2,1]');
+	assert.equal(chooser.document.querySelector('.ui-tiebreak-dialog'), null); chooser.close();
+	console.log('ok: user-selected final tie-breaks use an in-page sortable team dialog');
+
 	w.parse_config(configText);
 	w.document.forms[0].config.value = configText;
 	w.displayer(w.eval('config.days'));

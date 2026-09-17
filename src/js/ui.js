@@ -103,6 +103,7 @@ function ui_program_drawn() {
 }
 
 function ui_confirm_close() {
+	if (typeof wb_close_tiebreak_dialog === 'function') wb_close_tiebreak_dialog();
 	const open = document.querySelector('.ui-ask');
 	if (open !== null)
 		open.remove();
