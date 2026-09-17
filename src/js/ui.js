@@ -46,13 +46,13 @@ function ui_tooltip_event(event) {
 		ui_tooltip_place(target);
 }
 
-//the theme the page is showing right now, which is the one that was chosen or,
-//when none was, the one the system asks for
+//the theme the page is showing right now. An absent choice is light, matching
+//the first-visit default installed in the document head.
 function ui_theme() {
 	const chosen = document.documentElement.getAttribute('data-theme');
 	if (chosen === 'dark' || chosen === 'light')
 		return chosen;
-	return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+	return 'light';
 }
 
 //the slider is drawn from the theme showing rather than from the theme chosen,
@@ -215,14 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
 			ui_set_theme(ui_theme() === 'dark' ? 'light' : 'dark');
 			ui_mark_theme(theme_button);
 		});
-		//a page that was never told which theme to use follows the system, so it
-		//has to follow it when it changes as well
-		if (window.matchMedia) {
-			const dark = window.matchMedia('(prefers-color-scheme: dark)');
-			const follow = () => ui_mark_theme(theme_button);
-			if (dark.addEventListener)
-				dark.addEventListener('change', follow);
-		}
 	}
 
 	const panel = document.querySelector('.panel-config');

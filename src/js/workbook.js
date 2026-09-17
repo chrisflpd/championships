@@ -358,9 +358,9 @@ function wb_signature() {
 	});
 }
 
-// A refresh may change labels and ranking rules, but never the pieces which
-// determined where a match could be scheduled. IDs are compared by position so
-// that group and knockout codes can be renamed safely.
+// A refresh may change only visual labels. IDs are compared by position so that
+// group and knockout codes can be renamed safely; scoring and tie-break rules
+// remain part of the protected shape because they can alter qualification.
 function wb_config_shape() {
 	const groups = Object.values(config.groups), knockouts = Object.values(config.knockouts);
 	const groupAt = Object.fromEntries(groups.map((group, index) => [group.id, index]));
@@ -369,7 +369,7 @@ function wb_config_shape() {
 		: union.type === 'group' ? ['group', groupAt[union.group.id], union.rank]
 		: ['knockout', knockoutAt[union.knockout.id], union.is_winner];
 	return {
-		sports: config.sports.map(sport => [sport.name, [...sport.courts]]),
+		sports: config.sports.map(sport => [sport.name, [...sport.courts], sport.points, [...tiebreak_order(sport)]]),
 		zones: config.zones.map(zone => zone.name),
 		days: config.days.map(day => [wb_iso(day.date), day.dzones.map(dzone => dzone.rounds.length)]),
 		teams: config.teams.map(team => team.id),
@@ -425,7 +425,7 @@ function wb_refresh_configuration(text, clearTiebreaks = false) {
 	try {
 		parse_config(text);
 		if (JSON.stringify(wb_config_shape()) !== JSON.stringify(previousShape))
-			throw new Error('Αυτή η αλλαγή επηρεάζει τους αγώνες, τα γήπεδα ή τις διαθέσιμες ώρες. Χρησιμοποιήστε «Υποβολή» για νέα δημιουργία προγράμματος.');
+			throw new Error('Η «Ανανέωση» επιτρέπει μόνο μετονομασίες ομάδων και ID ομίλων ή αγώνων νοκ άουτ. Για αλλαγές σε αγώνες, βαθμολογία ή ισοβαθμίες χρησιμοποιήστε «Υποβολή».');
 		const newGroups = Object.values(config.groups).map(group => group.id);
 		const newKnockouts = Object.values(config.knockouts).map(knockout => knockout.id);
 		const groupIds = Object.fromEntries(oldGroups.map((id, index) => [id, newGroups[index]]));

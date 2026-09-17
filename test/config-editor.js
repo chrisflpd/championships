@@ -255,7 +255,9 @@ async function page(text) {
 
 	const customId = await page(`[sports]\nΧάντμπολ @h\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\n[groups]\n[knockouts]\n`);
 	customId.step(4); customId.click('+ Προσθήκη ομίλου'); assert.equal(customId.doc.querySelector('.ce-group input').value, 'hg1'); customId.click('Όλες');
-	customId.step(5); customId.click('+ Προσθήκη αγώνα νοκ άουτ'); assert.equal(customId.doc.querySelector('.ce-knockout input').value, 'hn1');
+	customId.step(5);
+	assert.deepEqual([...customId.doc.querySelector('.ce-bracket-builder select').options].map(option => option.value), ['single'], 'one eligible group does not offer crossed groups');
+	customId.click('+ Προσθήκη αγώνα νοκ άουτ'); assert.equal(customId.doc.querySelector('.ce-knockout input').value, 'hn1');
 	assert.deepEqual(customId.errors, []); customId.w.close();
 
 	const filtered = await page(`[sports]\nΠοδόσφαιρο\nΜπάσκετ\n[zones]\nΠρωί\n[days]\n2026-08-10 2\n[teams]\nA\nB\nC\nD\n[groups]\npg Ποδόσφαιρο 3: 1-4\nbg Μπάσκετ 3: 1-4\n[knockouts]\npf Ποδόσφαιρο 1 2\nbf Μπάσκετ 3 4\n`);

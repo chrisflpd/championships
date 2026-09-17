@@ -60,6 +60,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 
 (async () => {
 	const w = await page();
+	assert.equal(w.document.documentElement.getAttribute('data-theme'), 'light', 'a genuine first visit starts in light mode');
 	const hints = [...w.document.querySelectorAll('.toolbar button')];
 	const optionalTiebreakers = [...w.document.querySelectorAll('.hint code')]
 		.find(code => code.textContent.includes('[tiebreakers]'));
@@ -122,8 +123,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const refreshKey = refresh.share_slots()[0]; refresh.wb_put(refreshKey, 'pg', 1, 2);
 	refresh.wb_set_result(refresh.wb_at(refreshKey), 2, 1, 'Ref');
 	refresh.eval("workbook.tiebreaks = {'pg|επιλογή_χρήστη|1,2||1-2:2-1':[2,1]}");
-	const safeText = configText.replace('Πρώτη', 'Νέα Πρώτη').replace(/\bpg\b/g, 'gx')
-		.replace('μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ', 'συνολικές_νίκες, id');
+	const safeText = configText.replace('Πρώτη', 'Νέα Πρώτη').replace(/\bpg\b/g, 'gx');
 	refresh.document.forms[0].config.value = safeText; refresh.document.getElementById('refresh-config').click();
 	assert.match(refresh.document.querySelector('.ui-ask-title').textContent, /αποφάσεις ισοβαθμίας/);
 	[...refresh.document.querySelectorAll('.ui-ask button')].find(button => button.textContent === 'Ακύρωση').click();
@@ -136,8 +136,12 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	assert.equal(refresh.eval('JSON.stringify(workbook.tiebreaks)'), '{}', 'accepted refresh resets completed tie-break decisions');
 	const unsafeText = safeText.replace('Ποδόσφαιρο: Α, Β', 'Ποδόσφαιρο: Νέο, Β');
 	refresh.document.forms[0].config.value = unsafeText; refresh.document.getElementById('refresh-config').click();
-	assert.match(refresh.document.getElementById('config-feedback').textContent, /Χρησιμοποιήστε «Υποβολή»/);
+	assert.match(refresh.document.getElementById('config-feedback').textContent, /χρησιμοποιήστε «Υποβολή»/i);
 	assert.equal(refresh.eval('config.sports[0].courts[0]'), 'Α', 'unsafe refresh restores the active configuration');
+	const changedRules = safeText.replace('μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ', 'συνολικές_νίκες, id');
+	refresh.document.forms[0].config.value = changedRules; refresh.document.getElementById('refresh-config').click();
+	assert.match(refresh.document.getElementById('config-feedback').textContent, /ισοβαθμίες/);
+	assert.equal(refresh.eval('JSON.stringify(tiebreak_order(config.sports[0]))'), JSON.stringify(['μεταξύ_τους', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'id']), 'refresh rejects tie-break changes');
 	refresh.close();
 	console.log('ok: safe refresh renames teams and group IDs, preserves the plan, warns after tie-breaks and rejects structural edits');
 

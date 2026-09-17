@@ -810,9 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (bracketMode === 'cross' && eligible.length < 2) bracketMode = 'single';
 			const quick = el('details', 'ce-details ce-bracket-builder'); quick.open = bracketOpen ?? !draft.knockouts.length; quick.append(el('summary', '', 'Γρήγορη δημιουργία τελικής φάσης'));
 			if (!eligible.some(g => g.id === bracketGroup)) bracketGroup = eligible[0].id;
-			quick.append(select('Προκρίσεις από', bracketMode, [
-				{value: 'single', label: 'Έναν όμιλο'}, {value: 'cross', label: 'Δύο ομίλους · χιαστί'},
-			], value => bracketMode = value, true));
+			const qualificationModes = [{value: 'single', label: 'Έναν όμιλο'}];
+			if (eligible.length > 1) qualificationModes.push({value: 'cross', label: 'Δύο ομίλους · χιαστί'});
+			quick.append(select('Προκρίσεις από', bracketMode, qualificationModes, value => bracketMode = value, true));
 			const group = eligible.find(g => g.id === bracketGroup);
 			const others = eligible.filter(g => g.id !== group.id && g.sport === group.sport);
 			if (!others.some(g => g.id === bracketOther)) bracketOther = others[0]?.id || '';
