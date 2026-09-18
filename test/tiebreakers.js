@@ -39,7 +39,7 @@ assert.deepEqual(order(), [4,1,2,3], 'manager order controls ranking');
 setup(null, twoTied);
 assert.deepEqual(tiebreak_order(tbConfig.sports[0]), [
 	'μεταξύ_τους', 'μεταξύ_τους_διαφορά', 'μεταξύ_τους_υπέρ', 'μεταξύ_τους_κατά',
-	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'id',
+	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'επιλογή_χρήστη',
 ], 'every sport receives the complete default order without a section');
 assert.deepEqual(order(), [4,2,1,3], 'omitting the optional section applies the default order');
 setup(null, [], 'Ποδόσφαιρο', 10);
@@ -64,7 +64,7 @@ assert.deepEqual([1,2,3].map(id=>customMini.get(id).pts), [6,3,7], 'mini-table u
 setup(rules, [[1,2,1,0]], 'Ποδόσφαιρο', 3);
 const equal = [1,2,3].map(id => ({team:{id},pts:3,gd:0,gf:1,ga:1,w:1}));
 assert.deepEqual(wb_final_ranks(tbConfig.groups.g, equal).map(r=>r.team.id), [1,2,3]);
-assert.ok(equal.every(r => r.rank_reason === 'Μικρότερο ID ομάδας'),
+assert.ok(equal.every(r => r.rank_reason === 'Επιλογή χρήστη'),
 	'missing mutual fixtures are omitted and only the deciding rule is explained');
 setup(rules, cycle.concat([[1,2,1,0]]), 'Ποδόσφαιρο', 3);
 assert.equal(wb_mini_table(tbConfig.groups.g, ranks(), wb_placed().map(p=>p.game)), null, 'unequal pair counts disable mini-table');
@@ -115,7 +115,7 @@ setup('μεταξύ_τους_κατά', [[1,2,1,0],[2,1,3,0]], 'Ποδόσφαι
 assert.deepEqual(order(), [2,1], 'mutual against prefers the team that conceded fewer in mutual matches');
 
 const text = setup(rules, twoTied);
-assert.deepEqual(tbConfig.sports[0].tiebreakers, ['μεταξύ_τους','συνολική_διαφορά','συνολικά_υπέρ','id']);
+assert.deepEqual(tbConfig.sports[0].tiebreakers, ['μεταξύ_τους','συνολική_διαφορά','συνολικά_υπέρ','επιλογή_χρήστη']);
 for (const invalid of ['', 'τυπογραφικό', 'id, συνολικές_νίκες', 'τυχαία, id', 'id, επιλογή_χρήστη', 'συνολικές_νίκες, συνολικές_νίκες', 'συνολικές_νίκες,', 'νίκες', 'λιγότερα_κατά'])
 	assert.throws(() => parse_config(text.replace(rules, invalid)), /Ισοβαθμίες/);
 assert.throws(() => parse_config(text + 'Ποδόσφαιρο: id\n'), /δύο φορές/);
@@ -127,3 +127,69 @@ assert.deepEqual(tbConfig.sports[0].tiebreakers, ['συνολικές_νίκες
 parse_config(text.replace(rules, 'επιλογή_χρήστη'));
 assert.deepEqual(tbConfig.sports[0].tiebreakers, ['επιλογή_χρήστη']);
 console.log('ok: configurable tie-breakers, FRNK, direct results, mini-tables, subgroup restart, fallbacks and parser validation');
+
+/*
+ * the teams the knockouts left behind, put in one order across the groups: the
+ * best loser of the camp, which the configuration writes bL1, then bL2.
+ */
+function camp(results, knockouts = 'pf Ποδόσφαιρο pg1:1 pg2:1\npb Ποδόσφαιρο bL1 bL2\n') {
+	const text = '[sports]\nΠοδόσφαιρο @p: Α\n[zones]\nΠρωί\n[days]\n2026-08-10 30\n[teams]\n'
+		+ Array.from({length: 6}, (_, i) => `${i + 1}η`).join('\n')
+		+ '\n[groups]\npg1 Ποδόσφαιρο 2: 1-3\npg2 Ποδόσφαιρο 2: 4-6\n[knockouts]\n' + knockouts;
+	parse_config(text);
+	wb_build(tbConfig.days);
+	tbWorkbook.slots = {};
+	tbWorkbook.results = {};
+	wb_recount();
+	results.forEach(([group, home, away, sh, sa], i) => {
+		const key = wb_key('2026-08-10', 0, i, 'Α');
+		wb_put(key, group, home, away);
+		if (sh !== null) wb_set_result(wb_at(key), sh, sa, '');
+	});
+	wb_recount();
+	return text;
+}
+const played = [['pg1',1,2,3,0], ['pg1',1,3,3,0], ['pg1',2,3,2,1],
+	['pg2',4,5,5,0], ['pg2',4,6,4,0], ['pg2',5,6,3,2]];
+
+camp(played);
+assert.deepEqual(wb_best_losers(tbConfig.sports[0]).map(row => row.team.id), [2, 5, 3, 6],
+	'whoever no knockout asked for is ranked across the groups, points first');
+assert.deepEqual(wb_best_losers(tbConfig.sports[0]).map(row => row.group.id), ['pg1', 'pg2', 'pg1', 'pg2'],
+	'a loser keeps the group it came out of');
+assert.equal(wb_side(tbConfig.knockouts.pb.home, {}), 2, 'bL1 is the best of them');
+assert.equal(wb_side(tbConfig.knockouts.pb.away, {}), 5, 'bL2 is the one after it');
+assert.equal(wb_side_label(tbConfig.knockouts.pb.home), '1ος καλύτερος χαμένος');
+assert.deepEqual(wb_standings_of(tbConfig.groups.pg1).map(row => row.frnk), [1, 2, 3],
+	'ranking the losers leaves the rankings of the groups alone');
+
+// A place among the losers waits for every group of the sport, as a place
+// inside one group waits for that group.
+camp(played.slice(0, 5).concat([['pg2', 5, 6, null, null]]));
+assert.equal(wb_side(tbConfig.knockouts.pb.home, {}), null, 'one unplayed group match is enough to wait');
+camp(played, 'pf Ποδόσφαιρο pg1:1 pg2:1\npb Ποδόσφαιρο bL5 bL6\n');
+assert.equal(wb_side(tbConfig.knockouts.pb.home, {}), null, 'there is no fifth loser to ask for');
+
+// Which places the knockouts took decides who is left behind at all.
+camp(played, 'pf Ποδόσφαιρο pg1:1 pg2:1\nps Ποδόσφαιρο pg1:2 pg2:2\npb Ποδόσφαιρο bL1 bL2\n');
+assert.deepEqual(wb_best_losers(tbConfig.sports[0]).map(row => row.team.id), [3, 6],
+	'a place a knockout asked for is a place that went through');
+
+const campText = camp(played);
+assert.throws(() => parse_config(campText.replace('bL1', 'bL0')), /not valid knockout/);
+assert.throws(() => parse_config(campText.replace('bL1', 'bL7')), /not valid knockout/);
+parse_config(campText.replace('bL1', 'bl1'));
+assert.equal(tbConfig.knockouts.pb.home.type, 'bestloser', 'the token is read whichever way it is written');
+assert.equal(tbConfig.knockouts.pb.home.rank, 1);
+
+// A match played by the teams the groups left behind is not the final of
+// anything, however little follows it.
+camp(played);
+assert.equal(wb_knockout_stage('pf'), 'f');
+assert.equal(wb_knockout_stage('pb'), 'b', 'a best-loser match reads as a barrage, not a final');
+
+// A sport that says what its own ID is drops it from what the plan reads.
+assert.deepEqual(['pg1', 'pf', 'pb'].map(id => wb_display_id(id)), ['g1', 'f', 'b']);
+parse_config(campText.replace('pf Ποδόσφαιρο', 'kf Ποδόσφαιρο').replace(/\bpf\b/g, 'kf'));
+assert.equal(wb_display_id('kf'), 'kf', 'an ID written under no sport ID of its own is left alone');
+console.log('ok: best losers across the groups, their token, and sport-ID labels');

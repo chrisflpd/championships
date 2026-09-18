@@ -83,7 +83,9 @@ function config_read_draft(text) {
 			usedIds.add(id); return id;
 		};
 		const opponent = one => one.type === 'fixed' ? String(one.team.id)
-			: one.type === 'group' ? `${one.group.id}:${one.rank}` : `${one.knockout.id}:${one.is_winner ? 'W' : 'L'}`;
+			: one.type === 'group' ? `${one.group.id}:${one.rank}`
+			: one.type === 'bestloser' ? `bL${one.rank}`
+			: `${one.knockout.id}:${one.is_winner ? 'W' : 'L'}`;
 		return {
 			sports: config.sports.map((s, index) => ({id: inferredId(s, index), name: s.name, courts: [...s.courts], points: points.get(s.name), rules: [...tiebreak_order(s)], customRules: !!s.tiebreakers})),
 			zones: config.zones.map(z => z.name),
@@ -181,15 +183,51 @@ function config_draft_issues(d) {
 function config_group_teams(g) {
 	return g.mode === 'manual' ? [...new Set(g.matches.flat().filter(Boolean).map(Number))] : g.teams;
 }
+
+// Where a knockout side comes from. The picker below shows one category at a
+// time; the values are the ones the configuration text itself uses.
+const CONFIG_OPPONENT_KINDS = [
+	{value: 'group', label: 'Θέση ομίλου'},
+	{value: 'knockout', label: 'Προηγούμενος αγώνας'},
+	{value: 'bestloser', label: 'Καλύτερος χαμένος κατασκήνωσης'},
+	{value: 'team', label: 'Συγκεκριμένη ομάδα'},
+];
+
+function config_opponent_kind(value) {
+	if (/^bL\d+$/i.test(value)) return 'bestloser';
+	if (/^\d+$/.test(value)) return 'team';
+	if (/:\d+$/.test(value)) return 'group';
+	if (/:[WL]$/.test(value)) return 'knockout';
+	return '';
+}
+
+// A place in a group that no knockout asked for is a team left behind, and the
+// best losers are all of those put in one order, whichever group they are in.
+function config_losers(d, sport) {
+	let losers = 0;
+	d.groups.filter(g => g.sport === sport).forEach(g => {
+		const size = config_group_teams(g).length;
+		const taken = new Set();
+		d.knockouts.forEach(k => [k.home, k.away].forEach(ref => {
+			const [id, rank] = String(ref).split(':');
+			if (id === g.id && /^\d+$/.test(rank || '') && Number(rank) >= 1 && Number(rank) <= size) taken.add(Number(rank));
+		}));
+		losers += size - taken.size;
+	});
+	return losers;
+}
+
 function config_opponents(d, sport, before) {
 	const options = [];
 	d.groups.filter(g => g.sport === sport).forEach(g => {
-		config_group_teams(g).forEach((_, rank) => options.push({value: `${g.id}:${rank + 1}`, label: `${rank + 1}η θέση · ${g.id}`, group: 'Θέση ομίλου'}));
+		config_group_teams(g).forEach((_, rank) => options.push({value: `${g.id}:${rank + 1}`, label: `${rank + 1}η θέση · ${g.id}`, group: 'Θέση ομίλου', kind: 'group'}));
 	});
 	d.knockouts.slice(0, before).filter(k => k.sport === sport).forEach(k => {
-		options.push({value: `${k.id}:W`, label: `Νικητής · ${k.id}`, group: 'Προηγούμενος αγώνας'}, {value: `${k.id}:L`, label: `Ηττημένος · ${k.id}`, group: 'Προηγούμενος αγώνας'});
+		options.push({value: `${k.id}:W`, label: `Νικητής · ${k.id}`, group: 'Προηγούμενος αγώνας', kind: 'knockout'}, {value: `${k.id}:L`, label: `Ηττημένος · ${k.id}`, group: 'Προηγούμενος αγώνας', kind: 'knockout'});
 	});
-	d.teams.forEach((name, i) => options.push({value: String(i + 1), label: `#${i + 1} · ${name || 'Χωρίς όνομα'}`, group: 'Συγκεκριμένη ομάδα'}));
+	for (let rank = 1; rank <= config_losers(d, sport); rank++)
+		options.push({value: `bL${rank}`, label: `${rank}ος καλύτερος χαμένος`, group: 'Καλύτερος χαμένος κατασκήνωσης', kind: 'bestloser'});
+	d.teams.forEach((name, i) => options.push({value: String(i + 1), label: `#${i + 1} · ${name || 'Χωρίς όνομα'}`, group: 'Συγκεκριμένη ομάδα', kind: 'team'}));
 	return options;
 }
 
@@ -207,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	let draft, mode = 'text', step = 0, source = null, showIssues = false, groupSport = 0, knockoutSport = 0, ruleSport = 0, dragRule = null;
 	let month = new Date(); month = new Date(month.getFullYear(), month.getMonth(), 1);
 	let bulkTeams = '', bulkRounds = [], bracketGroup = '', bracketSize = '4', bracketBronze = false, bracketMode = null, bracketModeSport = null, bracketOther = '', bracketQualifiers = '2';
-	let fieldId = 0, history = [], future = [];
+	let fieldId = 0, history = [], future = [], knockoutKind = {};
 	let bracketOpen = null;
 	let closeMonthPicker = () => {};
 	const el = (tag, cls, text) => {
@@ -876,8 +914,31 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (draft.knockouts.some(other => [other.home, other.away].some(ref => ref.startsWith(k.id + ':')))) confirmRemove(`Αφαίρεση αγώνα ${k.id};`, 'Θα αφαιρεθούν και οι επόμενοι αγώνες που χρησιμοποιούν τον νικητή ή τον ηττημένο του.', action);
 				else mutate(action);
 			})));
-			const options = [{value: '', label: 'Επιλέξτε ομάδα ή πρόκριση'}, ...config_opponents(draft, k.sport, index)];
-			card.append(row(select('Γηπεδούχος', k.home, options, value => k.home = value), el('span', 'ce-vs', 'vs'), select('Φιλοξενούμενη', k.away, options, value => k.away = value)));
+			const sources = config_opponents(draft, k.sport, index);
+			//the side is picked in two steps: what kind of thing fills it, and then
+			//which one of that kind. the kind of a side already filled in is read
+			//back out of it, so only an empty one has to be remembered.
+			const side = (label, which) => {
+				const box = el('div', 'ce-side');
+				const remembered = knockoutKind[`${k.id}|${which}`];
+				const kind = config_opponent_kind(k[which]) || remembered || CONFIG_OPPONENT_KINDS[0].value;
+				const ofKind = sources.filter(one => one.kind === kind);
+				const blank = ofKind.length ? 'Επιλέξτε…' : {
+					group: 'Δεν υπάρχει όμιλος σε αυτό το άθλημα',
+					knockout: 'Δεν υπάρχει προηγούμενος αγώνας',
+					bestloser: 'Δεν υπάρχει ομάδα εκτός πρόκρισης',
+					team: 'Δεν υπάρχει ομάδα',
+				}[kind];
+				box.append(select(label, k[which], [{value: '', label: blank},
+					...ofKind.map(one => ({value: one.value, label: one.label}))], value => k[which] = value));
+				box.append(select('Πηγή ομάδας', kind, CONFIG_OPPONENT_KINDS, value => {
+					knockoutKind[`${k.id}|${which}`] = value;
+					//what was chosen belongs to the kind that was left behind
+					k[which] = '';
+				}));
+				return box;
+			};
+			card.append(row(side('Γηπεδούχος', 'home'), el('span', 'ce-vs', 'vs'), side('Φιλοξενούμενη', 'away')));
 			body.append(card);
 		});
 		body.append(button('+ Προσθήκη αγώνα νοκ άουτ', () => mutate(() => draft.knockouts.push({id: uniqueStageCode(sport, 'n'), sport: sport.name, home: '', away: ''})), 'ce-add'));

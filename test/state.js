@@ -141,7 +141,7 @@ function samePlan(a, b) { assert.deepEqual(JSON.parse(a), JSON.parse(b)); }
 	const changedRules = safeText.replace('μεταξύ_τους, συνολική_διαφορά, συνολικά_υπέρ', 'συνολικές_νίκες, id');
 	refresh.document.forms[0].config.value = changedRules; refresh.document.getElementById('refresh-config').click();
 	assert.match(refresh.document.getElementById('config-feedback').textContent, /ισοβαθμίες/);
-	assert.equal(refresh.eval('JSON.stringify(tiebreak_order(config.sports[0]))'), JSON.stringify(['μεταξύ_τους', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'id']), 'refresh rejects tie-break changes');
+	assert.equal(refresh.eval('JSON.stringify(tiebreak_order(config.sports[0]))'), JSON.stringify(['μεταξύ_τους', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'επιλογή_χρήστη']), 'refresh rejects tie-break changes');
 	refresh.close();
 	console.log('ok: safe refresh renames teams and group IDs, preserves the plan, warns after tie-breaks and rejects structural edits');
 

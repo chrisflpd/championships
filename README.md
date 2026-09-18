@@ -18,10 +18,12 @@ Every slot can be changed. Drag a match onto a free slot to move it, or onto
 another match to swap the two. Click a slot to say what is played in it and by
 whom, or to empty it.
 
-When every group and knockout ID for a sport shares the same first letter,
-the plan and Excel export omit that letter from knockout labels: `ps1`, `ps2`,
-`pf` become `s1`, `s2`, `f`. The actual IDs, references and score identities stay
-unchanged. Resolved knockout labels still show the teams and stage as before.
+A sport that carries an ID of its own (`Ποδόσφαιρο @p`) has that ID dropped from
+the plan and Excel labels of every group and knockout written under it: `ps1`,
+`ps2`, `pf` become `s1`, `s2`, `f`. A sport with no ID falls back to the letter
+its own group and knockout IDs all happen to share. The actual IDs, references
+and score identities stay unchanged. Resolved knockout labels still show the
+teams and stage as before.
 
 More than a match can be picked up: the number of a round and the name of a zone
 are handles, and dropping one on another puts the whole of the one where the
@@ -60,7 +62,9 @@ plan ends up holding.
 Nothing is refused for breaking a rule — a plan being put right by hand passes
 through states that do not hold — but a slot that breaks one is marked, and
 hovering it or opening it reads out what it breaks, one sentence to a bullet,
-under one of two headings.
+under one of two headings. A team named in either panel is named the way the
+configuration names it, by name and by ID: `Η Φωτοδότες (#3) παίζει ήδη στον ίδιο
+γύρο`.
 
 **Παραβίαση κανόνα**, in red, is a plan that cannot be played at all: a match on a
 field its sport is not played on, a team drawn against itself, a team in two
@@ -234,7 +238,10 @@ in text mode with an explanation; unfinished guided edits survive mode switches.
 The guide starts with the four camp sports and their historical courts, plus
 Πρωί and Απόγευμα. It includes a multi-date calendar with rounds per zone, bulk
 team entry and automatic IDs, round-robin or explicit-match groups, opponent
-selectors for knockouts, and a finals generator for 2, 4 or 8 qualifiers (with an
+selectors for knockouts — each side of a knockout is picked in two steps, the
+source it comes from (Θέση ομίλου, Προηγούμενος αγώνας, Καλύτερος χαμένος
+κατασκήνωσης, Συγκεκριμένη ομάδα) and then which one of that source — and a
+finals generator for 2, 4 or 8 qualifiers (with an
 optional third-place match). The generator can take one group or cross two groups
 of the same sport: two qualifiers from each group pair first against second and
 second against first, then feed the winners into the final. The first round is
@@ -242,7 +249,8 @@ previewed before creation. Calendar days can be selected or removed by dragging
 across a range; the month picker includes a scrollable year list and direct year
 entry. Tie-breakers use the same Greek labels as the points
 tab and can be dragged or moved with arrow buttons independently per sport. Rules
-can be disabled and restored; the team ID fallback always remains last.
+can be disabled and restored; the final criterion always remains last, and is the
+camp's own choice (Επιλογή χρήστη) unless another one is picked.
 
 Edits update the underlying text. Save/load, backups, and shared links continue to
 use that format. Renaming sports or stage codes updates dependent references;
@@ -269,7 +277,9 @@ Detailed syntax is explained in the subsections below.
 
 ### sports
 
-A sport line contains the sport name (a single word), optionally followed by a points definition, optionally followed by a court list definition.
+A sport line contains the sport name (a single word), optionally followed by a sport ID, optionally followed by a points definition, optionally followed by a court list definition.
+
+A sport ID is an at sign (`@`) and a single word, as in `Ποδόσφαιρο @p`. It is what the guided editor writes, and what group and knockout codes are expected to begin with: a code written under it drops it from the labels the plan and the Excel export read. IDs are never renamed, referenced or exported by it. Sports with the same ID are not allowed.
 
 A points definition consists of three numbers joined by hyphens (`-`), giving what a win, a draw and a loss are worth.
 
@@ -290,6 +300,8 @@ Any sport name is accepted. If no points definition is provided, the sport keeps
 `Baseball: Old Soccer Court`
 
 `Handball 3-1-0: Old Soccer Court`
+
+`Soccer @p 3-1-0: Old Soccer Court`
 
 ### zones
 
@@ -392,11 +404,22 @@ A knockout line contains the knockout code, the sport name and two expressions d
 The knockout code is a single word. Knockouts with the same code are not allowed. A knockout code must also differ
 from every group code.
 
-An expression may take one of the following three forms:
+An expression may take one of the following four forms:
 
 + a single integer: The team with this index is selected.
 + a group code and an integer separated by a colon (`:`): The team with the corresponding ranking within the group is selected.
 + a knockout code and one of the uppercase letters `W` or `L`: Winner or loser of the corresponding knockout match is selected.
++ `bL` followed by an integer: The best loser of the whole camp is selected — `bL1` is the best of them, `bL2` the one after it.
+
+A team is a loser when no knockout of its sport asks for the place it holds in
+its group: if a knockout reads `pg1:1`, the first of `pg1` went through and
+everybody below it did not. All of those teams, whichever group they came out
+of, are put in one order under the tie-break criteria of their sport, and that
+order is what `bL1`, `bL2` and the rest read. Criteria that compare the matches
+between the tied teams are skipped between teams that never met, so in practice
+the order comes down to the points and to what the sport puts after them. The
+place is filled only once every group of that sport has been played out, exactly
+as a place inside a single group is.
 
 #### examples
 
@@ -436,7 +459,12 @@ following complete order by default after teams are tied on standings points:
 | `συνολική_διαφορά` | Total scores difference, across the group's matches |
 | `συνολικά_υπέρ` | Total scores for, across the group's matches |
 | `συνολικά_κατά` | Total fewer scores conceded, across the group's matches |
-| `id` | Smaller numeric team ID (automatically appended if omitted; must be last) |
+| `επιλογή_χρήστη` | The camp puts the tied teams in order itself, in a dialog |
+
+The last one is the final criterion: it separates whatever the criteria above it
+left level, so exactly one of them is written, and it is written last. The other
+two are `id`, the smaller numeric team ID, and `τυχαία`, a random order kept for
+that result.
 
 To change this order for a sport, list only that sport under `[tiebreakers]`.
 The sport name must match `[sports]`; sports omitted from this optional section
@@ -458,8 +486,10 @@ each smaller tied subgroup.
 contains unique final positions (1, 2, 3, 4), explains the deciding criteria on
 hover, and supplies group places to knockouts once the group is complete. The
 rules travel with saved championships, backups and links. Unknown or duplicate
-criteria and a non-final `id` are rejected. `id` is added automatically when
-omitted.
+criteria and a final criterion that is not last are rejected. `επιλογή_χρήστη` is
+added automatically when no final criterion is given: a place that nothing on the
+field decided is asked of the camp, in a dialog that sorts the tied teams, rather
+than given to the smaller ID. Write `id` last to keep the older behaviour.
 
 **Excel is unchanged:** it does not yet gain FRNK or these configurable
 tie-breakers, so its calculated rankings or qualification may differ from the

@@ -109,6 +109,9 @@ function says(key, what) {
 		wb_put(at(0, 0, 0, 'Γ2'), 'pg', 3, 5);
 	});
 	check(says(at(0, 0, 0, 'Γ2'), 'παίζει ήδη στον ίδιο γύρο'), 'a team twice in one round');
+	//the plan speaks in IDs as much as in names, so what is said about a team
+	//names both of them
+	check(says(at(0, 0, 0, 'Γ2'), 'Η Γ (#3) παίζει ήδη'), 'and names the team by ID as well as by name');
 
 	say('\n=== what is worth a second look ===');
 
@@ -138,11 +141,11 @@ function says(key, what) {
 		wb_put(at(0, 1, 0, 'Γ1'), 'pg', 3, 4);
 		wb_put(at(0, 1, 1, 'Γ2'), 'pg', 3, 5);
 	});
-	check(says(at(0, 1, 1, 'Γ2'), 'ξανά σε αυτήν τη ζώνη'), 'a team at one sport twice in a zone');
+	check(says(at(0, 1, 1, 'Γ2'), 'Η Γ (#3) παίζει Ποδόσφαιρο ξανά σε αυτήν τη ζώνη'), 'a team at one sport twice in a zone');
 
 	// the team of the camp's own, on the morning everybody arrives
 	laid(() => wb_put(at(0, 0, 0, 'Γ1'), 'pg', 1, 4));
-	check(says(at(0, 0, 0, 'Γ1'), 'ομάδα αγάπης'), 'the love team on the first morning');
+	check(says(at(0, 0, 0, 'Γ1'), 'ομάδα αγάπης (Α #1)'), 'the love team on the first morning');
 
 	// six teams leave room for two matches a round
 	laid(() => {

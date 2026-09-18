@@ -145,6 +145,13 @@ function wb_team_name(id) {
 	return team === null ? '' : team.name;
 }
 
+//a rule or a caution names a team the way the plan is read: the name, and the
+//ID the configuration, the groups and the knockouts all speak in
+function wb_team_label(id) {
+	const team = wb_team(id);
+	return team === null ? '' : `${team.name} (#${team.id})`;
+}
+
 function wb_sport(name) {
 	return config.sports.filter(sport => sport.name === name)[0] || null;
 }
@@ -346,6 +353,7 @@ function wb_legacy_signature() {
 function wb_signature() {
 	const side = union => union.type === 'fixed' ? ['fixed', union.team.id]
 		: union.type === 'group' ? ['group', union.group.id, union.rank]
+		: union.type === 'bestloser' ? ['bestloser', union.sport.name, union.rank]
 		: ['knockout', union.knockout.id, union.is_winner];
 	return 'v2:' + JSON.stringify({
 		sports: config.sports.map(s => [s.name, s.courts, s.points, tiebreak_order(s)]),
@@ -367,6 +375,7 @@ function wb_config_shape() {
 	const knockoutAt = Object.fromEntries(knockouts.map((knockout, index) => [knockout.id, index]));
 	const side = union => union.type === 'fixed' ? ['fixed', union.team.id]
 		: union.type === 'group' ? ['group', groupAt[union.group.id], union.rank]
+		: union.type === 'bestloser' ? ['bestloser', union.sport.name, union.rank]
 		: ['knockout', knockoutAt[union.knockout.id], union.is_winner];
 	return {
 		sports: config.sports.map(sport => [sport.name, [...sport.courts], sport.points, [...tiebreak_order(sport)]]),
@@ -836,7 +845,7 @@ function wb_complaints(key) {
 		const otherSides = wb_sides(other);
 		[otherSides.home, otherSides.away].forEach(id => {
 			if (id !== null && here.includes(id))
-				said.push(`Η ${wb_team_name(id)} παίζει ήδη στον ίδιο γύρο`);
+				said.push(`Η ${wb_team_label(id)} παίζει ήδη στον ίδιο γύρο`);
 		});
 	}
 	return said;
@@ -964,7 +973,7 @@ function wb_cautions(key) {
 		return [];
 	const at = wb_at_place(key);
 	const plan = wb_plan();
-	const name = id => wb_team_name(id);
+	const name = id => wb_team_label(id);
 	const both = () => `Η ${name(here[0])} και η ${name(here[1])}`;
 
 	const in_round = plan.filter(one => wb_round_id(one.key) === wb_round_id(key));
@@ -1001,7 +1010,7 @@ function wb_cautions(key) {
 		}));
 		const idle = config.teams.filter(team => !(team.id in played));
 		if (idle.length)
-			said.push(`Η ζώνη είναι γεμάτη, αλλά δεν παίζει σε αυτήν η ${idle.map(team => team.name).join(', η ')}`);
+			said.push(`Η ζώνη είναι γεμάτη, αλλά δεν παίζει σε αυτήν η ${idle.map(team => wb_team_label(team.id)).join(', η ')}`);
 	}
 
 	/* the day */
@@ -1029,7 +1038,7 @@ function wb_cautions(key) {
 	/* the arrival */
 
 	if (where.d === 0 && where.dz === 0 && config.teams.length > 0 && here.includes(config.teams[0].id))
-		said.push(`Η ομάδα αγάπης (${config.teams[0].name}) δεν έπρεπε να παίζει στη δεύτερη πρωινή ζώνη της πρώτης ημέρας`);
+		said.push(`Η ομάδα αγάπης (${config.teams[0].name} #${config.teams[0].id}) δεν έπρεπε να παίζει στη δεύτερη πρωινή ζώνη της πρώτης ημέρας`);
 
 	/* baseball */
 
@@ -1246,7 +1255,7 @@ function wb_request_user_tiebreak(group, tied, key, ids) {
 	const box = document.createElement('section'); box.className = 'ui-ask ui-tiebreak-dialog';
 	box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'ui-tiebreak-title');
 	const title = document.createElement('h2'); title.className = 'ui-ask-title'; title.id = 'ui-tiebreak-title'; title.textContent = 'Κατάταξη ισόβαθμων ομάδων';
-	const help = document.createElement('p'); help.className = 'ui-ask-body'; help.textContent = `Σύρετε τις ομάδες του ομίλου ${group.id} στη σειρά που θέλετε να προκριθούν.`;
+	const help = document.createElement('p'); help.className = 'ui-ask-body'; help.textContent = `Σύρετε τις ομάδες ${wb_ranking_of(group)} στη σειρά που θέλετε να προκριθούν.`;
 	const list = document.createElement('ol'); list.className = 'ui-tiebreak-list';
 	const close = () => { veil.remove(); box.remove(); wb_tiebreak_dialog = null; };
 	const draw = () => {
@@ -1284,9 +1293,16 @@ function wb_request_user_tiebreak(group, tied, key, ids) {
 	return true;
 }
 
-function wb_final_ranks(group, rows) {
+//what a ranking is a ranking of: a group of its own, or the whole of a sport
+//when the teams being put in order came out of different groups
+function wb_ranking_of(group) {
+	return group.label || `του ομίλου ${group.id}`;
+}
+
+function wb_final_ranks(group, rows, given_fixtures) {
 	const rules = tiebreak_order(group.sport);
-	const fixtures = wb_placed().filter(p => p.game.kn === null && p.game.id === group.id).map(p => p.game);
+	const fixtures = given_fixtures
+		|| wb_placed().filter(p => p.game.kn === null && p.game.id === group.id).map(p => p.game);
 	const complete = fixtures.length > 0 && fixtures.every(game => wb_played(game));
 	function finalOrder(tied, rule, path) {
 		const ids = tied.map(row => row.team.id).sort((a, b) => a - b);
@@ -1308,7 +1324,7 @@ function wb_final_ranks(group, rows) {
 			const names = tied.slice().sort((a, b) => a.team.id - b.team.id).map(row => `#${row.team.id} ${row.team.name}`).join(', ');
 			let answer = null;
 			try {
-				if (typeof prompt === 'function') answer = prompt(`Ισοβαθμία στον όμιλο ${group.id}.\nΓράψτε τα ID με τη σειρά κατάταξης, χωρισμένα με κόμμα.\n${names}`, ids.join(', '));
+				if (typeof prompt === 'function') answer = prompt(`Ισοβαθμία ${wb_ranking_of(group)}.\nΓράψτε τα ID με τη σειρά κατάταξης, χωρισμένα με κόμμα.\n${names}`, ids.join(', '));
 			} catch (error) { answer = null; }
 			const chosen = String(answer ?? '').split(',').map(value => Number(value.trim())).filter(Number.isInteger);
 			if (chosen.length === ids.length && chosen.every(id => ids.includes(id)) && new Set(chosen).size === ids.length) {
@@ -1393,6 +1409,75 @@ function wb_standings_of(group) {
 	return wb_standings_cache[group.id];
 }
 
+/*
+ * the teams the knockouts left behind, in order.
+ *
+ * a knockout takes a place of a group — pg1:1 says the first of pg1 goes
+ * through — so whoever holds a place no knockout asked for did not go through.
+ * the camp puts all of them, whichever group they came out of, in one order and
+ * calls the head of it the best loser: bL1 in the configuration, then bL2.
+ *
+ * they are ranked the way a group is ranked, under the sport's own criteria.
+ * the ones that read a mutual mini-table are skipped between teams that never
+ * met, which across groups is most of them, so in practice it comes down to the
+ * points and what the sport puts after them.
+ */
+function wb_sport_groups(sport) {
+	return Object.values(config.groups).filter(group => group.sport.name === sport.name);
+}
+
+function wb_qualified_ranks(group) {
+	const ranks = {};
+	Object.values(config.knockouts).forEach(kn => [kn.home, kn.away].forEach(union => {
+		if (union && union.type === 'group' && union.group.id === group.id)
+			ranks[union.rank] = true;
+	}));
+	return ranks;
+}
+
+let wb_best_loser_cache = null;
+
+function wb_best_losers(sport) {
+	if (wb_best_loser_cache === null)
+		wb_best_loser_cache = {};
+	if (sport.name in wb_best_loser_cache)
+		return wb_best_loser_cache[sport.name];
+	const groups = wb_sport_groups(sport);
+	const rows = [];
+	const fixtures = [];
+	groups.forEach(group => {
+		const qualified = wb_qualified_ranks(group);
+		wb_standings_of(group).forEach((row, index) => {
+			//the rows of a group are held and read again, so the ranking of the
+			//losers is worked out on copies of them and leaves the group alone
+			if (!((index + 1) in qualified))
+				rows.push({ ...row, group: group });
+		});
+		wb_placed().forEach(placed => {
+			if (placed.game.kn === null && placed.game.id === group.id)
+				fixtures.push(placed.game);
+		});
+	});
+	const ranked = rows.length
+		? wb_final_ranks({
+			id: `bL:${sport.name}`,
+			sport: sport,
+			label: `των ομίλων του ${sport.name}`,
+		}, rows, fixtures)
+		: [];
+	if (wb_best_loser_cache === null)
+		wb_best_loser_cache = {};
+	wb_best_loser_cache[sport.name] = ranked;
+	return ranked;
+}
+
+//a place among the losers is a place only once every group of the sport has
+//been played out, exactly as a place inside one group is
+function wb_sport_groups_complete(sport) {
+	const groups = wb_sport_groups(sport);
+	return groups.length > 0 && groups.every(group => wb_group_complete(group));
+}
+
 function wb_knockout_game(id) {
 	const found = wb_placed().filter(placed => placed.game.kn === id);
 	return found.length ? found[0].game : null;
@@ -1422,6 +1507,12 @@ function wb_side(union, seen) {
 		if (row === undefined || !wb_group_complete(union.group))
 			return null;
 		return row.team.id;
+	}
+	if (union.type === 'bestloser') {
+		if (!wb_sport_groups_complete(union.sport))
+			return null;
+		const row = wb_best_losers(union.sport)[union.rank - 1];
+		return row === undefined ? null : row.team.id;
 	}
 	if (union.type === 'knockout') {
 		const id = union.knockout.id;
@@ -1459,7 +1550,11 @@ function wb_knockout_stage(id) {
 	const consumers = Object.values(config.knockouts).filter(other =>
 		wb_union_uses(other.home, id) || wb_union_uses(other.away, id));
 	if (consumers.length === 0) {
-		const loser_match = [kn.home, kn.away].some(union => union && union.type === 'knockout' && !union.is_winner);
+		//a match nothing follows is the final, unless it is played by teams that
+		//did not come through: the losers of another knockout, or the ones the
+		//groups left behind
+		const loser_match = [kn.home, kn.away].some(union => union
+			&& ((union.type === 'knockout' && !union.is_winner) || union.type === 'bestloser'));
 		return loser_match ? 'b' : 'f';
 	}
 	const feeds_final = consumers.some(other => wb_knockout_stage(other.id) === 'f');
@@ -1471,6 +1566,12 @@ function wb_knockout_stage(id) {
 function wb_display_id(id) {
 	const owner = config.groups[id] || config.knockouts[id];
 	if (!owner) return id;
+	// A sport that says what its own ID is has said it: an ID written under that
+	// sport drops it, whatever the other groups and knockouts of the sport are
+	// called. Anything else falls through to the prefix the IDs share.
+	const sport_id = owner.sport.id;
+	if (sport_id && id.startsWith(sport_id) && id.length > sport_id.length)
+		return id.slice(sport_id.length);
 	const groups = Object.values(config.groups).filter(one => one.sport.name === owner.sport.name);
 	const knockouts = Object.values(config.knockouts).filter(one => one.sport.name === owner.sport.name);
 	const prefix = Array.from(id)[0];
@@ -1497,6 +1598,8 @@ function wb_side_label(union) {
 		return union.team.name;
 	if (union.type === 'group')
 		return `${union.rank}η θέση ομίλου ${union.group.id}`;
+	if (union.type === 'bestloser')
+		return `${union.rank}ος καλύτερος χαμένος`;
 	if (union.type === 'knockout')
 		return `${union.is_winner ? 'Νικητής' : 'Ηττημένος'} ${union.knockout.id}`;
 	return '';
@@ -1535,6 +1638,7 @@ function wb_sides(game) {
 //so it says when it starts and the held ones are dropped
 function wb_recount() {
 	wb_standings_cache = null;
+	wb_best_loser_cache = null;
 	wb_place_cache = null;
 	wb_plan_cache = null;
 }

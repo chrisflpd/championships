@@ -83,6 +83,8 @@
  * @property {?int} rank - if type === 'group'
  * @property {?knockout} knockout - if type === 'knockout'
  * @property {?boolean} is_winner - if type === 'knockout'
+ * @property {?sport} sport - if type === 'bestloser'
+ * @property {?int} rank - if type === 'bestloser', 1 is the best of them
  */
 
 /**
@@ -140,9 +142,14 @@ const TIEBREAK_CRITERIA = {
 
 const FINAL_TIEBREAKERS = Object.freeze(['id', 'τυχαία', 'επιλογή_χρήστη']);
 
+//the last criterion is the camp's own call rather than the smaller ID: a place
+//that nothing on the field decided is given by whoever is running the day
+const DEFAULT_FINAL_TIEBREAKER = 'επιλογή_χρήστη';
+
 const DEFAULT_TIEBREAK_ORDER = Object.freeze([
 	'μεταξύ_τους', 'μεταξύ_τους_διαφορά', 'μεταξύ_τους_υπέρ', 'μεταξύ_τους_κατά',
-	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά', 'id',
+	'συνολικές_νίκες', 'συνολική_διαφορά', 'συνολικά_υπέρ', 'συνολικά_κατά',
+	DEFAULT_FINAL_TIEBREAKER,
 ]);
 
 function tiebreak_order(sport) {

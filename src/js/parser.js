@@ -287,6 +287,19 @@ function parse_knockout_line(line) {
 				rank: group_rank,
 			};
 		}
+		//the best of the teams no knockout took, over the whole camp rather than
+		//one group of it: bL1 is the best of them, bL2 the one after it
+		ma = str.match(/^bL(\d+)$/i);
+		if (ma !== null) {
+			const rank = parseInt(ma[1]);
+			if (rank <= 0 || rank > config.teams.length)
+				throw new Error(`parse_knockout_line ${line}: not valid knockout ${ha}`);
+			return {
+				type: 'bestloser',
+				sport: knockout_sport,
+				rank: rank,
+			};
+		}
 		ma = str.match(/^([^\s:,]+):([WL])$/);
 		if (ma !== null) {
 			const knockout_id = ma[1];
@@ -328,7 +341,7 @@ function parse_tiebreak_line(line) {
 	const finals = rules.filter(rule => FINAL_TIEBREAKERS.includes(rule));
 	if (finals.length > 1 || (finals.length === 1 && rules.at(-1) !== finals[0]))
 		throw new Error(`Ισοβαθμίες (${name}): επιλέξτε ένα μόνο τελικό κριτήριο και τοποθετήστε το τελευταίο.`);
-	sport.tiebreakers = finals.length ? rules : rules.concat('id');
+	sport.tiebreakers = finals.length ? rules : rules.concat(DEFAULT_FINAL_TIEBREAKER);
 }
 
 /**

@@ -287,6 +287,13 @@ function isKnockoutFed(m) {
 	return (m.team_home && m.team_home.type === 'knockout') || (m.team_away && m.team_away.type === 'knockout');
 }
 
+//a knockout that takes a team from a group ranking, whether it names the group
+//itself or asks for the best of the teams the groups left behind. either way it
+//waits for the groups of its sport and for nothing else
+function isGroupSourced(side) {
+	return !!side && (side.type === 'group' || side.type === 'bestloser');
+}
+
 //the ids of the knockouts whose result this match waits for
 function feederKnockoutIds(m) {
 	let ids = [];
@@ -598,7 +605,7 @@ function ScheduleMatchesDefault(matches,days){
 							else if (days[d].dzones[dz].rounds[r].slots[s].match === null && matches[m].sport.courts.includes(days[d].dzones[dz].rounds[r].slots[s].court) && typeof (matches[m].team_home.name) === 'undefined' && typeof (matches[m].team_away.name) === 'undefined'){
 								//console.log(matches[m].id,matches[m].team_home.name,matches[m].team_away.name,matches[m].points,matches[m].sequence,'KN GAME')
 								let scheduled_k = false;
-								if (!isKnockoutFed(matches[m]) && (matches[m].team_home.type === 'group' || matches[m].team_away.type === 'group')){
+								if (!isKnockoutFed(matches[m]) && (isGroupSourced(matches[m].team_home) || isGroupSourced(matches[m].team_away))){
 									let group_finished = true;
 									
 									for (let mg=0; mg<matches.length; mg++){
@@ -772,7 +779,7 @@ function ScheduleMatchesDefault(matches,days){
 																	break;
 																}
 															}
-															if (days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home.type === 'group' || days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away.type === 'group'){
+															if (isGroupSourced(days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_home) || isGroupSourced(days[ddate].dzones[ddz].rounds[drr].slots[sdate].match.team_away)){
 																too_early = true;//this is a knockout type kn game indicating that is more special than a group type kn game, thus it must be placed later
 																break;
 															}
